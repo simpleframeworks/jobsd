@@ -1,2 +1,2 @@
-# QueueD
+# JobsD
 A distributed database backed job execution framework
