@@ -1,0 +1,77 @@
+package jobsd
+
+import (
+	"database/sql"
+	"fmt"
+	"testing"
+	"time"
+
+	"github.com/simpleframeworks/testc"
+)
+
+func TestJobRunQueue(test *testing.T) {
+	t := testc.New(test)
+
+	t.Given("a job run queue")
+	q := NewJobRunQueue()
+
+	t.Given("the queue has job runs")
+	for i := 9; i >= 0; i-- {
+		chr := JobRun{
+			Job:        fmt.Sprintf("%d", i),
+			NameActive: sql.NullString{Valid: true, String: fmt.Sprintf("%d", i)},
+			RunAt:      time.Now(),
+		}
+		q.Push(chr)
+	}
+
+	t.When("we pop the job runs off the queue")
+	runOrder := []string{}
+	for i := 0; i < 10; i++ {
+		topItem := q.Peek()
+		j := q.Pop()
+		t.Equal(topItem.Job, j.Job)
+		runOrder = append(runOrder, j.Job)
+	}
+
+	t.Then("the order of job runs should be sorted in chronological order")
+	t.ElementsMatch([]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}, runOrder)
+}
+
+func TestJobRunQueueUnique(test *testing.T) {
+
+	t := testc.New(test)
+
+	t.Given("a job run queue")
+	q := NewJobRunQueue()
+	now := time.Now()
+
+	t.Given("the queue has unique job runs")
+	for i := 0; i < 10; i++ {
+		chr := JobRun{
+			Job:        fmt.Sprintf("%d", i),
+			NameActive: sql.NullString{Valid: true, String: fmt.Sprintf("%d", i)},
+			RunAt:      now.Add(time.Second * time.Duration(i)),
+		}
+		q.Push(chr)
+	}
+
+	t.When("we add the same unique job runs to the queue")
+	for i := 0; i < 10; i++ {
+		chr := JobRun{
+			Job:        fmt.Sprintf("%d", i),
+			NameActive: sql.NullString{Valid: true, String: fmt.Sprintf("%d", i)},
+			RunAt:      now.Add(time.Second * time.Duration(i)),
+		}
+		q.Push(chr)
+	}
+
+	t.Then("the queue will automatically deduplicate the job runs")
+	items := []string{}
+	for q.Len() > 0 {
+		j := q.Pop()
+		items = append(items, j.Job)
+	}
+
+	t.ElementsMatch([]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}, items)
+}
