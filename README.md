@@ -1,13 +1,15 @@
 # JobsD
 A distributed and reliable database backed, job execution framework
 
+[![test status](https://github.com/simpleframeworks/jobsd/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/simpleframeworks/jobsd/actions)
+
 ### Download it
 
 ```
 go get -u github.com/simpleframeworks/jobsd
 ```
 
-## How does JobsD work? (in short)
+## How does it work? (in short)
 
 - A db table forms a queue.
 - Every job run has an associated db row. 
@@ -49,7 +51,7 @@ jd.CreateRun("Announce", "Simon").Schedule("OnTheMin").Run()
 The characteristics of a job is as follows:
 - Jobs are just funcs
 - Jobs must return an error
-- Jobs can have an number of params
+- Jobs can have a number of params
   - All job params must be serializable with [gob encoding](https://golang.org/pkg/encoding/gob/)
 - Across a cluster all jobs should be named the same and have the same implementation.
 - All jobs need to be registered before the instance `Up()` func is called
