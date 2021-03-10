@@ -206,7 +206,7 @@ func TestQueuedJobRunTimeoutRetry(test *testing.T) {
 	t.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, 10*retryTimeout)
+	t.WaitTimeout(&wait, 5*time.Second)
 
 	t.Then("the job should have run twice")
 	t.Equal(2, runNum)
