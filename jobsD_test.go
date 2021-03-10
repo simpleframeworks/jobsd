@@ -315,8 +315,8 @@ func TestJobsDScheduledJobRunRecurrent(test *testing.T) {
 	t.Equal(3, runNum)
 
 	timerFor3 := time.Duration(3 * timer)
-	t.Then("3 jobs should have run within " + timerFor3.String() + " with a tolerance of 150ms")
-	t.WithinDuration(finishTime, startTime.Add(timerFor3), time.Duration(150*time.Millisecond))
+	t.Then("3 jobs should have run within " + timerFor3.String() + " with a tolerance of 500ms")
+	t.WithinDuration(finishTime, startTime.Add(timerFor3), time.Duration(500*time.Millisecond))
 
 	t.NoError(jd.Down())
 }
