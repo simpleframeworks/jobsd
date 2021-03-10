@@ -368,8 +368,8 @@ func TestJobsDScheduledJobRunMulti(test *testing.T) {
 	t.Equal(20, runNum)
 
 	expectedRunTime := 2 * timer
-	t.Then("the jobs should have run within " + expectedRunTime.String() + " with a tolerance of 150ms")
-	t.WithinDuration(finishTime, startTime.Add(expectedRunTime), time.Duration(150*time.Millisecond))
+	t.Then("the jobs should have run within " + expectedRunTime.String() + " with a tolerance of 300ms")
+	t.WithinDuration(finishTime, startTime.Add(expectedRunTime), time.Duration(300*time.Millisecond))
 
 	t.NoError(jd.Down())
 }
