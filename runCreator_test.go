@@ -229,5 +229,5 @@ func TestRunScheduleCreatorRunAfter(test *testing.T) {
 	t.Equal(1, runNum)
 
 	t.Then("the job run should run after the specified delay of " + delay.String())
-	t.WithinDuration(startTime.Add(delay).Add(interval), runTime, 100*time.Millisecond)
+	t.WithinDuration(startTime.Add(delay).Add(interval), runTime, 200*time.Millisecond)
 }
