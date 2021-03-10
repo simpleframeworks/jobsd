@@ -7,6 +7,15 @@ A distributed and reliable database backed, job execution framework
 go get -u github.com/simpleframeworks/jobsd
 ```
 
+## How does JobsD work? (in short)
+
+- A db table forms a queue.
+- Every job run has an associated db row. 
+- Instances in a cluster compete to acquire and run the job (without locking).
+- A worker pool runs acquired jobs.
+- New reoccurring job runs (rows) are created after a job run is complete. 
+- The db queue and the local JobsD instance queue are periodically synchronized.
+
 ## Quick Example
 
 Announce the time every minute on the minute.
