@@ -314,7 +314,7 @@ func TestJobsDScheduledJobRunRecurrent(test *testing.T) {
 	<-time.After(500 * time.Millisecond)
 	t.Equal(3, runNum)
 
-	timerFor3 := time.Duration(2 * timer) //There are only two scheduled wait periods 1-2 and 2-3
+	timerFor3 := time.Duration(3 * timer)
 	t.Then("3 jobs should have run within " + timerFor3.String() + " with a tolerance of 150ms")
 	t.WithinDuration(finishTime, startTime.Add(timerFor3), time.Duration(150*time.Millisecond))
 
@@ -367,8 +367,9 @@ func TestJobsDScheduledJobRunMulti(test *testing.T) {
 	finishTime := time.Now()
 	t.Equal(20, runNum)
 
-	t.Then("the jobs should have run within " + timer.String() + " with a tolerance of 150ms")
-	t.WithinDuration(finishTime, startTime.Add(timer), time.Duration(150*time.Millisecond))
+	expectedRunTime := 2 * timer
+	t.Then("the jobs should have run within " + expectedRunTime.String() + " with a tolerance of 150ms")
+	t.WithinDuration(finishTime, startTime.Add(expectedRunTime), time.Duration(150*time.Millisecond))
 
 	t.NoError(jd.Down())
 }

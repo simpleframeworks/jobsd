@@ -240,6 +240,13 @@ func (j *JobRun) run(jobsd *JobsD) (int64, error) {
 	}
 
 	j.RunAt = time.Now().Add(j.Delay)
+	if j.needsScheduling() {
+		schedule, exists := jobsd.schedules[j.Schedule.String]
+		if !exists {
+			return 0, errors.New("cannot schedule job run, schedule does not exist")
+		}
+		j.RunAt = schedule(j.RunAt)
+	}
 
 	err := j.insertGet(jobsd.db)
 	if err != nil {

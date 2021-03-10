@@ -158,14 +158,14 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 	}
 
 	t.When("we run the same unique job run on each of the instances in the cluster")
-	wait.Add(2) //we only expect it to run once
+	wait.Add(2) //we only expect it to run twice
 	for _, qInst := range qdInstances {
 		_, err := qInst.CreateRun("jobName").Schedule("scheduleName").Unique("UniqueJobName").Limit(2).Run()
 		t.NoError(err)
 	}
 
 	t.When("we wait until it finishes")
-	t.WaitTimeout(&wait, 5*runTime)
+	t.WaitTimeout(&wait, 3*time.Second)
 
 	t.Then("the job should have run twice")
 	t.Equal(2, runCounter)
@@ -202,10 +202,10 @@ func TestRunScheduleCreatorRunAfter(test *testing.T) {
 		return nil
 	}
 
-	timer := 200 * time.Millisecond
-	t.Given("a Schedule that runs every " + timer.String())
+	interval := 200 * time.Millisecond
+	t.Given("a Schedule that runs every " + interval.String())
 	scheduleFunc := func(now time.Time) time.Time {
-		return now.Add(timer)
+		return now.Add(interval)
 	}
 
 	t.Given("we register the job to the JobsD instance")
@@ -229,5 +229,5 @@ func TestRunScheduleCreatorRunAfter(test *testing.T) {
 	t.Equal(1, runNum)
 
 	t.Then("the job run should run after the specified delay of " + delay.String())
-	t.WithinDuration(startTime.Add(delay), runTime, 50*time.Millisecond)
+	t.WithinDuration(startTime.Add(delay).Add(interval), runTime, 50*time.Millisecond)
 }
