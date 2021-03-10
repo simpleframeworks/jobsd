@@ -9,7 +9,7 @@ go get -u github.com/simpleframeworks/jobsd
 
 ## Quick Example
 
-Announce the time every hour on the hour.
+Announce the time every minute on the minute.
 
 ```go
 
@@ -33,3 +33,152 @@ jd.CreateRun("Announce", "Simon").Schedule("OnTheMin").Run()
 
 ```
 
+## Basic Usage
+
+### Creating jobs
+
+The characteristics of a job is as follows:
+- Jobs are just funcs
+- Jobs must return an error
+- Jobs can have an number of params
+  - All job params must be serializable with [gob encoding](https://golang.org/pkg/encoding/gob/)
+- Across a cluster all jobs should be named the same and have the same implementation.
+- All jobs need to be registered before the instance `Up()` func is called
+
+
+Examples of jobs:
+```go
+jobFunc1 := func() error {
+  //DO SOME STUFF
+  return nil
+}
+
+jobFunc2 := func(name string, age int) error {
+  //DO SOME STUFF
+  return nil
+}
+
+jd.RegisterJob("job1", jobFunc1)
+jd.RegisterJob("job2", jobFunc2)
+```
+
+### Creating Schedules
+
+A schedule is a simple function that takes in the current time and returns the next scheduled time.
+
+- Schedules must be registered before the `Up()` func is called
+
+Examples:
+```go
+afterASecond := func(now time.Time) time.Time {
+  return now.Add(time.Second)
+}
+
+onTheMin := func(now time.Time) time.Time {
+  return time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute()+1, 0, 0, now.Location())
+})
+
+onTheHour := func(now time.Time) time.Time {
+  return time.Date(now.Year(), now.Month(), now.Day(), now.Hour()+1, 0, 0, 0, now.Location())
+})
+
+jd.RegisterSchedule("afterASecond", afterASecond)
+jd.RegisterSchedule("onTheMin", onTheMin)
+jd.RegisterSchedule("onTheHour", onTheHour)
+
+```
+
+
+
+### Running jobs
+
+Example
+```go
+jobFunc := func(txt string) error {
+  fmt.Printf("Hello %s!", txt)
+  return nil
+}
+scheduleFunc := func(now time.Time) time.Time {
+  return now.Add(time.Second)
+}
+
+jd := New(db)
+
+jd.RegisterJob("job1", jobFunc)
+
+jd.RegisterSchedule("schedule1", scheduleFunc)
+
+jd.Up()
+
+jd.CreateRun("job1", "World A").Run() // Run job1 once immediately
+jd.CreateRun("job1", "World B").RunDelayed(time.Second) // Run job1 once after one second
+
+jd.CreateRun("job1", "World C").Schedule("schedule1").Limit(2).Run() // Run job1 every second twice
+jd.CreateRun("job1", "World D").Schedule("schedule1").Limit(2).RunDelayed(time.Second) // Schedule job1 to run after one second twice
+
+// Runs only one "GlobalUniqueJob1" at a time, across a cluster of JobsD instances
+jd.CreateRun("job1", "World E").Unique("GlobalUniqueJob1").Run() 
+
+// Runs and schedules only one "GlobalUniqueJob2" at a time, across a cluster of JobsD instances
+jd.CreateRun("job1", "World F").Schedule("schedule1").Limit(2).Unique("GlobalUniqueJob2").Run() 
+
+<-time.After(time.Duration(5) * time.Second)
+jd.Down()
+```
+
+Getting the job run state:
+
+```go
+
+id, err := jd.CreateRun("job1", "World A").Run()
+checkError(err)
+
+runState := jd.GetJobRunState(id) // Get the run state of the job.
+
+spew.Dump(runState.OriginID)
+spew.Dump(runState.Name)
+spew.Dump(runState.RunCount)
+spew.Dump(runState.RunStartedAt)
+spew.Dump(runState.RunStartedBy)
+spew.Dump(runState.RunCompletedAt)
+spew.Dump(runState.RunCompletedError)
+spew.Dump(runState.RetriesOnErrorCount)
+spew.Dump(runState.RetriesOnTimeoutCount)
+spew.Dump(runState.Schedule)
+spew.Dump(runState.ClosedAt)
+spew.Dump(runState.ClosedBy)
+spew.Dump(runState.CreatedAt)
+spew.Dump(runState.CreatedBy)
+
+err = runState.Refresh() // Refreshes the run state.
+checkError(err)
+
+```
+
+## Advanced Usage
+
+```go
+
+jd := New(db)
+
+jd.WorkerNum(10) // Set the number of workers to run the jobs
+
+jd.JobPollInterval(10*time.Second) // The time between checks for new jobs across the cluster
+jd.JobPollLimit(100) // The number of jobs to retrieve across the cluster
+
+
+jd.JobRetryTimeout(30*time.Minute) // How long before retrying a job
+jd.JobRetryTimeoutCheck(3) // How many times to retry a job before giving up
+
+jd.JobRetryOnErrorLimit(3) // How many times to retry a job when an error is returned
+
+```
+
+### Logging
+
+A logger can be supplied. The logger must implement the [logc interface](https://github.com/simpleframeworks/logc)
+
+```go
+jd := New(db)
+jd.Logger(logger)
+```
