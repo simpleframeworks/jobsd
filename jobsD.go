@@ -26,8 +26,8 @@ type Instance struct {
 	JobPollLimit           int           // How many JobRuns to get during polling
 	JobRetryCheck          time.Duration // Time between checking job runs for timeout or error
 	JobRetryTimeout        time.Duration // Default job retry timeout
-	JobRetryOnTimeoutLimit int           // Default number of retries for a job after timeout
-	JobRetryOnErrorLimit   int           // Default number of retries for a job after error
+	JobRetryTimeoutLimitnt           // Default number of retries for a job after timeout
+	JobRetryErrorLimit int           // Default number of retries for a job after error
 	JobRuns                int           // Job runs started
 	JobRunsError           int           // Job runs that returned error
 	JobRunsRescheduled     int           // Job runs rescheduled after finishing
@@ -65,8 +65,8 @@ func (j *JobsD) RegisterJob(name string, jobFunc interface{}) *JobContainer {
 	jobC := &JobContainer{
 		jobFunc:             NewJobFunc(jobFunc),
 		retryTimeout:        j.Instance.JobRetryTimeout,
-		retryOnTimeoutLimit: j.Instance.JobRetryOnTimeoutLimit,
-		retryOnErrorLimit:   j.Instance.JobRetryOnErrorLimit,
+		retryOnTimeoutLimit: j.Instance.JobRetryTimeoutLimit
+		retryOnErrorLimit:   j.Instance.JobRetryErrorLimit
 	}
 
 	name = strings.ReplaceAll(name, ",", "")
@@ -455,12 +455,12 @@ func (j *JobsD) JobRetryTimeout(timeout time.Duration) *JobsD {
 	return j
 }
 
-// JobRetryOnTimeoutLimit sets default job retry on timeout limit
-func (j *JobsD) JobRetryOnTimeoutLimit(limit int) *JobsD {
+// JobRetryTimeoutLimitets default job retry on timeout limit
+func (j *JobsD) JobRetryTimeoutLimitimit int) *JobsD {
 	if j.started {
 		return j
 	}
-	j.Instance.JobRetryOnTimeoutLimit = limit
+	j.Instance.JobRetryTimeoutLimit limit
 	return j
 }
 
@@ -473,12 +473,12 @@ func (j *JobsD) JobRetryTimeoutCheck(interval time.Duration) *JobsD {
 	return j
 }
 
-// JobRetryOnErrorLimit sets default job retry on error limit
-func (j *JobsD) JobRetryOnErrorLimit(limit int) *JobsD {
+// JobRetryErrorLimitets default job retry on error limit
+func (j *JobsD) JobRetryErrorLimitimit int) *JobsD {
 	if j.started {
 		return j
 	}
-	j.Instance.JobRetryOnErrorLimit = limit
+	j.Instance.JobRetryErrorLimit limit
 	return j
 }
 
@@ -503,8 +503,8 @@ func New(db *gorm.DB) *JobsD {
 			JobPollLimit:           1000,
 			JobRetryTimeout:        time.Duration(time.Minute * 30),
 			JobRetryCheck:          time.Duration(time.Second * 30),
-			JobRetryOnTimeoutLimit: 3,
-			JobRetryOnErrorLimit:   3,
+			JobRetryTimeoutLimit3,
+			JobRetryErrorLimit  3,
 		},
 		jobs:      map[string]*JobContainer{},
 		schedules: map[string]ScheduleFunc{},

@@ -97,14 +97,14 @@ func (j *JobContainer) RetryTimeout(timeout time.Duration) *JobContainer {
 	return j
 }
 
-// RetryOnError set the job default number of retries on error
-func (j *JobContainer) RetryOnError(limit int) *JobContainer {
+// RetryErrorLimit set the job default number of retries on error
+func (j *JobContainer) RetryErrorLimit(limit int) *JobContainer {
 	j.retryOnErrorLimit = limit
 	return j
 }
 
-// RetryOnTimeout set the job default number of retries on timeout
-func (j *JobContainer) RetryOnTimeout(limit int) *JobContainer {
+// RetryTimeoutLimit set the job default number of retries on timeout
+func (j *JobContainer) RetryTimeoutLimit(limit int) *JobContainer {
 	j.retryOnTimeoutLimit = limit
 	return j
 }

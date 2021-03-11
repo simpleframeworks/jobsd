@@ -145,7 +145,7 @@ func TestQueuedJobRunErrRetry(test *testing.T) {
 	}
 
 	t.Given("we register the job and set it to retry on error once")
-	jd.RegisterJob("theJob", jobFunc).RetryOnError(1)
+	jd.RegisterJob("theJob", jobFunc).RetryErrorLimit(1)
 
 	t.When("we bring up the JobsD instance")
 	t.NoError(jd.Up())
@@ -195,7 +195,7 @@ func TestQueuedJobRunTimeoutRetry(test *testing.T) {
 	}
 
 	t.Given("we register the job and set it to retry once on a " + retryCheck.String() + " timeout")
-	jd.RegisterJob("theJob", jobFunc).RetryOnTimeout(1).RetryTimeout(retryTimeout)
+	jd.RegisterJob("theJob", jobFunc).RetryTimeoutLimit(1).RetryTimeout(retryTimeout)
 
 	t.When("we bring up the JobsD instance")
 	t.NoError(jd.Up())

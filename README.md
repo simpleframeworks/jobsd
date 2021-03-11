@@ -42,6 +42,11 @@ jd.Up() // Bring up the JobsD service
 // Create and schedule the job "Announce" to run "OnTheMin"
 jd.CreateRun("Announce", "Simon").Schedule("OnTheMin").Run()
 
+
+// .... DO STUFF and wait for sig kill
+
+jb.Down() // Shutdown the JobsD service instance, wait for running jobs to complete and tidy up
+
 ```
 
 ## Basic Usage
@@ -177,12 +182,33 @@ jd.WorkerNum(10) // Set the number of workers to run the jobs
 jd.JobPollInterval(10*time.Second) // The time between checks for new jobs across the cluster
 jd.JobPollLimit(100) // The number of jobs to retrieve across the cluster
 
+jd.JobRetryErrorLimit(3) // How many times to retry a job when an error is returned
 
+```
+
+### Timeouts
+
+Timeouts are mainly used to resurrect jobs after an instance crashes. If an instance crashes or is killed in a cluster, another instance will pickup the job after the timeout and run it.
+
+NB Timeouts will not kill running jobs, so its important to set timeouts as long as possible, otherwise the same job may run twice.
+
+**Timeouts instance defaults**
+```go
 jd.JobRetryTimeout(30*time.Minute) // How long before retrying a job
-jd.JobRetryTimeoutCheck(3) // How many times to retry a job before giving up
+jd.JobRetryTimeoutLimit(3) // How many retires to attempt before giving up
+jd.JobRetryTimeoutCheck(1*time.Minute) // Check for timeouts interval 
+```
 
-jd.JobRetryOnErrorLimit(3) // How many times to retry a job when an error is returned
+**Timeouts can be set on the Job**
+```go
+jd.RegisterJob("job1", jobFunc).RetryTimeout(10*time.Minute).RetryTimeoutLimit(2)
 
+```
+
+**TBA Timeouts can be set on a Job Run**
+```go
+// TBA
+// jd.CreateRun("job1", "World A").RetryTimeout(1*time.Minute).RetryTimeoutLimit(5)
 ```
 
 ### Logging
