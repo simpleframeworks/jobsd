@@ -49,6 +49,8 @@ jb.Down() // Shutdown the JobsD service instance, wait for running jobs to compl
 
 ```
 
+A runnable example can be found in the [examples](examples/minute) folder. Just run it `go run main.go`.
+
 ## Basic Usage
 
 ### Creating jobs
