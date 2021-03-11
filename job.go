@@ -17,33 +17,42 @@ type JobFunc struct {
 	jobFunc reflect.Value
 }
 
+var (
+	//ErrJobFuncNotFunc Job Func not a func
+	ErrJobFuncNotFunc = errors.New("jobFunc is not a func")
+	// ErrJobFuncNoErrRtn Job Func does not return an error
+	ErrJobFuncNoErrRtn = errors.New("jobFunc needs to return an error")
+	// ErrJobFuncArgsMismatch Calling Job Func args are mismatched
+	ErrJobFuncArgsMismatch = errors.New("jobFunc calling args mismatch")
+)
+
 // check throws an error if the func is not valid and the args don't match func args
 func (j *JobFunc) check(args []interface{}) error {
 	if j.jobFunc.Kind() != reflect.Func {
-		return errors.New("jobFunc is not a function")
+		return ErrJobFuncNotFunc
 	}
 
 	theType := j.jobFunc.Type()
 	// We expect 1 return value
 	if theType.NumOut() != 1 {
-		return errors.New("jobFunc needs to return one error")
+		return ErrJobFuncNoErrRtn
 	}
 
 	// We expect the return value is an error
 	errorInterface := reflect.TypeOf((*error)(nil)).Elem()
 	if !theType.Out(0).Implements(errorInterface) {
-		return errors.New("jobFunc return type needs to be an error")
+		return ErrJobFuncNoErrRtn
 	}
 
 	// We expect the number of jobFunc args matches
 	if theType.NumIn() != len(args) {
-		return errors.New("the number of args do not match the jobs args")
+		return ErrJobFuncArgsMismatch
 	}
 
 	// We expect the supplied args types are equal to the jobFuncs args
 	for i := 0; i < theType.NumIn(); i++ {
 		if reflect.ValueOf(args[i]).Kind() != theType.In(i).Kind() {
-			return errors.New("the arg(s) types do not match job args types")
+			return ErrJobFuncArgsMismatch
 		}
 	}
 
@@ -56,6 +65,7 @@ func (j *JobFunc) paramsCount() int {
 }
 
 // execute the JobFunc
+// we do simplier validation because the check func should have been run
 func (j *JobFunc) execute(params []interface{}) error {
 	if j.paramsCount() != len(params) {
 		return errors.New("func parameters mismatch")
