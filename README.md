@@ -104,9 +104,9 @@ jd.RegisterSchedule("onTheHour", onTheHour)
 
 ```
 
-
-
 ### Running jobs
+
+A **job run** is an instance of a job to be executed. A job must be registered first before creating a job run using `jd.CreateRun("job1", args...)`
 
 Example
 ```go
