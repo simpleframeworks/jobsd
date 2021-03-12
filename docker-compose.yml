@@ -1,0 +1,11 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:latest
+    ports:
+      - "5432:5432"
+    environment: 
+      POSTGRES_PASSWORD: jobsd
+      POSTGRES_USER: jobsd
+      POSTGRES_DB: jobsd
+  
