@@ -104,7 +104,7 @@ func (j *JobRun) complete(db *gorm.DB, instanceID int64, jobRunErr error) error 
 	return nil
 }
 
-// close the job run to so no retries or rescheduling can be done
+// close the job run so no retries or rescheduling can be done
 func (j *JobRun) close(db *gorm.DB, instanceID int64) error {
 	if j.ClosedAt.Valid || j.ClosedBy.Valid {
 		return nil
