@@ -133,7 +133,7 @@ func (j *JobRun) retryOnError(db *gorm.DB, instanceID int64) (*JobRun, error) {
 	}
 
 	// retry the job run if it produced an error
-	nextJobRun := j.CloneReset(instanceID)
+	nextJobRun := j.cloneReset(instanceID)
 	nextJobRun.RetriesOnErrorCount++
 
 	txErr := db.Transaction(func(tx *gorm.DB) error {
@@ -157,7 +157,7 @@ func (j *JobRun) retryOnTimeout(db *gorm.DB, instanceID int64) (*JobRun, error) 
 	}
 
 	// retry the job run if it produced an error
-	nextJobRun := j.CloneReset(instanceID)
+	nextJobRun := j.cloneReset(instanceID)
 	nextJobRun.RetriesOnTimeoutCount++
 
 	txErr := db.Transaction(func(tx *gorm.DB) error {
@@ -185,7 +185,7 @@ func (j *JobRun) reschedule(db *gorm.DB, instanceID int64, schedules map[string]
 		return nil, errors.New("cannot reschedule job run, schedule does not exist")
 	}
 
-	nextJobRun := j.CloneReset(instanceID)
+	nextJobRun := j.cloneReset(instanceID)
 	nextJobRun.RunAt = schedule(j.RunCompletedAt.Time)
 	nextJobRun.RetriesOnErrorCount = 0
 	nextJobRun.RetriesOnTimeoutCount = 0
@@ -261,8 +261,8 @@ func (j *JobRun) run(jobsd *JobsD) (int64, error) {
 	return j.ID, nil
 }
 
-// CloneReset clones JobRun and resets it for the next run
-func (j *JobRun) CloneReset(instanceID int64) *JobRun {
+// cloneReset clones the JobRun and resets it for the next run
+func (j *JobRun) cloneReset(instanceID int64) *JobRun {
 	return &JobRun{
 		OriginID:              j.ID,
 		Name:                  j.Name,
