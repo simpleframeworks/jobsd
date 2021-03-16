@@ -385,6 +385,8 @@ func (j *JobsD) Down() error {
 func (j *JobsD) CreateRun(job string, jobParams ...interface{}) *RunOnceCreator {
 	theUUID, err := uuid.NewUUID()
 	if err != nil {
+		// This only happens when the uuid lib cannot get the time.
+		// Since time is critical and this error is extremely rate we die here.
 		panic(err)
 	}
 
@@ -424,75 +426,67 @@ func (j *JobsD) GetJobRunState(id int64) *JobRunState {
 
 // WorkerNum sets the number of workers to process jobs
 func (j *JobsD) WorkerNum(workers int) *JobsD {
-	if j.started {
-		return j
+	if !j.started {
+		j.Instance.Workers = workers
 	}
-	j.Instance.Workers = workers
 	return j
 }
 
 // JobPollInterval sets the time between getting JobRuns from the DB
 func (j *JobsD) JobPollInterval(pollInt time.Duration) *JobsD {
-	if j.started {
-		return j
+	if !j.started {
+		j.Instance.JobPollInterval = pollInt
 	}
-	j.Instance.JobPollInterval = pollInt
 	return j
 }
 
 // JobPollLimit sets the number of upcoming JobRuns to retreive from the DB at a time
 func (j *JobsD) JobPollLimit(limit int) *JobsD {
-	if j.started {
-		return j
+	if !j.started {
+		j.Instance.JobPollLimit = limit
 	}
-	j.Instance.JobPollLimit = limit
 	return j
 }
 
 // JobRetryTimeout sets default job retry timeout
 func (j *JobsD) JobRetryTimeout(timeout time.Duration) *JobsD {
-	if j.started {
-		return j
+	if !j.started {
+		j.Instance.JobRetryTimeout = timeout
 	}
-	j.Instance.JobRetryTimeout = timeout
 	return j
 }
 
 // JobRetryTimeoutLimit default job retry on timeout limit
 func (j *JobsD) JobRetryTimeoutLimit(limit int) *JobsD {
-	if j.started {
-		return j
+	if !j.started {
+		j.Instance.JobRetryTimeoutLimit = limit
 	}
-	j.Instance.JobRetryTimeoutLimit = limit
 	return j
 }
 
 // JobRetryTimeoutCheck sets the time between retry timeout checks
 func (j *JobsD) JobRetryTimeoutCheck(interval time.Duration) *JobsD {
-	if j.started {
-		return j
+	if !j.started {
+		j.Instance.JobRetryCheck = interval
 	}
-	j.Instance.JobRetryCheck = interval
 	return j
 }
 
 // JobRetryErrorLimit default job retry on error limit
 func (j *JobsD) JobRetryErrorLimit(limit int) *JobsD {
-	if j.started {
-		return j
+	if !j.started {
+		j.Instance.JobRetryErrorLimit = limit
 	}
-	j.Instance.JobRetryErrorLimit = limit
 	return j
 }
 
 // Logger sets logrus logger
 func (j *JobsD) Logger(logger logc.Logger) *JobsD {
-	if j.started {
-		return j
+	if !j.started {
+		j.log = logger.WithFields(logrus.Fields{
+			"Service": "JobsD",
+		})
 	}
-	j.log = logger.WithFields(logrus.Fields{
-		"Service": "JobsD",
-	})
 	return j
 }
 
