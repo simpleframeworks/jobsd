@@ -96,12 +96,9 @@ func (j *JobRun) complete(db *gorm.DB, instanceID int64, jobRunErr error) error 
 		return tx.Error
 	}
 
-	tx = db.First(j, j.ID)
-	if tx.Error != nil {
-		return tx.Error
-	}
+	return db.First(j, j.ID).Error
+}
 
-	return nil
 }
 
 // close the job run so no retries or rescheduling can be done
