@@ -72,7 +72,7 @@ func (j *JobsD) RegisterJob(name string, jobFunc interface{}) *JobContainer {
 	name = strings.ReplaceAll(name, ",", "")
 	j.jobs[name] = jobC
 
-	names := []string{}
+	names := make([]string, len(j.jobs))
 	for n := range j.jobs {
 		names = append(names, n)
 	}
@@ -88,7 +88,7 @@ func (j *JobsD) RegisterSchedule(name string, scheduleFunc ScheduleFunc) {
 	name = strings.ReplaceAll(name, ",", "")
 	j.schedules[name] = scheduleFunc
 
-	names := []string{}
+	names := make([]string, len(j.jobs))
 	for n := range j.jobs {
 		names = append(names, n)
 	}
@@ -271,7 +271,8 @@ func (j *JobsD) jobFinish(jobRun JobRun) {
 	if retryErr != nil {
 		log.WithError(retryErr).Error("could not create job retry")
 		return
-	} else if retryJobRun != nil {
+	}
+	if retryJobRun != nil {
 		log.WithFields(logrus.Fields{
 			"JobRunRetriesOnErrorCount": retryJobRun.RetriesOnErrorCount,
 			"JobRunRetriesOnErrorLimit": retryJobRun.RetriesOnErrorLimit,
@@ -286,7 +287,8 @@ func (j *JobsD) jobFinish(jobRun JobRun) {
 	if rescheduleErr != nil {
 		log.WithError(rescheduleErr).Error("could not reschedule job")
 		return
-	} else if rescheduleJobRun != nil {
+	}
+	if rescheduleJobRun != nil {
 		j.Instance.JobRunsRescheduled++
 		j.addJobRun(*rescheduleJobRun)
 		return
@@ -325,7 +327,8 @@ func (j *JobsD) jobResurrector() {
 			if retryErr != nil {
 				log.WithError(retryErr).Error("could not create job resurrection timeout retry")
 				continue
-			} else if retryJobRun != nil {
+			}
+			if retryJobRun != nil {
 				log.WithFields(logrus.Fields{
 					"JobRun.RetriesOnTimeoutCount": retryJobRun.RetriesOnTimeoutCount,
 					"JobRun.RetriesOnTimeoutLimit": retryJobRun.RetriesOnTimeoutLimit,
