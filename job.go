@@ -147,5 +147,5 @@ func (p Args) Value() (driver.Value, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	enc.Encode(p)
-	return string(buf.Bytes()), nil
+	return buf.String(), nil
 }
