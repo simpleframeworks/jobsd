@@ -60,7 +60,7 @@ func TestJobFuncArgsMismatch(test *testing.T) {
 
 			t.Then("it should return the 'func args mismatch' error")
 			t.NotNil(err)
-			t.Equal(ErrJobFuncArgsMismatch, err)
+			t.ErrorIs(err, ErrJobFuncArgsMismatch)
 		}
 	}
 

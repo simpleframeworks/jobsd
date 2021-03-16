@@ -52,7 +52,7 @@ func (j *JobFunc) check(args []interface{}) error {
 	// We expect the supplied args types are equal to the jobFuncs args
 	for i := 0; i < theType.NumIn(); i++ {
 		if reflect.ValueOf(args[i]).Kind() != theType.In(i).Kind() {
-			return ErrJobFuncArgsMismatch
+			return fmt.Errorf("%w, arg %d is not a %s", ErrJobFuncArgsMismatch, i, theType.In(i).Kind().String())
 		}
 	}
 
