@@ -99,11 +99,14 @@ func (j *JobRun) complete(db *gorm.DB, instanceID int64, jobRunErr error) error 
 	return db.First(j, j.ID).Error
 }
 
+// hasClosed .
+func (j *JobRun) hasClosed() bool {
+	return j.ClosedAt.Valid || j.ClosedBy.Valid
 }
 
 // close the job run so no retries or rescheduling can be done
 func (j *JobRun) close(db *gorm.DB, instanceID int64) error {
-	if j.ClosedAt.Valid || j.ClosedBy.Valid {
+	if j.hasClosed() {
 		return nil
 	}
 	tx := db.Model(j).Where("closed_at IS NULL").Updates(map[string]interface{}{
