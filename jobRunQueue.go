@@ -23,14 +23,16 @@ func (pq *jobRunQueue) Push(x interface{}) {
 }
 
 func (pq *jobRunQueue) Pop() interface{} {
-	old := *pq
-	n := len(old)
-	x := old[n-1]
-	*pq = old[0 : n-1]
+	n := len(jobRunQueue(*pq))
+	x := jobRunQueue(*pq)[n-1]
+	*pq = jobRunQueue(*pq)[0 : n-1]
 	return x
 }
 
 func (pq *jobRunQueue) Peek() JobRun {
+	if pq.Len() <= 0 {
+		return JobRun{}
+	}
 	return (*pq)[0]
 }
 
@@ -59,6 +61,9 @@ func (q *JobRunQueue) Push(j JobRun) {
 func (q *JobRunQueue) Pop() JobRun {
 	q.mx.Lock()
 	defer q.mx.Unlock()
+	if q.Len() <= 0 {
+		return JobRun{}
+	}
 	rtn := heap.Pop(q.queue).(JobRun)
 	delete(q.dup, rtn.NameActive.String)
 	return rtn
@@ -71,8 +76,6 @@ func (q *JobRunQueue) Peek() JobRun {
 
 // Len .
 func (q *JobRunQueue) Len() int {
-	q.mx.Lock()
-	defer q.mx.Unlock()
 	return q.queue.Len()
 }
 
