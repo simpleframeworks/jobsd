@@ -71,6 +71,9 @@ func (q *JobRunQueue) Pop() JobRun {
 
 // Peek .
 func (q *JobRunQueue) Peek() JobRun {
+	if q.Len() <= 0 {
+		return JobRun{}
+	}
 	return q.queue.Peek()
 }
 
