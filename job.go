@@ -6,6 +6,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -133,7 +134,7 @@ func (p *Args) Scan(value interface{}) error {
 	if !ok {
 		return errors.New(fmt.Sprint("failed to unmarshal params value:", value))
 	}
-	r := bytes.NewReader([]byte(data))
+	r := strings.NewReader(data)
 	dec := gob.NewDecoder(r)
 	return dec.Decode(p)
 }
