@@ -104,6 +104,38 @@ func (j *JobRun) hasClosed() bool {
 	return j.ClosedAt.Valid || j.ClosedBy.Valid
 }
 
+func (j *JobRun) hasCompleted() bool {
+	return j.RunCompletedAt.Valid
+}
+
+func (j *JobRun) hasCompletedOk() bool {
+	return j.hasCompleted() && !j.RunCompletedError.Valid
+}
+
+func (j *JobRun) hasCompletedWithError() bool {
+	return j.hasCompleted() && j.RunCompletedError.Valid
+}
+
+func (j *JobRun) hasReachedErrorLimit() bool {
+	return j.RetriesOnErrorCount >= j.RetriesOnErrorLimit
+}
+
+func (j *JobRun) hasReachedTimeoutLimit() bool {
+	return j.RetriesOnTimeoutCount >= j.RetriesOnTimeoutLimit
+}
+
+func (j *JobRun) needsScheduling() bool {
+	return j.Schedule.Valid && (!j.RunLimit.Valid || j.RunLimit.Int64 > int64(j.RunCount))
+}
+
+func (j *JobRun) resetErrorRetries() {
+	j.RetriesOnErrorCount = 0
+}
+
+func (j *JobRun) resetTimeoutRetries() {
+	j.RetriesOnTimeoutCount = 0
+}
+
 // close the job run so no retries or rescheduling can be done
 func (j *JobRun) close(db *gorm.DB, instanceID int64) error {
 	if j.hasClosed() {
@@ -123,12 +155,7 @@ func (j *JobRun) close(db *gorm.DB, instanceID int64) error {
 // retryOnError does that
 func (j *JobRun) retryOnError(db *gorm.DB, instanceID int64) (*JobRun, error) {
 
-	// nothing should happend if the job run has not completed or has closed
-	if !j.RunCompletedAt.Valid || j.ClosedAt.Valid || j.ClosedBy.Valid {
-		return nil, nil
-	}
-	// nothing should happend if the job run completed without error and has reached its retry limit
-	if !j.RunCompletedError.Valid || j.RetriesOnErrorCount >= j.RetriesOnErrorLimit {
+	if j.hasClosed() || j.hasCompletedOk() || j.hasReachedErrorLimit() {
 		return nil, nil
 	}
 
@@ -148,11 +175,7 @@ func (j *JobRun) retryOnError(db *gorm.DB, instanceID int64) (*JobRun, error) {
 // retryOnTimeout does that
 func (j *JobRun) retryOnTimeout(db *gorm.DB, instanceID int64) (*JobRun, error) {
 
-	// nothing should happend if the job run has completed or has closed
-	if j.ClosedAt.Valid || j.ClosedBy.Valid {
-		return nil, nil
-	}
-	if j.RunCompletedAt.Valid || j.RetriesOnTimeoutCount >= j.RetriesOnTimeoutLimit {
+	if j.hasClosed() || j.hasCompleted() || j.hasReachedTimeoutLimit() {
 		return nil, nil
 	}
 
@@ -172,11 +195,7 @@ func (j *JobRun) retryOnTimeout(db *gorm.DB, instanceID int64) (*JobRun, error) 
 // reschedule the job run
 func (j *JobRun) reschedule(db *gorm.DB, instanceID int64, schedules map[string]ScheduleFunc) (*JobRun, error) {
 
-	// nothing should happend if the job run does not need scheduling or has closed
-	if j.ClosedAt.Valid || j.ClosedBy.Valid {
-		return nil, nil
-	}
-	if !j.needsScheduling() {
+	if j.hasClosed() || !j.needsScheduling() {
 		return nil, nil
 	}
 
@@ -187,8 +206,8 @@ func (j *JobRun) reschedule(db *gorm.DB, instanceID int64, schedules map[string]
 
 	nextJobRun := j.cloneReset(instanceID)
 	nextJobRun.RunAt = schedule(j.RunCompletedAt.Time)
-	nextJobRun.RetriesOnErrorCount = 0
-	nextJobRun.RetriesOnTimeoutCount = 0
+	nextJobRun.resetErrorRetries()
+	nextJobRun.resetTimeoutRetries()
 
 	txErr := db.Transaction(func(tx *gorm.DB) error {
 		if err := j.close(tx, instanceID); err != nil {
@@ -197,10 +216,6 @@ func (j *JobRun) reschedule(db *gorm.DB, instanceID int64, schedules map[string]
 		return nextJobRun.insertGet(tx)
 	})
 	return nextJobRun, txErr
-}
-
-func (j *JobRun) needsScheduling() bool {
-	return j.Schedule.Valid && (!j.RunLimit.Valid || j.RunLimit.Int64 > int64(j.RunCount))
 }
 
 func (j *JobRun) check(
@@ -226,14 +241,6 @@ func (j *JobRun) check(
 	return nil
 }
 
-func (j *JobRun) logger(logger logc.Logger) logc.Logger {
-	return logger.WithFields(logrus.Fields{
-		"JobRun.ID":   j.ID,
-		"JobRun.Name": j.Name.String,
-		"JobRun.Job":  j.Job,
-	})
-}
-
 func (j *JobRun) run(jobsd *JobsD) (int64, error) {
 	if err := j.check(jobsd.jobs, jobsd.schedules); err != nil {
 		return 0, err
@@ -241,11 +248,8 @@ func (j *JobRun) run(jobsd *JobsD) (int64, error) {
 
 	j.RunAt = time.Now().Add(j.Delay)
 	if j.needsScheduling() {
-		schedule, exists := jobsd.schedules[j.Schedule.String]
-		if !exists {
-			return 0, errors.New("cannot schedule job run, schedule does not exist")
-		}
-		j.RunAt = schedule(j.RunAt)
+		// schedule it
+		j.RunAt = jobsd.schedules[j.Schedule.String](j.RunAt)
 	}
 
 	err := j.insertGet(jobsd.db)
@@ -281,4 +285,12 @@ func (j *JobRun) cloneReset(instanceID int64) *JobRun {
 		CreatedAt:             time.Now(),
 		CreatedBy:             instanceID,
 	}
+}
+
+func (j *JobRun) logger(logger logc.Logger) logc.Logger {
+	return logger.WithFields(logrus.Fields{
+		"JobRun.ID":   j.ID,
+		"JobRun.Name": j.Name.String,
+		"JobRun.Job":  j.Job,
+	})
 }
