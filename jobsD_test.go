@@ -170,17 +170,18 @@ func TestQueuedJobRunErrRetry(test *testing.T) {
 func TestQueuedJobRunTimeoutRetry(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
+	logger := setupLogging(logrus.TraceLevel)
 	db := setupDB(logger)
 
 	retryCheck := 50 * time.Millisecond
-	retryTimeout := 150 * time.Millisecond
+	retryTimeout := 200 * time.Millisecond
+	firstJobRunTime := 1000 * time.Millisecond
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
 
 	t.Given("the instance checks for jobs that timeout every " + retryCheck.String())
-	jd.JobRetryTimeoutCheck(50 * time.Millisecond)
+	jd.JobRetryTimeoutCheck(retryCheck)
 
 	t.Given("a Job that times out on the first run")
 	wait := sync.WaitGroup{}
@@ -188,13 +189,13 @@ func TestQueuedJobRunTimeoutRetry(test *testing.T) {
 	jobFunc := func() error {
 		defer wait.Done()
 		if runNum == 0 {
-			<-time.After(2 * retryTimeout)
+			<-time.After(firstJobRunTime)
 		}
 		runNum++
 		return nil
 	}
 
-	t.Given("we register the job and set it to retry once on a " + retryCheck.String() + " timeout")
+	t.Given("we register the job and set it to retry once on a " + retryTimeout.String() + " timeout")
 	jd.RegisterJob("theJob", jobFunc).RetryTimeoutLimit(1).RetryTimeout(retryTimeout)
 
 	t.When("we bring up the JobsD instance")
