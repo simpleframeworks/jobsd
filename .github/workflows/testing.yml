@@ -1,4 +1,4 @@
-name: tests
+name: testing
 
 on:
   push:
@@ -11,8 +11,8 @@ jobs:
   sqlite:
     strategy:
       matrix:
-        go: ['1.16', '1.15', '1.14']
         platform: [ubuntu-latest, macos-latest]
+        go: ['1.16', '1.15', '1.14']
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -32,25 +32,26 @@ jobs:
   postgres:
     strategy:
       matrix:
-        dbversion: ['postgres:latest', 'postgres:11', 'postgres:10']
-        go: ['1.16', '1.15', '1.14']
         platform: [ubuntu-latest, macos-latest]
+        go: ['1.16', '1.15', '1.14']
+        dbversion: ['postgres:latest', 'postgres:11', 'postgres:10']
     runs-on: ${{ matrix.platform }}
-
-    postgres:
-      image: ${{ matrix.dbversion }}
-      env:
-        POSTGRES_PASSWORD: jobsd
-        POSTGRES_USER: jobsd
-        POSTGRES_DB: jobsd
-      ports:
-        - 5432:5432
-      # Set health checks to wait until postgres has started
-      options: >-
-        --health-cmd pg_isready
-        --health-interval 10s
-        --health-timeout 5s
-        --health-retries 5
+    
+    services:
+      postgres:
+        image: ${{ matrix.dbversion }}
+        env:
+          POSTGRES_PASSWORD: jobsd
+          POSTGRES_USER: jobsd
+          POSTGRES_DB: jobsd
+        ports:
+          - 25432:5432
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
     - uses: actions/checkout@v2
@@ -67,7 +68,7 @@ jobs:
       env:
         JOBSD_DB: postgres
         JOBSD_PG_HOST: localhost
-        JOBSD_PG_PORT: 5432
+        JOBSD_PG_PORT: 25432
         JOBSD_PG_PASSWORD: jobsd
         JOBSD_PG_USER: jobsd
         JOBSD_PG_DB: jobsd
