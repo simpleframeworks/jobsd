@@ -38,6 +38,11 @@ type Instance struct {
 	CreatedAt              time.Time
 }
 
+// TableName specifies the db table name
+func (Instance) TableName() string {
+	return "jobsd_instances"
+}
+
 // JobsD .
 type JobsD struct {
 	log                   logc.Logger

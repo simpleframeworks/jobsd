@@ -40,6 +40,11 @@ type JobRun struct {
 	CreatedBy             int64
 }
 
+// TableName specifies the db table name
+func (JobRun) TableName() string {
+	return "jobsd_runs"
+}
+
 // insertGet inserts the Job in the DB. If it already exists it retrieves it.
 func (j *JobRun) insertGet(db *gorm.DB) error {
 	if !j.NameActive.Valid {
