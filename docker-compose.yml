@@ -12,8 +12,6 @@ services:
     build:
       context: .
       dockerfile: docker/go116/dockerfile
-    depends_on:
-      - postgres
     volumes:
       - .:/app
     environment: 

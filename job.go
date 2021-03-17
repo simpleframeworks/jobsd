@@ -6,7 +6,6 @@ import (
 	"encoding/gob"
 	"fmt"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -125,16 +124,16 @@ type Args []interface{}
 
 // GormDataType .
 func (p Args) GormDataType() string {
-	return string(schema.String)
+	return string(schema.Bytes)
 }
 
 // Scan scan value into []
 func (p *Args) Scan(value interface{}) error {
-	data, ok := value.(string)
+	data, ok := value.([]byte)
 	if !ok {
 		return errors.New(fmt.Sprint("failed to unmarshal params value:", value))
 	}
-	r := strings.NewReader(data)
+	r := bytes.NewReader(data)
 	dec := gob.NewDecoder(r)
 	return dec.Decode(p)
 }
@@ -147,5 +146,5 @@ func (p Args) Value() (driver.Value, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	enc.Encode(p)
-	return buf.String(), nil
+	return buf.Bytes(), nil
 }
