@@ -3,7 +3,9 @@ package jobsd
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -11,6 +13,7 @@ import (
 	"github.com/simpleframeworks/logc"
 	"github.com/simpleframeworks/testc"
 	"github.com/sirupsen/logrus"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -28,6 +31,36 @@ func setupLogging(level logrus.Level) logc.Logger {
 }
 
 func setupDB(logger logc.Logger) *gorm.DB {
+	dbToUse := strings.ToLower(strings.TrimSpace(os.Getenv("JOBSD_DB")))
+
+	if dbToUse == "postgres" {
+		return setupPostgres(logger)
+	}
+
+	if dbToUse == "" || dbToUse == "sqllite" {
+		return setupSQLLite(logger)
+	}
+
+	return nil
+}
+
+func setupPostgres(logger logc.Logger) *gorm.DB {
+	host := os.Getenv("JOBSD_PG_HOST")
+	port := os.Getenv("JOBSD_PG_PORT")
+	password := os.Getenv("JOBSD_PG_PASSWORD")
+	user := os.Getenv("JOBSD_PG_USER")
+	dbname := os.Getenv("JOBSD_PG_DB")
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", host, user, password, dbname, port)
+
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logc.NewGormLogger(logger),
+	})
+	checkError(err)
+
+	return db
+}
+
+func setupSQLLite(logger logc.Logger) *gorm.DB {
 	db, err0 := gorm.Open(sqlite.Open("file::memory:"), &gorm.Config{
 		Logger: logc.NewGormLogger(logger),
 	})
@@ -504,44 +537,4 @@ func BenchmarkQueueJobRun(b *testing.B) {
 
 	err2 := jd.Down()
 	checkError(err2)
-}
-
-func TestJobsD_basic(test *testing.T) {
-
-	// t := testc.New(test)
-
-	// t.Given("a database connection")
-	// db, err0 := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	// t.NoError(err0)
-
-	/*
-		job1Func := func(txt string) error {
-			fmt.Printf("Hello %s!", txt)
-			return nil
-		}
-		schedule1Func := func(now time.Time) time.Time {
-			return now.Add(time.Second)
-		}
-
-		jd := New(db)
-
-		jd.AddJob("job1", job1Func)
-		jd.AddJob("job2", job1Func).Timeout(time.Duration(10)*time.Second)
-
-		jd.AddSchedule("schedule1", schedule1Func)
-
-		jd.Up()
-
-		jd.CreateRun("job1", "World A").Run()
-		jd.CreateRun("job1", "World B").RunDelayed(time.Second)
-		jd.CreateRun("job1", "World C").Unique("SharedUniqueJob").Run()
-
-		jd.CreateRun("job1", "World D").Schedule("schedule1").Limit(2).Run()
-		jd.CreateRun("job1", "World E").Schedule("schedule1").Limit(2).RunDelayed(time.Second)
-		jd.CreateRun("job1", "World F").Unique("SharedUniqueJob").Schedule("schedule1").Limit(2).Run()
-
-		<-time.After(time.Duration(3) * time.Second)
-		jd.Down()
-
-	*/
 }
