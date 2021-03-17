@@ -78,8 +78,10 @@ func (j *JobsD) RegisterJob(name string, jobFunc interface{}) *JobContainer {
 	j.jobs[name] = jobC
 
 	names := make([]string, len(j.jobs))
+	i := 0
 	for n := range j.jobs {
-		names = append(names, n)
+		names[i] = n
+		i++
 	}
 	j.Instance.SupportedJobs = strings.Join(names, ",")
 
@@ -93,11 +95,13 @@ func (j *JobsD) RegisterSchedule(name string, scheduleFunc ScheduleFunc) {
 	name = strings.ReplaceAll(name, ",", "")
 	j.schedules[name] = scheduleFunc
 
-	names := make([]string, len(j.jobs))
-	for n := range j.jobs {
-		names = append(names, n)
+	names := make([]string, len(j.schedules))
+	i := 0
+	for n := range j.schedules {
+		names[i] = n
+		i++
 	}
-	j.Instance.SupportedJobs = strings.Join(names, ",")
+	j.Instance.SupportedSchedules = strings.Join(names, ",")
 
 }
 
