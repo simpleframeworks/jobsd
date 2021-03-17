@@ -95,7 +95,7 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 	t.When("we bring up the JobsD instance")
 	t.NoError(qd.Up())
 
-	delay := 200 * time.Millisecond
+	delay := 500 * time.Millisecond
 	t.When("we run the job once after ")
 	startTime := time.Now()
 	wait.Add(1)
@@ -107,7 +107,7 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 	t.Equal(1, runNum)
 
 	t.Then("the job run should run after the specified delay of " + delay.String())
-	t.WithinDuration(startTime.Add(delay), runTime, 50*time.Millisecond)
+	t.WithinDuration(startTime.Add(delay), runTime, 100*time.Millisecond)
 }
 
 func TestRunScheduleCreatorUnique(test *testing.T) {

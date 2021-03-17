@@ -170,7 +170,7 @@ func TestQueuedJobRunErrRetry(test *testing.T) {
 func TestQueuedJobRunTimeoutRetry(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.TraceLevel)
+	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
 
 	retryCheck := 50 * time.Millisecond
