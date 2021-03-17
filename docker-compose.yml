@@ -3,9 +3,22 @@ services:
   postgres:
     image: postgres:latest
     ports:
-      - "5432:5432"
+      - "25432:5432"
     environment: 
       POSTGRES_PASSWORD: jobsd
       POSTGRES_USER: jobsd
       POSTGRES_DB: jobsd
-  
+  go116:
+    build:
+      context: .
+      dockerfile: docker/go116/dockerfile
+    depends_on:
+      - postgres
+    volumes:
+      - .:/app
+    environment: 
+      JOBSD_PG_HOST: postgres
+      JOBSD_PG_PORT: 5432
+      JOBSD_PG_PASSWORD: jobsd
+      JOBSD_PG_USER: jobsd
+      JOBSD_PG_DB: jobsd
