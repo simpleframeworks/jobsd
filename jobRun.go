@@ -101,7 +101,7 @@ func (j *JobRun) complete(db *gorm.DB, instanceID int64, jobRunErr error) error 
 
 // hasClosed .
 func (j *JobRun) hasClosed() bool {
-	return j.ClosedAt.Valid || j.ClosedBy.Valid
+	return j.ClosedAt.Valid && j.ClosedBy.Valid
 }
 
 func (j *JobRun) hasCompleted() bool {
@@ -155,7 +155,7 @@ func (j *JobRun) close(db *gorm.DB, instanceID int64) error {
 // retryOnError does that
 func (j *JobRun) retryOnError(db *gorm.DB, instanceID int64) (*JobRun, error) {
 
-	if j.hasClosed() || j.hasCompletedOk() || j.hasReachedErrorLimit() {
+	if j.hasClosed() || !j.hasCompletedWithError() || j.hasReachedErrorLimit() {
 		return nil, nil
 	}
 
@@ -179,7 +179,7 @@ func (j *JobRun) retryOnTimeout(db *gorm.DB, instanceID int64) (*JobRun, error) 
 		return nil, nil
 	}
 
-	// retry the job run if it produced an error
+	// retry the job run because it timed out
 	nextJobRun := j.cloneReset(instanceID)
 	nextJobRun.RetriesOnTimeoutCount++
 

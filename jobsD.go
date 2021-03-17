@@ -318,28 +318,29 @@ func (j *JobsD) jobResurrector() {
 
 		if len(jobRuns) > 0 {
 			j.log.WithField("count", len(jobRuns)).Debug("job runs for resurrection found")
-		}
 
-		for _, jobRun := range jobRuns {
-			log := jobRun.logger(j.log)
+			for _, jobRun := range jobRuns {
+				log := jobRun.logger(j.log)
 
-			retryJobRun, retryErr := jobRun.retryOnTimeout(j.db, j.Instance.ID)
-			if retryErr != nil {
-				log.WithError(retryErr).Error("could not create job resurrection timeout retry")
-				continue
+				retryJobRun, retryErr := jobRun.retryOnTimeout(j.db, j.Instance.ID)
+				if retryErr != nil {
+					log.WithError(retryErr).Error("could not create job resurrection timeout retry")
+					continue
+				}
+				if retryJobRun != nil {
+					log.WithFields(logrus.Fields{
+						"JobRun.RetriesOnTimeoutCount": retryJobRun.RetriesOnTimeoutCount,
+						"JobRun.RetriesOnTimeoutLimit": retryJobRun.RetriesOnTimeoutLimit,
+					}).Info("job run timeout retry has been queued")
+
+					j.Instance.JobRunsRequeuedTimeout++
+					j.addJobRun(*retryJobRun)
+					continue
+				}
+
+				j.jobFinish(jobRun)
 			}
-			if retryJobRun != nil {
-				log.WithFields(logrus.Fields{
-					"JobRun.RetriesOnTimeoutCount": retryJobRun.RetriesOnTimeoutCount,
-					"JobRun.RetriesOnTimeoutLimit": retryJobRun.RetriesOnTimeoutLimit,
-				}).Info("job run timeout retry has been queued")
 
-				j.Instance.JobRunsRequeuedTimeout++
-				j.addJobRun(*retryJobRun)
-				continue
-			}
-
-			j.jobFinish(jobRun)
 		}
 
 		j.Instance.LastSeenAt = sql.NullTime{Valid: true, Time: time.Now()}
