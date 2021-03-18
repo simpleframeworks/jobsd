@@ -263,7 +263,7 @@ func (j *JobsD) jobRunner() {
 
 			completeErr := jobRun.complete(j.db, j.Instance.ID, jobErr)
 			if completeErr != nil {
-				log.WithError(completeErr).Error("error ocurred while finishing job")
+				log.WithError(completeErr).Error("error occurred while finishing job")
 				return
 			}
 			j.jobFinish(jobRun)
@@ -451,7 +451,7 @@ func (j *JobsD) JobPollInterval(pollInt time.Duration) *JobsD {
 	return j
 }
 
-// JobPollLimit sets the number of upcoming JobRuns to retreive from the DB at a time
+// JobPollLimit sets the number of upcoming JobRuns to retrieve from the DB at a time
 func (j *JobsD) JobPollLimit(limit uint32) *JobsD {
 	if !j.started {
 		j.Instance.JobPollLimit = limit
