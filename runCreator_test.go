@@ -3,6 +3,7 @@ package jobsd
 import (
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -26,11 +27,11 @@ func TestRunOnceCreatorUnique(test *testing.T) {
 	runTime := 200 * time.Millisecond
 	t.Given("a job that increments a counter and takes " + runTime.String())
 	wait := sync.WaitGroup{}
-	runCounter := 0
+	var runCounter uint32
 	jobFunc := func() error {
 		defer wait.Done()
 		<-time.After(runTime)
-		runCounter++
+		atomic.AddUint32(&runCounter, 1)
 		return nil
 	}
 
@@ -55,14 +56,14 @@ func TestRunOnceCreatorUnique(test *testing.T) {
 	t.WaitTimeout(&wait, 5*runTime)
 
 	t.Then("the job should have run only once")
-	t.Equal(1, runCounter)
+	t.Equal(1, int(runCounter))
 
 	waitTime := 500 * time.Millisecond
 	t.When("we wait " + waitTime.String())
 	<-time.After(waitTime)
 
 	t.Then("the job should have still only run once")
-	t.Equal(1, runCounter)
+	t.Equal(1, int(runCounter))
 
 	for _, qInst := range qdInstances {
 		t.NoError(qInst.Down())
@@ -126,11 +127,11 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 	runTime := 200 * time.Millisecond
 	t.Given("a job that increments a counter and takes " + runTime.String())
 	wait := sync.WaitGroup{}
-	runCounter := 0
+	var runCounter uint32
 	jobFunc := func() error {
 		defer wait.Done()
 		<-time.After(runTime)
-		runCounter++
+		atomic.AddUint32(&runCounter, 1)
 		return nil
 	}
 
@@ -168,14 +169,14 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 	t.WaitTimeout(&wait, 3*time.Second)
 
 	t.Then("the job should have run twice")
-	t.Equal(2, runCounter)
+	t.Equal(2, int(runCounter))
 
 	waitTime := 500 * time.Millisecond
 	t.When("we wait " + waitTime.String())
 	<-time.After(waitTime)
 
 	t.Then("the job should have still only run twice")
-	t.Equal(2, runCounter)
+	t.Equal(2, int(runCounter))
 
 	for _, qInst := range qdInstances {
 		t.NoError(qInst.Down())
