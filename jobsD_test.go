@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -424,11 +425,11 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 	runTime := 150 * time.Millisecond
 	t.Given("a job that increments a counter and takes " + runTime.String())
 	wait := sync.WaitGroup{}
-	runCounter := 0
+	var runCounter uint32
 	jobFunc := func() error {
 		defer wait.Done()
 		<-time.After(runTime)
-		runCounter++
+		atomic.AddUint32(&runCounter, 1)
 		return nil
 	}
 
@@ -454,7 +455,7 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 
 	t.Then("the job should have run " + strconv.Itoa(runs) + " times")
 	t.WaitTimeout(&wait, 10*runTime)
-	t.Equal(runs, runCounter)
+	t.Equal(runs, int(runCounter))
 
 	t.Then("the job runs should have been distributed across the cluster and run")
 	nonLocalJobRuns := 0
