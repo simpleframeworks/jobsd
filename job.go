@@ -65,7 +65,7 @@ func (j *JobFunc) paramsCount() int {
 }
 
 // execute the JobFunc
-// we do simplier validation because the check func should have been run
+// we do simpler validation because the check func should have been run
 func (j *JobFunc) execute(params []interface{}) error {
 	if j.paramsCount() != len(params) {
 		return errors.New("func parameters mismatch")
