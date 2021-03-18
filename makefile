@@ -2,9 +2,14 @@
 
 test: test-sqlite test-postgres cleanup
 
+test-local:
+	@echo "Running SQLite tests - Started"
+	@go test -race -v ./...
+	@echo "Running SQLite tests - Completed"
+
 test-sqlite:
 	@echo "Running SQLite tests - Started"
-	@docker-compose run go116 go test -v ./...
+	@docker-compose run go116 go test -race -v ./...
 	@echo "Running SQLite tests - Completed"
 
 test-postgres:
