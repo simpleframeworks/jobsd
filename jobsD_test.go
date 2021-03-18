@@ -88,9 +88,9 @@ func TestJobsDJobRun(test *testing.T) {
 
 	t.Given("a Job that increments a counter")
 	wait := sync.WaitGroup{}
-	runNum := 0
+	var runCounter uint32
 	jobFunc := func() error {
-		runNum++
+		atomic.AddUint32(&runCounter, 1)
 		defer wait.Done()
 		return nil
 	}
@@ -109,7 +109,7 @@ func TestJobsDJobRun(test *testing.T) {
 
 	t.Then("the job should have run once")
 	t.WaitTimeout(&wait, 500*time.Millisecond)
-	t.Equal(1, runNum)
+	t.Equal(1, int(runCounter))
 
 	t.Then("the job run should have completed within 1 second")
 	t.WithinDuration(time.Now(), startTime, 1*time.Second)
@@ -127,9 +127,9 @@ func TestJobsDJobRunMulti(test *testing.T) {
 
 	t.Given("a Job that increments a counter")
 	wait := sync.WaitGroup{}
-	runNum := 0
+	var runCounter uint32
 	jobFunc := func() error {
-		runNum++
+		atomic.AddUint32(&runCounter, 1)
 		defer wait.Done()
 		return nil
 	}
@@ -150,7 +150,7 @@ func TestJobsDJobRunMulti(test *testing.T) {
 
 	t.Then("the job should have run 20 times")
 	t.WaitTimeout(&wait, 500*time.Millisecond)
-	t.Equal(20, runNum)
+	t.Equal(20, int(runCounter))
 
 	t.Then("the all job runs should have completed within 3 second")
 	t.WithinDuration(time.Now(), startTime, 3*time.Second)
@@ -168,13 +168,13 @@ func TestQueuedJobRunErrRetry(test *testing.T) {
 
 	t.Given("a Job that errors out on the first run")
 	wait := sync.WaitGroup{}
-	runNum := 0
+	var runCounter uint32
 	jobFunc := func(i int) (rtn error) {
 		defer wait.Done()
-		if runNum == 0 {
+		if runCounter == 0 {
 			rtn = errors.New("an error")
 		}
-		runNum++
+		atomic.AddUint32(&runCounter, 1)
 		return rtn
 	}
 
@@ -192,7 +192,7 @@ func TestQueuedJobRunErrRetry(test *testing.T) {
 
 	t.Then("the job should have run twice")
 	t.WaitTimeout(&wait, 500*time.Millisecond)
-	t.Equal(2, runNum)
+	t.Equal(2, int(runCounter))
 
 	t.Then("the job runs should have completed within 1 second")
 	t.WithinDuration(time.Now(), startTime, 1*time.Second)
@@ -219,13 +219,13 @@ func TestQueuedJobRunTimeoutRetry(test *testing.T) {
 
 	t.Given("a Job that times out on the first run")
 	wait := sync.WaitGroup{}
-	runNum := 0
+	var runCounter uint32
 	jobFunc := func() error {
 		defer wait.Done()
-		if runNum == 0 {
+		if atomic.LoadUint32(&runCounter) == 0 {
 			<-time.After(firstJobRunTime)
 		}
-		runNum++
+		atomic.AddUint32(&runCounter, 1)
 		return nil
 	}
 
@@ -244,7 +244,7 @@ func TestQueuedJobRunTimeoutRetry(test *testing.T) {
 	t.WaitTimeout(&wait, 5*time.Second)
 
 	t.Then("the job should have run twice")
-	t.Equal(2, runNum)
+	t.Equal(2, int(runCounter))
 
 	t.NoError(jd.Down())
 }
@@ -260,9 +260,9 @@ func TestJobsDScheduledJobRun(test *testing.T) {
 
 	t.Given("a Job that increments a counter")
 	wait := sync.WaitGroup{}
-	runNum := 0
+	var runCounter uint32
 	jobFunc := func() error {
-		runNum++
+		atomic.AddUint32(&runCounter, 1)
 		defer wait.Done()
 		return nil
 	}
@@ -297,7 +297,7 @@ func TestJobsDScheduledJobRun(test *testing.T) {
 
 	t.Then("the job should only run once even if we wait for another 500ms")
 	<-time.After(500 * time.Millisecond)
-	t.Equal(1, runNum)
+	t.Equal(1, int(runCounter))
 
 	t.NoError(jd.Down())
 }
@@ -313,9 +313,9 @@ func TestJobsDScheduledJobRunRecurrent(test *testing.T) {
 
 	t.Given("a Job that increments a counter")
 	wait := sync.WaitGroup{}
-	runNum := 0
+	var runCounter uint32
 	jobFunc := func() error {
-		runNum++
+		atomic.AddUint32(&runCounter, 1)
 		defer wait.Done()
 		return nil
 	}
@@ -347,7 +347,7 @@ func TestJobsDScheduledJobRunRecurrent(test *testing.T) {
 
 	t.Then("the job should only run three times even if we wait for another 500ms")
 	<-time.After(500 * time.Millisecond)
-	t.Equal(3, runNum)
+	t.Equal(3, int(runCounter))
 
 	timerFor3 := time.Duration(3 * timer)
 	t.Then("3 jobs should have run within " + timerFor3.String() + " with a tolerance of 500ms")
@@ -367,9 +367,9 @@ func TestJobsDScheduledJobRunMulti(test *testing.T) {
 
 	t.Given("a Job that increments a counter")
 	wait := sync.WaitGroup{}
-	runNum := 0
+	var runCounter uint32
 	jobFunc := func() error {
-		runNum++
+		atomic.AddUint32(&runCounter, 1)
 		defer wait.Done()
 		return nil
 	}
@@ -400,7 +400,7 @@ func TestJobsDScheduledJobRunMulti(test *testing.T) {
 	t.Then("the job should have run 20 times")
 	t.WaitTimeout(&wait, 2000*time.Millisecond)
 	finishTime := time.Now()
-	t.Equal(20, runNum)
+	t.Equal(20, int(runCounter))
 
 	expectedRunTime := 2 * timer
 	t.Then("the jobs should have run within " + expectedRunTime.String() + " with a tolerance of 300ms")
@@ -461,7 +461,7 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 	nonLocalJobRuns := 0
 	for _, runID := range runIDs {
 		theState := jdInstances[0].GetJobRunState(runID)
-		if theState.RunStartedBy != nil && *theState.RunStartedBy != jdInstances[0].Instance.ID {
+		if theState.RunStartedBy != nil && *theState.RunStartedBy != jdInstances[0].instance.ID {
 			nonLocalJobRuns++
 		}
 	}

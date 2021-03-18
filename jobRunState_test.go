@@ -52,7 +52,7 @@ func TestJobRunState(test *testing.T) {
 	t.Nil(theState.ClosedAt)
 	t.Nil(theState.ClosedBy)
 	t.WithinDuration(theState.CreatedAt, time.Now(), 100*time.Millisecond)
-	t.Equal(qd.Instance.ID, theState.CreatedBy)
+	t.Equal(qd.instance.ID, theState.CreatedBy)
 
 	createdAt := theState.CreatedAt
 
@@ -66,7 +66,7 @@ func TestJobRunState(test *testing.T) {
 	t.Then("the state should match a job run that is running")
 	t.Equal(0, int(theState.RunCount))
 	t.WithinDuration(*theState.RunStartedAt, time.Now(), 100*time.Millisecond)
-	t.Equal(qd.Instance.ID, *theState.RunStartedBy)
+	t.Equal(qd.instance.ID, *theState.RunStartedBy)
 	t.Nil(theState.RunCompletedAt)
 	t.Nil(theState.RunCompletedError)
 	t.Equal(0, int(theState.RetriesOnErrorCount))
@@ -75,7 +75,7 @@ func TestJobRunState(test *testing.T) {
 	t.Nil(theState.ClosedAt)
 	t.Nil(theState.ClosedBy)
 	t.Equal(theState.CreatedAt, createdAt)
-	t.Equal(qd.Instance.ID, theState.CreatedBy)
+	t.Equal(qd.instance.ID, theState.CreatedBy)
 
 	RunStartedAt := *theState.RunStartedAt
 
@@ -92,7 +92,7 @@ func TestJobRunState(test *testing.T) {
 	t.Then("the state should match a job run that has completed without error")
 	t.Equal(1, int(theState.RunCount))
 	t.Equal(*theState.RunStartedAt, RunStartedAt)
-	t.Equal(qd.Instance.ID, *theState.RunStartedBy)
+	t.Equal(qd.instance.ID, *theState.RunStartedBy)
 	t.NotNil(theState.RunCompletedAt)
 	t.WithinDuration(*theState.RunCompletedAt, time.Now(), 100*time.Millisecond)
 	t.Nil(theState.RunCompletedError)
@@ -102,8 +102,8 @@ func TestJobRunState(test *testing.T) {
 	t.NotNil(theState.ClosedAt)
 	t.WithinDuration(*theState.ClosedAt, time.Now(), 100*time.Millisecond)
 	t.NotNil(theState.ClosedBy)
-	t.Equal(qd.Instance.ID, *theState.ClosedBy)
+	t.Equal(qd.instance.ID, *theState.ClosedBy)
 	t.Equal(theState.CreatedAt, createdAt)
-	t.Equal(qd.Instance.ID, theState.CreatedBy)
+	t.Equal(qd.instance.ID, theState.CreatedBy)
 
 }
