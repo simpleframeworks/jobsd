@@ -61,7 +61,7 @@ func (q *JobRunQueue) Push(j JobRun) {
 func (q *JobRunQueue) Pop() JobRun {
 	q.mx.Lock()
 	defer q.mx.Unlock()
-	if q.Len() <= 0 {
+	if q.queue.Len() <= 0 {
 		return JobRun{}
 	}
 	rtn := heap.Pop(q.queue).(JobRun)
@@ -71,7 +71,9 @@ func (q *JobRunQueue) Pop() JobRun {
 
 // Peek .
 func (q *JobRunQueue) Peek() JobRun {
-	if q.Len() <= 0 {
+	q.mx.Lock()
+	defer q.mx.Unlock()
+	if q.queue.Len() <= 0 {
 		return JobRun{}
 	}
 	return q.queue.Peek()
@@ -79,6 +81,8 @@ func (q *JobRunQueue) Peek() JobRun {
 
 // Len .
 func (q *JobRunQueue) Len() int {
+	q.mx.Lock()
+	defer q.mx.Unlock()
 	return q.queue.Len()
 }
 
