@@ -46,7 +46,7 @@ func (Instance) TableName() string {
 // JobsD .
 type JobsD struct {
 	log                   logc.Logger
-	instance              *Instance
+	instance              Instance
 	instanceMu            sync.Mutex
 	started               bool
 	jobs                  map[string]*JobContainer
@@ -122,7 +122,7 @@ func (j *JobsD) Up() error {
 		}
 	}
 
-	if err := j.saveInstance(); err != nil {
+	if err := j.db.Save(&j.instance).Error; err != nil {
 		return err
 	}
 
@@ -144,6 +144,7 @@ func (j *JobsD) Up() error {
 	go j.jobResurrector()
 
 	for i := uint32(0); i < j.instance.Workers; i++ {
+
 		j.workertCxCancelWait.Add(1)
 		go j.jobRunner()
 	}
@@ -180,7 +181,7 @@ func (j *JobsD) jobLoader() {
 			}
 		}
 
-		err := j.saveInstance()
+		err := j.updateInstance()
 		if err != nil {
 			j.log.WithError(err).Warn("failed to update instance status")
 		}
@@ -245,7 +246,7 @@ func (j *JobsD) jobRunner() {
 				break // another instance is running it
 			}
 
-			log.Trace("running job - started")
+			log.WithField("JobID", jobRun.ID).Trace("running job - started")
 
 			// run the job
 			j.incJobRuns()
@@ -350,7 +351,7 @@ func (j *JobsD) jobResurrector() {
 			}
 		}
 
-		if err := j.saveInstance(); err != nil {
+		if err := j.updateInstance(); err != nil {
 			j.log.WithError(err).Warn("failed to update instance status")
 		}
 
@@ -396,12 +397,16 @@ func (j *JobsD) incJobRunsRequeuedTimeout() {
 	j.instance.JobRunsRequeuedTimeout++
 }
 
-func (j *JobsD) saveInstance() error {
+func (j *JobsD) updateInstance() error {
 	j.instanceMu.Lock()
 	defer j.instanceMu.Unlock()
+
 	j.instance.LastSeenAt = sql.NullTime{Valid: true, Time: time.Now()}
-	toSave := *j.instance
-	return j.db.Save(&toSave).Error
+
+	// To avoid a race we clone it to update
+	toSave := j.instance
+	err := j.db.Save(&toSave).Error
+	return err
 }
 
 // Down shutsdown the JobsD service instance
@@ -420,8 +425,7 @@ func (j *JobsD) Down() error {
 	j.started = false
 
 	j.instance.ShutdownAt = sql.NullTime{Valid: true, Time: time.Now()}
-	j.instance.LastSeenAt = j.instance.ShutdownAt
-	err := j.saveInstance()
+	err := j.updateInstance()
 
 	j.log.Debug("shuting down the JobsD service - completed")
 
@@ -541,7 +545,7 @@ func (j *JobsD) Logger(logger logc.Logger) *JobsD {
 func New(db *gorm.DB) *JobsD {
 
 	rtn := &JobsD{
-		instance: &Instance{
+		instance: Instance{
 			Workers:              10,
 			JobPollInterval:      time.Duration(time.Second * 5),
 			JobPollLimit:         1000,
