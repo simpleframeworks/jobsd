@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,20 +20,20 @@ type ScheduleFunc func(now time.Time) time.Time
 // Instance .
 type Instance struct {
 	ID                     int64 `gorm:"primaryKey"`
-	Workers                int
+	Workers                uint32
 	SupportedJobs          string
 	SupportedSchedules     string
 	JobPollInterval        time.Duration // When to poll the DB for JobRuns
-	JobPollLimit           int           // How many JobRuns to get during polling
+	JobPollLimit           uint32        // How many JobRuns to get during polling
 	JobRetryCheck          time.Duration // Time between checking job runs for timeout or error
 	JobRetryTimeout        time.Duration // Default job retry timeout
-	JobRetryTimeoutLimit   int           // Default number of retries for a job after timeout
-	JobRetryErrorLimit     int           // Default number of retries for a job after error
-	JobRuns                int           // Job runs started
-	JobRunsError           int           // Job runs that returned error
-	JobRunsRescheduled     int           // Job runs rescheduled after finishing
-	JobRunsRequeuedError   int           // Job runs requeued after error
-	JobRunsRequeuedTimeout int           // Job runs requeued after timeout
+	JobRetryTimeoutLimit   uint32        // Default number of retries for a job after timeout
+	JobRetryErrorLimit     uint32        // Default number of retries for a job after error
+	JobRuns                uint32        // Job runs started
+	JobRunsError           uint32        // Job runs that returned error
+	JobRunsRescheduled     uint32        // Job runs rescheduled after finishing
+	JobRunsRequeuedError   uint32        // Job runs requeued after error
+	JobRunsRequeuedTimeout uint32        // Job runs requeued after timeout
 	LastSeenAt             sql.NullTime  // Last time instance was alive
 	ShutdownAt             sql.NullTime
 	CreatedAt              time.Time
@@ -143,7 +144,7 @@ func (j *JobsD) Up() error {
 	go j.jobDelegator()
 	go j.jobResurrector()
 
-	for i := 0; i < j.Instance.Workers; i++ {
+	for i := uint32(0); i < j.Instance.Workers; i++ {
 		j.workertCxCancelWait.Add(1)
 		go j.jobRunner()
 	}
@@ -167,7 +168,7 @@ func (j *JobsD) jobLoader() {
 
 		jobRuns := []JobRun{}
 		tx := j.db.Where("run_started_by IS NULL").Order("run_at ASC").
-			Limit(j.Instance.JobPollLimit).Find(&jobRuns)
+			Limit(int(j.Instance.JobPollLimit)).Find(&jobRuns)
 		if tx.Error != nil {
 			j.log.WithError(tx.Error).Warn("failed to load job runs from DB")
 		}
@@ -249,14 +250,14 @@ func (j *JobsD) jobRunner() {
 			log.Trace("running job - started")
 
 			// run the job
-			j.Instance.JobRuns++
+			atomic.AddUint32(&j.Instance.JobRuns, 1)
 			jobContainer, ok := j.jobs[jobRun.Job]
 			if !ok {
 				log.WithField("JobName", jobRun.Job).Error("can not run job. job does not exists")
 			}
 			jobErr := jobContainer.jobFunc.execute(jobRun.JobArgs)
 			if jobErr != nil {
-				j.Instance.JobRunsError++
+				atomic.AddUint32(&j.Instance.JobRunsError, 1)
 				log.WithError(jobErr).Warn("job run finished with an error")
 			}
 
@@ -287,7 +288,7 @@ func (j *JobsD) jobFinish(jobRun JobRun) {
 			"JobRunRetriesOnErrorLimit": retryJobRun.RetriesOnErrorLimit,
 		}).Info("job run error retry has been queued")
 
-		j.Instance.JobRunsRequeuedError++
+		atomic.AddUint32(&j.Instance.JobRunsRequeuedError, 1)
 		j.addJobRun(*retryJobRun)
 		return
 	}
@@ -298,7 +299,7 @@ func (j *JobsD) jobFinish(jobRun JobRun) {
 		return
 	}
 	if rescheduleJobRun != nil {
-		j.Instance.JobRunsRescheduled++
+		atomic.AddUint32(&j.Instance.JobRunsRescheduled, 1)
 		j.addJobRun(*rescheduleJobRun)
 		return
 	}
@@ -323,7 +324,7 @@ func (j *JobsD) jobResurrector() {
 		j.db.Where(
 			"run_started_by IS NOT NULL AND closed_by IS NULL AND retry_timeout_at <= ?",
 			time.Now(),
-		).Limit(j.Instance.JobPollLimit).Find(&jobRuns)
+		).Limit(int(j.Instance.JobPollLimit)).Find(&jobRuns)
 
 		if len(jobRuns) > 0 {
 			j.log.WithField("count", len(jobRuns)).Debug("job runs for resurrection found")
@@ -435,7 +436,7 @@ func (j *JobsD) GetJobRunState(id int64) *JobRunState {
 }
 
 // WorkerNum sets the number of workers to process jobs
-func (j *JobsD) WorkerNum(workers int) *JobsD {
+func (j *JobsD) WorkerNum(workers uint32) *JobsD {
 	if !j.started {
 		j.Instance.Workers = workers
 	}
@@ -451,7 +452,7 @@ func (j *JobsD) JobPollInterval(pollInt time.Duration) *JobsD {
 }
 
 // JobPollLimit sets the number of upcoming JobRuns to retreive from the DB at a time
-func (j *JobsD) JobPollLimit(limit int) *JobsD {
+func (j *JobsD) JobPollLimit(limit uint32) *JobsD {
 	if !j.started {
 		j.Instance.JobPollLimit = limit
 	}
@@ -467,7 +468,7 @@ func (j *JobsD) JobRetryTimeout(timeout time.Duration) *JobsD {
 }
 
 // JobRetryTimeoutLimit default job retry on timeout limit
-func (j *JobsD) JobRetryTimeoutLimit(limit int) *JobsD {
+func (j *JobsD) JobRetryTimeoutLimit(limit uint32) *JobsD {
 	if !j.started {
 		j.Instance.JobRetryTimeoutLimit = limit
 	}
@@ -483,7 +484,7 @@ func (j *JobsD) JobRetryTimeoutCheck(interval time.Duration) *JobsD {
 }
 
 // JobRetryErrorLimit default job retry on error limit
-func (j *JobsD) JobRetryErrorLimit(limit int) *JobsD {
+func (j *JobsD) JobRetryErrorLimit(limit uint32) *JobsD {
 	if !j.started {
 		j.Instance.JobRetryErrorLimit = limit
 	}

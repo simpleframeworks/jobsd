@@ -11,13 +11,13 @@ type JobRunState struct {
 	db                    *gorm.DB
 	OriginID              int64
 	Name                  *string
-	RunCount              int
+	RunCount              uint32
 	RunStartedAt          *time.Time
 	RunStartedBy          *int64
 	RunCompletedAt        *time.Time
 	RunCompletedError     *string
-	RetriesOnErrorCount   int
-	RetriesOnTimeoutCount int
+	RetriesOnErrorCount   uint32
+	RetriesOnTimeoutCount uint32
 	Schedule              *string
 	ClosedAt              *time.Time
 	ClosedBy              *int64
