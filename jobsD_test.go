@@ -140,17 +140,18 @@ func TestJobsDJobRunMulti(test *testing.T) {
 	t.When("we bring up the JobsD instance")
 	t.NoError(jd.Up())
 
-	t.When("we run the job 20 times")
+	runNum := 20
+	t.Whenf("we run the job %d times", runNum)
 	startTime := time.Now()
-	for i := 0; i < 20; i++ {
+	for i := 0; i < runNum; i++ {
 		wait.Add(1)
 		_, errR := jd.CreateRun("theJob").Run()
 		t.NoError(errR)
 	}
 
-	t.Then("the job should have run 20 times")
-	t.WaitTimeout(&wait, 500*time.Millisecond)
-	t.Equal(20, int(runCounter))
+	t.Thenf("the job should have run %d times", runNum)
+	t.WaitTimeout(&wait, 5000*time.Millisecond)
+	t.Equal(runNum, int(runCounter))
 
 	t.Then("the all job runs should have completed within 3 second")
 	t.WithinDuration(time.Now(), startTime, 3*time.Second)
