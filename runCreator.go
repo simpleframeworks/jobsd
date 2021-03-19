@@ -10,12 +10,12 @@ import (
 // RunOnceCreator .
 type RunOnceCreator struct {
 	done   bool
-	queued *JobsD
+	jobsd  *JobsD
 	jobRun *JobRun
 }
 
 // Unique gives the run a unique name across the cluster.
-// i.e only one job with a unique name can be running or queued at the same time.
+// i.e only one job with a unique name can be running or jobsd at the same time.
 func (r *RunOnceCreator) Unique(name string) *RunOnceCreator {
 	if r.done {
 		return r
@@ -32,7 +32,7 @@ func (r *RunOnceCreator) Run() (int64, error) {
 		return 0, errors.New("run can only be called once")
 	}
 	r.done = true
-	return r.jobRun.run(r.queued)
+	return r.jobRun.run(r.jobsd)
 }
 
 // RunAfter the job
@@ -43,13 +43,13 @@ func (r *RunOnceCreator) RunAfter(delay time.Duration) (int64, error) {
 	}
 	r.jobRun.Delay = delay
 	r.done = true
-	return r.jobRun.run(r.queued)
+	return r.jobRun.run(r.jobsd)
 }
 
 // Schedule the job
 func (r *RunOnceCreator) Schedule(schedule string) *RunScheduleCreator {
 	rtn := &RunScheduleCreator{
-		queued: r.queued,
+		jobsd:  r.jobsd,
 		jobRun: r.jobRun,
 	}
 	rtn.jobRun.Schedule = sql.NullString{Valid: true, String: schedule}
@@ -60,12 +60,12 @@ func (r *RunOnceCreator) Schedule(schedule string) *RunScheduleCreator {
 // RunScheduleCreator .
 type RunScheduleCreator struct {
 	done   bool
-	queued *JobsD
+	jobsd  *JobsD
 	jobRun *JobRun
 }
 
 // Unique gives the run a unique name across the cluster.
-// i.e only one job with a unique name can be running or queued at the same time.
+// i.e only one job with a unique name can be running or jobsd at the same time.
 func (r *RunScheduleCreator) Unique(name string) *RunScheduleCreator {
 	if r.done {
 		return r
@@ -91,7 +91,7 @@ func (r *RunScheduleCreator) Run() (int64, error) {
 		return 0, errors.New("run already called")
 	}
 	r.done = true
-	return r.jobRun.run(r.queued)
+	return r.jobRun.run(r.jobsd)
 }
 
 // RunAfter the specified duration
@@ -102,5 +102,5 @@ func (r *RunScheduleCreator) RunAfter(delay time.Duration) (int64, error) {
 	}
 	r.jobRun.Delay = delay
 	r.done = true
-	return r.jobRun.run(r.queued)
+	return r.jobRun.run(r.jobsd)
 }

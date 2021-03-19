@@ -443,7 +443,7 @@ func (j *JobsD) CreateRun(job string, jobParams ...interface{}) *RunOnceCreator 
 
 	name := sql.NullString{Valid: true, String: theUUID.String()}
 	rtn := &RunOnceCreator{
-		queued: j,
+		jobsd: j,
 		jobRun: &JobRun{
 			Name:         name,
 			NameActive:   name,
