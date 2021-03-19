@@ -119,7 +119,7 @@ func TestJobsDJobRun(test *testing.T) {
 func TestJobsDJobRunMulti(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
+	logger := setupLogging(logrus.TraceLevel)
 	db := setupDB(logger)
 
 	t.Given("a JobsD instance")
