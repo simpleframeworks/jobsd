@@ -82,6 +82,7 @@ func TestJobsDJobRun(test *testing.T) {
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
+	jobName := "TestJobsDJobRun" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
@@ -96,7 +97,7 @@ func TestJobsDJobRun(test *testing.T) {
 	}
 
 	t.Given("we register the job to the JobsD instance")
-	jd.RegisterJob("theJob", jobFunc)
+	jd.RegisterJob(jobName, jobFunc)
 
 	t.When("we bring up the JobsD instance")
 	t.NoError(jd.Up())
@@ -104,7 +105,7 @@ func TestJobsDJobRun(test *testing.T) {
 	t.When("we run the job once")
 	startTime := time.Now()
 	wait.Add(1)
-	_, err := jd.CreateRun("theJob").Run()
+	_, err := jd.CreateRun(jobName).Run()
 	t.NoError(err)
 
 	t.Then("the job should have run once")
@@ -114,6 +115,9 @@ func TestJobsDJobRun(test *testing.T) {
 	t.Then("the job run should have completed within 1 second")
 	t.WithinDuration(time.Now(), startTime, 1*time.Second)
 	// If it takes longer it means it ran after being recovered from the DB
+
+	// Cleanup
+	t.NoError(jd.Down()) // Cleanup
 }
 
 func TestJobsDJobRunMulti(test *testing.T) {
@@ -121,6 +125,7 @@ func TestJobsDJobRunMulti(test *testing.T) {
 
 	logger := setupLogging(logrus.TraceLevel)
 	db := setupDB(logger)
+	jobName := "TestJobsDJobRunMulti" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
@@ -135,7 +140,7 @@ func TestJobsDJobRunMulti(test *testing.T) {
 	}
 
 	t.Given("we register the job to the JobsD instance")
-	jd.RegisterJob("theJob", jobFunc)
+	jd.RegisterJob(jobName, jobFunc)
 
 	t.When("we bring up the JobsD instance")
 	t.NoError(jd.Up())
@@ -145,7 +150,7 @@ func TestJobsDJobRunMulti(test *testing.T) {
 	startTime := time.Now()
 	for i := 0; i < runNum; i++ {
 		wait.Add(1)
-		_, errR := jd.CreateRun("theJob").Run()
+		_, errR := jd.CreateRun(jobName).Run()
 		t.NoError(errR)
 	}
 
@@ -156,6 +161,8 @@ func TestJobsDJobRunMulti(test *testing.T) {
 	t.Then("the all job runs should have completed within 3 second")
 	t.WithinDuration(time.Now(), startTime, 3*time.Second)
 	// If it takes longer it means it ran after being recovered from the DB
+
+	t.NoError(jd.Down()) // Cleanup
 }
 
 func TestQueuedJobRunErrRetry(test *testing.T) {
@@ -163,6 +170,7 @@ func TestQueuedJobRunErrRetry(test *testing.T) {
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
+	jobName := "TestQueuedJobRunErrRetry" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
@@ -180,7 +188,7 @@ func TestQueuedJobRunErrRetry(test *testing.T) {
 	}
 
 	t.Given("we register the job and set it to retry on error once")
-	jd.RegisterJob("theJob", jobFunc).RetryErrorLimit(1)
+	jd.RegisterJob(jobName, jobFunc).RetryErrorLimit(1)
 
 	t.When("we bring up the JobsD instance")
 	t.NoError(jd.Up())
@@ -188,7 +196,7 @@ func TestQueuedJobRunErrRetry(test *testing.T) {
 	t.When("we run the job")
 	wait.Add(2)
 	startTime := time.Now()
-	_, err := jd.CreateRun("theJob", 0).Run()
+	_, err := jd.CreateRun(jobName, 0).Run()
 	t.NoError(err)
 
 	t.Then("the job should have run twice")
@@ -199,7 +207,7 @@ func TestQueuedJobRunErrRetry(test *testing.T) {
 	t.WithinDuration(time.Now(), startTime, 1*time.Second)
 	// If it takes longer it means it ran after being recovered from the DB
 
-	t.NoError(jd.Down())
+	t.NoError(jd.Down()) // Cleanup
 }
 
 func TestQueuedJobRunTimeoutRetry(test *testing.T) {
@@ -207,6 +215,7 @@ func TestQueuedJobRunTimeoutRetry(test *testing.T) {
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
+	jobName := "TestQueuedJobRunTimeoutRetry" // Must be unique otherwise tests may collide
 
 	retryCheck := 50 * time.Millisecond
 	retryTimeout := 200 * time.Millisecond
@@ -231,14 +240,14 @@ func TestQueuedJobRunTimeoutRetry(test *testing.T) {
 	}
 
 	t.Given("we register the job and set it to retry once on a " + retryTimeout.String() + " timeout")
-	jd.RegisterJob("theJob", jobFunc).RetryTimeoutLimit(1).RetryTimeout(retryTimeout)
+	jd.RegisterJob(jobName, jobFunc).RetryTimeoutLimit(1).RetryTimeout(retryTimeout)
 
 	t.When("we bring up the JobsD instance")
 	t.NoError(jd.Up())
 
 	t.When("we run the job")
 	wait.Add(2)
-	_, err := jd.CreateRun("theJob").Run()
+	_, err := jd.CreateRun(jobName).Run()
 	t.NoError(err)
 
 	t.Then("we wait for the job to finish")
@@ -247,7 +256,7 @@ func TestQueuedJobRunTimeoutRetry(test *testing.T) {
 	t.Then("the job should have run twice")
 	t.Equal(2, int(runCounter))
 
-	t.NoError(jd.Down())
+	t.NoError(jd.Down()) // Cleanup
 }
 
 func TestJobsDScheduledJobRun(test *testing.T) {
@@ -255,6 +264,7 @@ func TestJobsDScheduledJobRun(test *testing.T) {
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
+	jobName := "TestJobsDScheduledJobRun" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
@@ -275,7 +285,7 @@ func TestJobsDScheduledJobRun(test *testing.T) {
 	}
 
 	t.Given("we register the job to the JobsD instance")
-	jd.RegisterJob("theJob", jobFunc)
+	jd.RegisterJob(jobName, jobFunc)
 
 	t.Given("we register the schedule to the JobsD instance")
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
@@ -286,7 +296,7 @@ func TestJobsDScheduledJobRun(test *testing.T) {
 	t.When("we run the job with the schedule")
 	wait.Add(1)
 	startTime := time.Now()
-	_, errR := jd.CreateRun("theJob").Schedule("theSchedule").Limit(1).Run()
+	_, errR := jd.CreateRun(jobName).Schedule("theSchedule").Limit(1).Run()
 	t.NoError(errR)
 
 	t.Then("the job should have run")
@@ -300,7 +310,7 @@ func TestJobsDScheduledJobRun(test *testing.T) {
 	<-time.After(500 * time.Millisecond)
 	t.Equal(1, int(runCounter))
 
-	t.NoError(jd.Down())
+	t.NoError(jd.Down()) // Cleanup
 }
 
 func TestJobsDScheduledJobRunRecurrent(test *testing.T) {
@@ -308,6 +318,7 @@ func TestJobsDScheduledJobRunRecurrent(test *testing.T) {
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
+	jobName := "TestJobsDScheduledJobRunRecurrent" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
@@ -328,7 +339,7 @@ func TestJobsDScheduledJobRunRecurrent(test *testing.T) {
 	}
 
 	t.Given("we register the job to the JobsD instance")
-	jd.RegisterJob("theJob", jobFunc)
+	jd.RegisterJob(jobName, jobFunc)
 
 	t.Given("we register the schedule to the JobsD instance")
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
@@ -339,7 +350,7 @@ func TestJobsDScheduledJobRunRecurrent(test *testing.T) {
 	t.When("we run the job with the schedule")
 	wait.Add(3)
 	startTime := time.Now()
-	_, errR := jd.CreateRun("theJob").Schedule("theSchedule").Limit(3).Run()
+	_, errR := jd.CreateRun(jobName).Schedule("theSchedule").Limit(3).Run()
 	t.NoError(errR)
 
 	t.Then("the job should have run 3 times")
@@ -354,7 +365,7 @@ func TestJobsDScheduledJobRunRecurrent(test *testing.T) {
 	t.Then("3 jobs should have run within " + timerFor3.String() + " with a tolerance of 500ms")
 	t.WithinDuration(finishTime, startTime.Add(timerFor3), time.Duration(500*time.Millisecond))
 
-	t.NoError(jd.Down())
+	t.NoError(jd.Down()) // Cleanup
 }
 
 func TestJobsDScheduledJobRunMulti(test *testing.T) {
@@ -362,6 +373,7 @@ func TestJobsDScheduledJobRunMulti(test *testing.T) {
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
+	jobName := "TestJobsDScheduledJobRunMulti" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger).WorkerNum(1)
@@ -382,7 +394,7 @@ func TestJobsDScheduledJobRunMulti(test *testing.T) {
 	}
 
 	t.Given("we register the job to the JobsD instance")
-	jd.RegisterJob("theJob", jobFunc)
+	jd.RegisterJob(jobName, jobFunc)
 
 	t.Given("we register the schedule to the JobsD instance")
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
@@ -394,7 +406,7 @@ func TestJobsDScheduledJobRunMulti(test *testing.T) {
 	startTime := time.Now()
 	for i := 0; i < 10; i++ {
 		wait.Add(2)
-		_, errR := jd.CreateRun("theJob").Schedule("theSchedule").Limit(2).Run()
+		_, errR := jd.CreateRun(jobName).Schedule("theSchedule").Limit(2).Run()
 		t.NoError(errR)
 	}
 
@@ -407,7 +419,7 @@ func TestJobsDScheduledJobRunMulti(test *testing.T) {
 	t.Then("the jobs should have run within " + expectedRunTime.String() + " with a tolerance of 300ms")
 	t.WithinDuration(finishTime, startTime.Add(expectedRunTime), time.Duration(300*time.Millisecond))
 
-	t.NoError(jd.Down())
+	t.NoError(jd.Down()) // Cleanup
 }
 
 func TestJobsDClusterWorkSharing(test *testing.T) {
@@ -415,6 +427,7 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
+	jobName := "TestJobsDClusterWorkSharing" // Must be unique otherwise tests may collide
 
 	nodes := 20
 	t.Given("a " + strconv.Itoa(nodes) + " JobsD instance cluster with one worker each")
@@ -436,7 +449,7 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 
 	t.Given("the cluster can run the job")
 	for _, qInst := range jdInstances {
-		qInst.RegisterJob("jobName", jobFunc)
+		qInst.RegisterJob(jobName, jobFunc)
 	}
 
 	t.When("we bring up the JobsD instances")
@@ -449,7 +462,7 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 	t.When("we run a job " + strconv.Itoa(runs) + " times from the first instance in the cluster")
 	for i := 0; i < runs; i++ {
 		wait.Add(1)
-		runID, err := jdInstances[0].CreateRun("jobName").Run()
+		runID, err := jdInstances[0].CreateRun(jobName).Run()
 		t.NoError(err)
 		runIDs = append(runIDs, runID)
 	}
@@ -475,6 +488,7 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 func ExampleJobsD() {
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
+	jobName := "ExampleJobsD" // Must be unique otherwise tests may collide
 
 	wait := make(chan struct{})
 
@@ -489,13 +503,13 @@ func ExampleJobsD() {
 
 	jd := New(db).Logger(logger)
 
-	jd.RegisterJob("job1", job1Func)
+	jd.RegisterJob(jobName, job1Func)
 	jd.RegisterSchedule("schedule1", schedule1Func)
 
 	err0 := jd.Up()
 	checkError(err0)
 
-	_, err1 := jd.CreateRun("job1", "World").Schedule("schedule1").Limit(1).Run()
+	_, err1 := jd.CreateRun(jobName, "World").Schedule("schedule1").Limit(1).Run()
 	checkError(err1)
 
 	<-wait
@@ -509,6 +523,7 @@ func BenchmarkQueueJobRun(b *testing.B) {
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
+	jobName := "BenchmarkQueueJobRun" // Must be unique otherwise tests may collide
 
 	wait := sync.WaitGroup{}
 	out := []int{}
@@ -521,7 +536,7 @@ func BenchmarkQueueJobRun(b *testing.B) {
 
 	jd := New(db).Logger(logger)
 
-	jd.RegisterJob("job1", job1Func)
+	jd.RegisterJob(jobName, job1Func)
 
 	err0 := jd.Up()
 	checkError(err0)
@@ -530,7 +545,7 @@ func BenchmarkQueueJobRun(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		wait.Add(1)
-		_, err1 := jd.CreateRun("job1", n).Run()
+		_, err1 := jd.CreateRun(jobName, n).Run()
 		checkError(err1)
 	}
 
