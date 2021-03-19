@@ -1,7 +1,7 @@
 # JobsD
 A distributed and reliable database backed, job execution framework
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/simpleframeworks/jobsd)](https://goreportcard.com/report/github.com/simpleframeworks/jobsd) [![test status](https://github.com/simpleframeworks/jobsd/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/simpleframeworks/jobsd/actions) [![Go Reference](https://pkg.go.dev/badge/github.com/simpleframeworks/jobsd.svg)](https://pkg.go.dev/github.com/simpleframeworks/jobsd)
+[![Go Report Card](https://goreportcard.com/badge/github.com/simpleframeworks/jobsd)](https://goreportcard.com/report/github.com/simpleframeworks/jobsd) [![Test Status](https://github.com/simpleframeworks/jobsd/actions/workflows/testing.yml/badge.svg?branch=main)](https://github.com/simpleframeworks/jobsd/actions/workflows/testing.yml) [![Go Reference](https://pkg.go.dev/badge/github.com/simpleframeworks/jobsd.svg)](https://pkg.go.dev/github.com/simpleframeworks/jobsd)
 ### Download it
 
 ```
