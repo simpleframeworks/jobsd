@@ -44,14 +44,12 @@ jobs:
       run: go build -v ./...
 
     - name: Test
-      run: |
-        go test -v ./...
-        go test -v -race ./...
+      run: go test -v -race ./...
 
   postgres:
     strategy:
       matrix:
-        platform: [ubuntu-latest] # cannot run on macOS and windows
+        platform: [ubuntu-latest, windows-latest] # cannot run on macOS and windows
         go: [1.15.x, 1.16.x]
         dbversion: ['postgres:latest', 'postgres:11', 'postgres:10']
     runs-on: ${{ matrix.platform }}
@@ -108,6 +106,4 @@ jobs:
         JOBSD_PG_PASSWORD: jobsd
         JOBSD_PG_USER: jobsd
         JOBSD_PG_DB: jobsd
-      run: |
-        go test -v ./...
-        go test -v -race ./...
+      run: go test -v -race ./...
