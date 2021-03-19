@@ -123,7 +123,7 @@ func TestJobsDJobRun(test *testing.T) {
 func TestJobsDJobRunMulti(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.TraceLevel)
+	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
 	jobName := "TestJobsDJobRunMulti" // Must be unique otherwise tests may collide
 
