@@ -10,11 +10,11 @@ go get -u github.com/simpleframeworks/jobsd
 
 ## How does it work? (in short)
 
-- A db table forms a queue.
-- Every job run has an associated db row. 
-- Instances in a cluster compete to acquire and run the job (without locking).
-- A worker pool runs acquired jobs.
-- New reoccurring job runs (rows) are created after a job run is complete. 
+- A db table is a queue.
+- Every "job run" has an associated db row. 
+- Instances in a cluster compete to acquire and run a job (without locking).
+- A worker pool runs jobs.
+- A new reoccurring scheduled "job run" is created after a "job run" is complete. 
 - The db queue and the local JobsD instance queue are periodically synchronized.
 
 ## Quick Example
@@ -60,6 +60,7 @@ The characteristics of a job is as follows:
 - Jobs can have a number of params
   - All job params must be serializable with [gob encoding](https://golang.org/pkg/encoding/gob/)
 - Across a cluster all jobs should be named the same and have the same implementation.
+  - Not all jobs need to implemented across the cluster (facilitates new code and new jobs)
 - All jobs need to be registered before the instance `Up()` func is called
 
 
