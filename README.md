@@ -64,7 +64,6 @@ The characteristics of a job is as follows:
 - All jobs need to be registered before the instance `Up()` func is called
 
 
-Examples of jobs:
 ```go
 jobFunc1 := func() error {
   //DO SOME STUFF
@@ -86,7 +85,6 @@ A schedule is a simple function that takes in the current time and returns the n
 
 - Schedules must be registered before the `Up()` func is called
 
-Examples:
 ```go
 afterASecond := func(now time.Time) time.Time {
   return now.Add(time.Second)
@@ -110,7 +108,6 @@ jd.RegisterSchedule("onTheHour", onTheHour)
 
 A **job run** is an instance of a job to be executed. A job must be registered first before creating a job run using `jd.CreateRun("job1", args...)`
 
-Example
 ```go
 jobFunc := func(txt string) error {
   fmt.Printf("Hello %s!", txt)
