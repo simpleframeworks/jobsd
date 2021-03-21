@@ -103,3 +103,62 @@ jobs:
         JOBSD_PG_USER: jobsd
         JOBSD_PG_DB: jobsd
       run: go test -v -race ./...
+
+  mysql:
+    strategy:
+      matrix:
+        platform: [ubuntu-latest] # cannot run on macOS and windows
+        go: [1.15.x, 1.16.x]
+        dbversion: ['mysql:latest', 'mysql:5.7', 'mysql:5.6', 'mariadb:latest']
+    runs-on: ${{ matrix.platform }}
+
+    services:
+      mysql:
+        image: ${{ matrix.dbversion }}
+        env:
+          MYSQL_DATABASE: jobsd
+          MYSQL_USER: jobsd
+          MYSQL_PASSWORD: jobsd
+          MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+        ports:
+          - 23306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -ujobsd -pjobsd"
+          --health-interval 10s
+          --health-start-period 10s
+          --health-timeout 5s
+          --health-retries 10
+        
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go }}
+    
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - uses: actions/cache@v2
+      with:
+        # In order:
+        # * Module download cache
+        # * Build cache (Linux)
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Build the code
+      run: go build -v ./...
+
+    - name: Test
+      env:
+        JOBSD_DB: postgres
+        JOBSD_MY_HOST: localhost
+        JOBSD_MY_PORT: 23306
+        JOBSD_MY_PASSWORD: jobsd
+        JOBSD_MY_USER: jobsd
+        JOBSD_MY_DB: jobsd
+      run: go test -v -race ./...
