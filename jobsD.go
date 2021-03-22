@@ -434,13 +434,7 @@ func (j *JobsD) Down() error {
 
 // CreateRun .
 func (j *JobsD) CreateRun(job string, jobParams ...interface{}) *RunOnceCreator {
-	theUUID, err := uuid.NewUUID()
-	if err != nil {
-		// This only happens when the uuid lib cannot get the time.
-		// Since time is critical and this error is extremely rate we die here.
-		panic(err)
-	}
-
+	theUUID := uuid.Must(uuid.NewUUID()) // We die here if time fails.
 	name := sql.NullString{Valid: true, String: theUUID.String()}
 	rtn := &RunOnceCreator{
 		jobsd: j,
