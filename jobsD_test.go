@@ -14,6 +14,7 @@ import (
 	"github.com/simpleframeworks/logc"
 	"github.com/simpleframeworks/testc"
 	"github.com/sirupsen/logrus"
+	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -34,31 +35,17 @@ func setupLogging(level logrus.Level) logc.Logger {
 func setupDB(logger logc.Logger) *gorm.DB {
 	dbToUse := strings.ToLower(strings.TrimSpace(os.Getenv("JOBSD_DB")))
 
-	if dbToUse == "postgres" {
-		return setupPostgres(logger)
-	}
-
 	if dbToUse == "" || dbToUse == "sqllite" {
 		return setupSQLLite(logger)
 	}
+	if dbToUse == "postgres" {
+		return setupPostgreSQL(logger)
+	}
+	if dbToUse == "mysql" {
+		return setupMySQL(logger)
+	}
 
 	return nil
-}
-
-func setupPostgres(logger logc.Logger) *gorm.DB {
-	host := os.Getenv("JOBSD_PG_HOST")
-	port := os.Getenv("JOBSD_PG_PORT")
-	password := os.Getenv("JOBSD_PG_PASSWORD")
-	user := os.Getenv("JOBSD_PG_USER")
-	dbname := os.Getenv("JOBSD_PG_DB")
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", host, user, password, dbname, port)
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logc.NewGormLogger(logger),
-	})
-	checkError(err)
-
-	return db
 }
 
 func setupSQLLite(logger logc.Logger) *gorm.DB {
@@ -74,6 +61,38 @@ func setupSQLLite(logger logc.Logger) *gorm.DB {
 	sqlDB.SetMaxOpenConns(1)
 
 	checkError(err0)
+	return db
+}
+
+func setupPostgreSQL(logger logc.Logger) *gorm.DB {
+	host := os.Getenv("JOBSD_PG_HOST")
+	port := os.Getenv("JOBSD_PG_PORT")
+	dbname := os.Getenv("JOBSD_PG_DB")
+	user := os.Getenv("JOBSD_PG_USER")
+	password := os.Getenv("JOBSD_PG_PASSWORD")
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", host, user, password, dbname, port)
+
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logc.NewGormLogger(logger),
+	})
+	checkError(err)
+
+	return db
+}
+
+func setupMySQL(logger logc.Logger) *gorm.DB {
+	host := os.Getenv("JOBSD_MY_HOST")
+	port := os.Getenv("JOBSD_MY_PORT")
+	dbname := os.Getenv("JOBSD_MY_DB")
+	user := os.Getenv("JOBSD_MY_USER")
+	password := os.Getenv("JOBSD_MY_PASSWORD")
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", user, password, host, port, dbname)
+
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+		Logger: logc.NewGormLogger(logger),
+	})
+	checkError(err)
+
 	return db
 }
 

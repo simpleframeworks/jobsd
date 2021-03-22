@@ -19,6 +19,13 @@ test-postgres:
 	@docker-compose rm -svf postgres
 	@echo "Running PostgreSQL tests - Completed"
 
+test-mysql:
+	@echo "Running MySQL tests - Started"
+	@docker-compose up -d mysql
+	@docker-compose run -e JOBSD_DB=mysql go116 docker/test-mysql.sh
+	@docker-compose rm -svf mysql
+	@echo "Running MySQL tests - Completed"
+
 cleanup:
 	@docker-compose down
 

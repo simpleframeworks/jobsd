@@ -10,9 +10,9 @@ services:
       # PostgreSQL settings
       JOBSD_PG_HOST: postgres
       JOBSD_PG_PORT: 5432
+      JOBSD_PG_DB: jobsd
       JOBSD_PG_PASSWORD: jobsd
       JOBSD_PG_USER: jobsd
-      JOBSD_PG_DB: jobsd
       # MySQL settings
       JOBSD_MY_HOST: mysql
       JOBSD_MY_PORT: 3306
@@ -32,7 +32,7 @@ services:
     ports:
       - 13306:3306
     environment:
-      MYSQL_DATABASE=jobsd
-      MYSQL_USER=jobsd
-      MYSQL_PASSWORD=jobsd
-      MYSQL_RANDOM_ROOT_PASSWORD="yes"
+      MYSQL_DATABASE: jobsd
+      MYSQL_USER: jobsd
+      MYSQL_PASSWORD: jobsd
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
