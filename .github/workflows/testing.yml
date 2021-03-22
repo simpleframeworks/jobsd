@@ -155,7 +155,7 @@ jobs:
 
     - name: Test
       env:
-        JOBSD_DB: postgres
+        JOBSD_DB: mysql
         JOBSD_MY_HOST: localhost
         JOBSD_MY_PORT: 23306
         JOBSD_MY_PASSWORD: jobsd
