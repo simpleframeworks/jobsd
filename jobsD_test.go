@@ -351,7 +351,7 @@ func TestJobsDScheduledJobRunRecurrent(test *testing.T) {
 		return nil
 	}
 
-	timer := 200 * time.Millisecond
+	timer := 1000 * time.Millisecond
 	t.Given("a Schedule that runs every " + timer.String())
 	scheduleFunc := func(now time.Time) time.Time {
 		return now.Add(timer)
@@ -373,7 +373,7 @@ func TestJobsDScheduledJobRunRecurrent(test *testing.T) {
 	t.NoError(errR)
 
 	t.Then("the job should have run 3 times")
-	t.WaitTimeout(&wait, 100000*time.Millisecond)
+	t.WaitTimeout(&wait, 5000*time.Millisecond)
 	finishTime := time.Now()
 
 	t.Then("the job should only run three times even if we wait for another 500ms")
@@ -381,8 +381,9 @@ func TestJobsDScheduledJobRunRecurrent(test *testing.T) {
 	t.Equal(3, int(runCounter))
 
 	timerFor3 := time.Duration(3 * timer)
-	t.Then("3 jobs should have run within " + timerFor3.String() + " with a tolerance of 500ms")
-	t.WithinDuration(finishTime, startTime.Add(timerFor3), time.Duration(500*time.Millisecond))
+	tolerance := time.Duration(1000 * time.Millisecond)
+	t.Thenf("3 jobs should have run within %s with a tolerance of %s", timerFor3.String(), tolerance.String())
+	t.WithinDuration(finishTime, startTime.Add(timerFor3), tolerance)
 
 	t.NoError(jd.Down()) // Cleanup
 }
