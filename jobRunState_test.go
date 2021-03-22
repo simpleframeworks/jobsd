@@ -65,7 +65,7 @@ func TestJobRunState(test *testing.T) {
 
 	t.Then("the state should match a job run that is running")
 	t.Equal(0, int(theState.RunCount))
-	t.WithinDuration(*theState.RunStartedAt, time.Now(), 100*time.Millisecond)
+	t.WithinDuration(*theState.RunStartedAt, time.Now(), 800*time.Millisecond)
 	t.Equal(qd.instance.ID, *theState.RunStartedBy)
 	t.Nil(theState.RunCompletedAt)
 	t.Nil(theState.RunCompletedError)
