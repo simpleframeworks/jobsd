@@ -20,6 +20,7 @@ type ScheduleFunc func(now time.Time) time.Time
 type Instance struct {
 	ID                     int64 `gorm:"primaryKey"`
 	Workers                uint32
+	AutoMigrate            bool
 	SupportedJobs          string
 	SupportedSchedules     string
 	JobPollInterval        time.Duration // When to poll the DB for JobRuns
@@ -60,7 +61,6 @@ type JobsD struct {
 	workerCtx             context.Context
 	workerCtxCancelFunc   context.CancelFunc
 	workertCxCancelWait   sync.WaitGroup
-	dbMigrate             bool
 	db                    *gorm.DB
 }
 
@@ -115,7 +115,7 @@ func (j *JobsD) Up() error {
 
 	j.log.Debug("bringing up the service - started")
 
-	if j.dbMigrate {
+	if j.instance.AutoMigrate {
 		txErr := j.db.AutoMigrate(&JobRun{}, &Instance{})
 		if txErr != nil {
 			return txErr
@@ -513,6 +513,14 @@ func (j *JobsD) WorkerNum(workers uint32) *JobsD {
 	return j
 }
 
+// AutoMigration turns on or off auto-migration
+func (j *JobsD) AutoMigration(run bool) *JobsD {
+	if !j.started {
+		j.instance.AutoMigrate = run
+	}
+	return j
+}
+
 // JobPollInterval sets the time between getting JobRuns from the DB
 func (j *JobsD) JobPollInterval(pollInt time.Duration) *JobsD {
 	if !j.started {
@@ -577,6 +585,7 @@ func New(db *gorm.DB) *JobsD {
 	rtn := &JobsD{
 		instance: Instance{
 			Workers:              10,
+			AutoMigrate:          true,
 			JobPollInterval:      time.Duration(time.Second * 5),
 			JobPollLimit:         1000,
 			JobRetryTimeout:      time.Duration(time.Minute * 30),
@@ -587,7 +596,6 @@ func New(db *gorm.DB) *JobsD {
 		jobs:      map[string]*JobContainer{},
 		schedules: map[string]ScheduleFunc{},
 		runQ:      NewJobRunQueue(),
-		dbMigrate: true,
 		db:        db,
 	}
 
