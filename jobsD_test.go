@@ -17,6 +17,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
+	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
 )
 
@@ -42,6 +43,9 @@ func setupDB(logger logc.Logger) *gorm.DB {
 		return setupPostgreSQL(logger)
 	}
 	if dbToUse == "mysql" {
+		return setupMySQL(logger)
+	}
+	if dbToUse == "mssql" {
 		return setupMySQL(logger)
 	}
 
@@ -89,6 +93,22 @@ func setupMySQL(logger logc.Logger) *gorm.DB {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", user, password, host, port, dbname)
 
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+		Logger: logc.NewGormLogger(logger),
+	})
+	checkError(err)
+
+	return db
+}
+
+func setupMSSQL(logger logc.Logger) *gorm.DB {
+	host := os.Getenv("JOBSD_MS_HOST")
+	port := os.Getenv("JOBSD_MS_PORT")
+	dbname := os.Getenv("JOBSD_MS_DB")
+	user := os.Getenv("JOBSD_MS_USER")
+	password := os.Getenv("JOBSD_MS_PASSWORD")
+	dsn := fmt.Sprintf("sqlserver://%s:%s@%s:%s?database=%s", user, password, host, port, dbname)
+
+	db, err := gorm.Open(sqlserver.Open(dsn), &gorm.Config{
 		Logger: logc.NewGormLogger(logger),
 	})
 	checkError(err)
