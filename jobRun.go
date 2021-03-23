@@ -21,7 +21,7 @@ type JobRun struct {
 	JobArgs               Args
 	Delay                 time.Duration
 	RunAt                 time.Time
-	RunCount              uint32
+	RunCount              int
 	RunLimit              sql.NullInt64
 	RunStartedAt          sql.NullTime
 	RunStartedBy          sql.NullInt64 `gorm:"index"`
@@ -29,10 +29,10 @@ type JobRun struct {
 	RunCompletedError     sql.NullString
 	RetryTimeout          time.Duration
 	RetryTimeoutAt        sql.NullTime `gorm:"index"`
-	RetriesOnErrorCount   uint32
-	RetriesOnErrorLimit   uint32
-	RetriesOnTimeoutCount uint32
-	RetriesOnTimeoutLimit uint32
+	RetriesOnErrorCount   int
+	RetriesOnErrorLimit   int
+	RetriesOnTimeoutCount int
+	RetriesOnTimeoutLimit int
 	Schedule              sql.NullString
 	ClosedAt              sql.NullTime
 	ClosedBy              sql.NullInt64 `gorm:"index"`
