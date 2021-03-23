@@ -261,6 +261,18 @@ sqlDB.SetMaxOpenConns(1)
 jd := New(db)
 ```
 
+### Disable Auto Migrations
+
+Auto migrations create the DB tables and structure required for JobsD. It is run when starting JobsD `Up()`. Auto migrations are only required the first time JobsD runs so it can be disabled using the following method.
+
+```go
+jd.AutoMigrate(false)
+
+// Register Jobs and Schedules etc...
+
+jd.Up()
+```
+
 ### Logging
 
 A logger can be supplied. The logger must implement the [logc interface](https://github.com/simpleframeworks/logc)
