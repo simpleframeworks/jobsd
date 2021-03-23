@@ -210,6 +210,57 @@ jd.RegisterJob("job1", jobFunc).RetryTimeout(10*time.Minute).RetryTimeoutLimit(2
 // jd.CreateRun("job1", "World A").RetryTimeout(1*time.Minute).RetryTimeoutLimit(5)
 ```
 
+### Database
+
+PostgreSQL, SQLite, and MySQL are supported out of the box.
+
+#### Using PostgreSQL
+```go
+host := os.Getenv("JOBSD_PG_HOST")
+port := os.Getenv("JOBSD_PG_PORT")
+dbname := os.Getenv("JOBSD_PG_DB")
+user := os.Getenv("JOBSD_PG_USER")
+password := os.Getenv("JOBSD_PG_PASSWORD")
+dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", host, user, password, dbname, port)
+
+db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+
+jd := New(db)
+```
+
+#### Using MySQL
+```go
+host := os.Getenv("JOBSD_MY_HOST")
+port := os.Getenv("JOBSD_MY_PORT")
+dbname := os.Getenv("JOBSD_MY_DB")
+user := os.Getenv("JOBSD_MY_USER")
+password := os.Getenv("JOBSD_MY_PASSWORD")
+dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", user, password, host, port, dbname)
+
+db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+  Logger: logc.NewGormLogger(logger),
+})
+checkError(err)
+
+jd := New(db)
+```
+
+#### Using SQLite
+```go
+db, err0 := gorm.Open(sqlite.Open("file::memory:"), &gorm.Config{
+  Logger: logc.NewGormLogger(logger),
+})
+
+sqlDB, err := db.DB()
+checkError(err)
+
+// SQLLite does not work with concurrent connections
+sqlDB.SetMaxIdleConns(1)
+sqlDB.SetMaxOpenConns(1)
+
+jd := New(db)
+```
+
 ### Logging
 
 A logger can be supplied. The logger must implement the [logc interface](https://github.com/simpleframeworks/logc)
