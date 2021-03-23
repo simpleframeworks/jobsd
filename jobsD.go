@@ -139,11 +139,7 @@ func (j *JobsD) Up() error {
 	j.workertCxCancelWait = sync.WaitGroup{}
 
 	j.createWorkers()
-
-	j.producerCancelWait.Add(3)
-	go j.jobLoader()
-	go j.jobDelegator()
-	go j.jobResurrector()
+	j.createProducers()
 
 	j.log.Debug("bringing up the service - completed")
 	return nil
@@ -170,10 +166,33 @@ func (j *JobsD) createWorkers() {
 	}()
 }
 
-func (j *JobsD) jobLoader() {
+func (j *JobsD) createProducers() {
+	pdsDone := make([]chan struct{}, 3)
+	pdsDone[0] = make(chan struct{})
+	pdsDone[1] = make(chan struct{})
+	pdsDone[2] = make(chan struct{})
+
+	j.producerCancelWait.Add(3)
+	go j.jobLoader(pdsDone[0])
+	go j.jobDelegator(pdsDone[1])
+	go j.jobResurrector(pdsDone[2])
+
+	// Tell the producers to finish up
+	go func() {
+		<-j.producerCtx.Done()
+		for _, ch := range pdsDone {
+			go func(c chan struct{}) {
+				c <- struct{}{}
+				close(c)
+			}(ch)
+		}
+	}()
+}
+
+func (j *JobsD) jobLoader(done chan struct{}) {
 	for {
 		select {
-		case <-j.producerCtx.Done():
+		case <-done:
 			j.log.Trace("shutdown jobLoader")
 			j.producerCancelWait.Done()
 			return
@@ -211,7 +230,7 @@ func (j *JobsD) jobLoader() {
 	}
 }
 
-func (j *JobsD) jobDelegator() {
+func (j *JobsD) jobDelegator(done chan struct{}) {
 	for {
 		waitTime := time.Second * 10
 		now := time.Now()
@@ -229,7 +248,7 @@ func (j *JobsD) jobDelegator() {
 		j.log.Trace("waiting for job")
 
 		select {
-		case <-j.producerCtx.Done():
+		case <-done:
 			j.log.Trace("shutdown jobDelegator")
 			j.producerCancelWait.Done()
 			return
@@ -325,10 +344,10 @@ func (j *JobsD) jobFinish(jobRun JobRun) {
 	}
 }
 
-func (j *JobsD) jobResurrector() {
+func (j *JobsD) jobResurrector(done chan struct{}) {
 	for {
 		select {
-		case <-j.producerCtx.Done():
+		case <-done:
 			j.producerCancelWait.Done()
 			return
 		case <-time.After(j.instance.JobRetryCheck):
