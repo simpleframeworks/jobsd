@@ -26,6 +26,13 @@ test-mysql:
 	@docker-compose rm -svf mysql
 	@echo "Running MySQL tests - Completed"
 
+test-mssql:
+	@echo "Running MSSQL tests - Started"
+	@docker-compose up -d mssql
+	@docker-compose run -e JOBSD_DB=mssql go116 docker/test-mssql.sh
+	@docker-compose rm -svf mssql
+	@echo "Running MSSQL tests - Completed"
+
 cleanup:
 	@docker-compose down
 
