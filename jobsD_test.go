@@ -46,7 +46,7 @@ func setupDB(logger logc.Logger) *gorm.DB {
 		return setupMySQL(logger)
 	}
 	if dbToUse == "mssql" {
-		return setupMySQL(logger)
+		return setupMSSQL(logger)
 	}
 
 	return nil

@@ -20,11 +20,11 @@ services:
       JOBSD_MY_USER: jobsd
       JOBSD_MY_PASSWORD: jobsd
       # MSSQL settings
-      JOBSD_MY_HOST: mssql
-      JOBSD_MY_PORT: 1433
-      JOBSD_MY_DB: jobsd
-      JOBSD_MY_USER: jobsd
-      JOBSD_MY_PASSWORD: jobsdPWD123
+      JOBSD_MS_HOST: mssql
+      JOBSD_MS_PORT: 1433
+      JOBSD_MS_DB: jobsd
+      JOBSD_MS_USER: jobsd
+      JOBSD_MS_PASSWORD: jobsdPWD123
 
   postgres:
     image: postgres:latest
