@@ -138,19 +138,36 @@ func (j *JobsD) Up() error {
 	j.workerCtx, j.workerCtxCancelFunc = context.WithCancel(context.Background())
 	j.workertCxCancelWait = sync.WaitGroup{}
 
+	j.createWorkers()
+
 	j.producerCancelWait.Add(3)
 	go j.jobLoader()
 	go j.jobDelegator()
 	go j.jobResurrector()
 
-	for i := uint32(0); i < j.instance.Workers; i++ {
-
-		j.workertCxCancelWait.Add(1)
-		go j.jobRunner()
-	}
-
 	j.log.Debug("bringing up the service - completed")
 	return nil
+}
+
+func (j *JobsD) createWorkers() {
+	wksDone := make([]chan struct{}, j.instance.Workers)
+	for i := uint32(0); i < j.instance.Workers; i++ {
+		j.workertCxCancelWait.Add(1)
+		done := make(chan struct{})
+		wksDone = append(wksDone, done)
+		go j.jobRunner(done)
+	}
+
+	// Tell the workers to finish up
+	go func() {
+		<-j.workerCtx.Done()
+		for _, ch := range wksDone {
+			go func(c chan struct{}) {
+				c <- struct{}{}
+				close(c)
+			}(ch)
+		}
+	}()
 }
 
 func (j *JobsD) jobLoader() {
@@ -224,10 +241,10 @@ func (j *JobsD) jobDelegator() {
 	}
 }
 
-func (j *JobsD) jobRunner() {
+func (j *JobsD) jobRunner(done chan struct{}) {
 	for {
 		select {
-		case <-j.workerCtx.Done():
+		case <-done:
 			j.log.Trace("shutdown jobRunner")
 			j.workertCxCancelWait.Done()
 			return
