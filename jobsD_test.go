@@ -119,7 +119,7 @@ func setupMSSQL(logger logc.Logger) *gorm.DB {
 func TestJobsDJobRun(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
+	logger := setupLogging(logrus.TraceLevel)
 	db := setupDB(logger)
 	jobName := "TestJobsDJobRun" // Must be unique otherwise tests may collide
 

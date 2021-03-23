@@ -8,5 +8,5 @@ done
 echo "Waiting for MSSQL - Completed"
 
 echo "Testing - Started"
-go test -v ./...
+go test -v -timeout 15s -run ^TestJobsDJobRun$ ./...
 echo "Testing - Completed"

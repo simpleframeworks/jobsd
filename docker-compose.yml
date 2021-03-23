@@ -22,9 +22,9 @@ services:
       # MSSQL settings
       JOBSD_MS_HOST: mssql
       JOBSD_MS_PORT: 1433
-      JOBSD_MS_DB: jobsd
-      JOBSD_MS_USER: jobsd
-      JOBSD_MS_PASSWORD: jobsdPWD123
+      JOBSD_MS_DB: tempdb
+      JOBSD_MS_USER: sa
+      JOBSD_MS_PASSWORD: jobsdPWD123!
 
   postgres:
     image: postgres:latest
@@ -44,12 +44,10 @@ services:
       MYSQL_PASSWORD: jobsd
       MYSQL_RANDOM_ROOT_PASSWORD: "yes"
   mssql:
-    image: mcr.microsoft.com/mssql/server:latest
-    environment:
-      ACCEPT_EULA: Y
-      SA_PASSWORD: jobsdPWD123
-      MSSQL_DB: jobsd
-      MSSQL_USER: jobsd
-      MSSQL_PASSWORD: jobsdPWD123
+    image: mcr.microsoft.com/mssql/server:2017-latest 
     ports:
       - 21433:1433
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: jobsdPWD123!
+      MSSQL_PASSWORD: jobsdPWD123!
