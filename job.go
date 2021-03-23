@@ -97,8 +97,8 @@ func NewJobFunc(theFunc interface{}) *JobFunc {
 type JobContainer struct {
 	jobFunc             *JobFunc
 	retryTimeout        time.Duration
-	retryOnErrorLimit   uint32
-	retryOnTimeoutLimit uint32
+	retryOnErrorLimit   int
+	retryOnTimeoutLimit int
 }
 
 // RetryTimeout set the job default timeout
@@ -108,13 +108,13 @@ func (j *JobContainer) RetryTimeout(timeout time.Duration) *JobContainer {
 }
 
 // RetryErrorLimit set the job default number of retries on error
-func (j *JobContainer) RetryErrorLimit(limit uint32) *JobContainer {
+func (j *JobContainer) RetryErrorLimit(limit int) *JobContainer {
 	j.retryOnErrorLimit = limit
 	return j
 }
 
 // RetryTimeoutLimit set the job default number of retries on timeout
-func (j *JobContainer) RetryTimeoutLimit(limit uint32) *JobContainer {
+func (j *JobContainer) RetryTimeoutLimit(limit int) *JobContainer {
 	j.retryOnTimeoutLimit = limit
 	return j
 }

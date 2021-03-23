@@ -27,13 +27,13 @@ type Instance struct {
 	JobPollLimit           uint32        // How many JobRuns to get during polling
 	JobRetryCheck          time.Duration // Time between checking job runs for timeout or error
 	JobRetryTimeout        time.Duration // Default job retry timeout
-	JobRetryTimeoutLimit   uint32        // Default number of retries for a job after timeout
-	JobRetryErrorLimit     uint32        // Default number of retries for a job after error
-	JobRuns                uint32        // Job runs started
-	JobRunsError           uint32        // Job runs that returned error
-	JobRunsRescheduled     uint32        // Job runs rescheduled after finishing
-	JobRunsRequeuedError   uint32        // Job runs requeued after error
-	JobRunsRequeuedTimeout uint32        // Job runs requeued after timeout
+	JobRetryTimeoutLimit   int           // Default number of retries for a job after timeout
+	JobRetryErrorLimit     int           // Default number of retries for a job after error
+	JobRuns                int           // Job runs started
+	JobRunsError           int           // Job runs that returned error
+	JobRunsRescheduled     int           // Job runs rescheduled after finishing
+	JobRunsRequeuedError   int           // Job runs requeued after error
+	JobRunsRequeuedTimeout int           // Job runs requeued after timeout
 	LastSeenAt             sql.NullTime  // Last time instance was alive
 	ShutdownAt             sql.NullTime
 	CreatedAt              time.Time
@@ -546,7 +546,7 @@ func (j *JobsD) JobRetryTimeout(timeout time.Duration) *JobsD {
 }
 
 // JobRetryTimeoutLimit default job retry on timeout limit
-func (j *JobsD) JobRetryTimeoutLimit(limit uint32) *JobsD {
+func (j *JobsD) JobRetryTimeoutLimit(limit int) *JobsD {
 	if !j.started {
 		j.instance.JobRetryTimeoutLimit = limit
 	}
@@ -562,7 +562,7 @@ func (j *JobsD) JobRetryTimeoutCheck(interval time.Duration) *JobsD {
 }
 
 // JobRetryErrorLimit default job retry on error limit
-func (j *JobsD) JobRetryErrorLimit(limit uint32) *JobsD {
+func (j *JobsD) JobRetryErrorLimit(limit int) *JobsD {
 	if !j.started {
 		j.instance.JobRetryErrorLimit = limit
 	}

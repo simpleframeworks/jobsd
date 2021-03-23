@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// RunOnceCreator .
+// RunOnceCreator creates a job run that runs only once
 type RunOnceCreator struct {
 	done   bool
 	jobsd  *JobsD
@@ -22,6 +22,36 @@ func (r *RunOnceCreator) Unique(name string) *RunOnceCreator {
 	}
 	r.jobRun.Name = sql.NullString{Valid: true, String: name}
 	r.jobRun.NameActive = sql.NullString{Valid: true, String: name}
+	return r
+}
+
+// RetryTimeout sets the RetryTimeout
+// Setting it to 0 disables timeout
+func (r *RunOnceCreator) RetryTimeout(timeout time.Duration) *RunOnceCreator {
+	if r.done {
+		return r
+	}
+	r.jobRun.RetryTimeout = timeout
+	return r
+}
+
+// RetryTimeoutLimit sets the RetryTimeoutLimit
+// Setting it to -1 removes the limit
+func (r *RunOnceCreator) RetryTimeoutLimit(limit int) *RunOnceCreator {
+	if r.done {
+		return r
+	}
+	r.jobRun.RetriesOnTimeoutLimit = limit
+	return r
+}
+
+// RetryErrorLimit sets the RetryErrorLimit
+// Setting it to -1 removes the limit
+func (r *RunOnceCreator) RetryErrorLimit(limit int) *RunOnceCreator {
+	if r.done {
+		return r
+	}
+	r.jobRun.RetriesOnErrorLimit = limit
 	return r
 }
 
@@ -57,7 +87,7 @@ func (r *RunOnceCreator) Schedule(schedule string) *RunScheduleCreator {
 	return rtn
 }
 
-// RunScheduleCreator .
+// RunScheduleCreator create a job run that runs according to a schedule
 type RunScheduleCreator struct {
 	done   bool
 	jobsd  *JobsD
@@ -75,7 +105,37 @@ func (r *RunScheduleCreator) Unique(name string) *RunScheduleCreator {
 	return r
 }
 
-// Limit .
+// RetryTimeout sets the RetryTimeout
+// Setting it to 0 disables timeout
+func (r *RunScheduleCreator) RetryTimeout(timeout time.Duration) *RunScheduleCreator {
+	if r.done {
+		return r
+	}
+	r.jobRun.RetryTimeout = timeout
+	return r
+}
+
+// RetryTimeoutLimit sets the RetryTimeoutLimit
+// Setting it to -1 removes the limit
+func (r *RunScheduleCreator) RetryTimeoutLimit(limit int) *RunScheduleCreator {
+	if r.done {
+		return r
+	}
+	r.jobRun.RetriesOnTimeoutLimit = limit
+	return r
+}
+
+// RetryErrorLimit sets the RetryErrorLimit
+// Setting it to -1 removes the limit
+func (r *RunScheduleCreator) RetryErrorLimit(limit int) *RunScheduleCreator {
+	if r.done {
+		return r
+	}
+	r.jobRun.RetriesOnErrorLimit = limit
+	return r
+}
+
+// Limit sets how many times the job can successfully run
 func (r *RunScheduleCreator) Limit(limit int) *RunScheduleCreator {
 	if r.done {
 		return r
