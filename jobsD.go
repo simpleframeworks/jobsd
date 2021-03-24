@@ -19,12 +19,12 @@ type ScheduleFunc func(now time.Time) time.Time
 // Instance .
 type Instance struct {
 	ID                     int64 `gorm:"primaryKey"`
-	Workers                uint32
+	Workers                int
 	AutoMigrate            bool
 	SupportedJobs          string
 	SupportedSchedules     string
 	JobPollInterval        time.Duration // When to poll the DB for JobRuns
-	JobPollLimit           uint32        // How many JobRuns to get during polling
+	JobPollLimit           int           // How many JobRuns to get during polling
 	JobRetryCheck          time.Duration // Time between checking job runs for timeout or error
 	JobRetryTimeout        time.Duration // Default job retry timeout
 	JobRetryTimeoutLimit   int           // Default number of retries for a job after timeout
@@ -147,7 +147,7 @@ func (j *JobsD) Up() error {
 
 func (j *JobsD) createWorkers() {
 	wksDone := make([]chan struct{}, j.instance.Workers)
-	for i := uint32(0); i < j.instance.Workers; i++ {
+	for i := 0; i < j.instance.Workers; i++ {
 		j.workertCxCancelWait.Add(1)
 		done := make(chan struct{})
 		wksDone = append(wksDone, done)
@@ -506,7 +506,7 @@ func (j *JobsD) GetJobRunState(id int64) *JobRunState {
 }
 
 // WorkerNum sets the number of workers to process jobs
-func (j *JobsD) WorkerNum(workers uint32) *JobsD {
+func (j *JobsD) WorkerNum(workers int) *JobsD {
 	if !j.started {
 		j.instance.Workers = workers
 	}
@@ -530,7 +530,7 @@ func (j *JobsD) JobPollInterval(pollInt time.Duration) *JobsD {
 }
 
 // JobPollLimit sets the number of upcoming JobRuns to retrieve from the DB at a time
-func (j *JobsD) JobPollLimit(limit uint32) *JobsD {
+func (j *JobsD) JobPollLimit(limit int) *JobsD {
 	if !j.started {
 		j.instance.JobPollLimit = limit
 	}
