@@ -20,9 +20,9 @@ func TestRunOnceCreatorUnique(test *testing.T) {
 
 	nodes := 10
 	t.Given(strconv.Itoa(nodes) + " JobsD instances to form a cluster")
-	qdInstances := []*JobsD{}
+	jdInstances := []*JobsD{}
 	for i := 0; i < nodes; i++ {
-		qdInstances = append(qdInstances, New(db).Logger(logger).WorkerNum(2))
+		jdInstances = append(jdInstances, New(db).Logger(logger).WorkerNum(2))
 	}
 
 	runTime := 200 * time.Millisecond
@@ -37,18 +37,18 @@ func TestRunOnceCreatorUnique(test *testing.T) {
 	}
 
 	t.Given("the instances can run the job")
-	for _, qInst := range qdInstances {
+	for _, qInst := range jdInstances {
 		qInst.RegisterJob("jobName", jobFunc)
 	}
 
 	t.When("we bring up the JobsD instances")
-	for _, qInst := range qdInstances {
+	for _, qInst := range jdInstances {
 		t.NoError(qInst.Up())
 	}
 
 	t.When("we run the same unique job run on each of the instances in the cluster")
 	wait.Add(1) //we only expect it to run once
-	for _, qInst := range qdInstances {
+	for _, qInst := range jdInstances {
 		_, err := qInst.CreateRun("jobName").Unique("UniqueJobName").Run()
 		t.NoError(err)
 	}
@@ -66,7 +66,7 @@ func TestRunOnceCreatorUnique(test *testing.T) {
 	t.Then("the job should have still only run once")
 	t.Equal(1, int(runCounter))
 
-	for _, qInst := range qdInstances {
+	for _, qInst := range jdInstances {
 		t.NoError(qInst.Down())
 	}
 }
@@ -78,7 +78,7 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 	db := setupDB(logger)
 
 	t.Given("a JobsD instance")
-	qd := New(db).Logger(logger)
+	jd := New(db).Logger(logger)
 
 	t.Given("a Job that records the time it started running")
 	wait := sync.WaitGroup{}
@@ -92,16 +92,16 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 	}
 
 	t.Given("we register the job to the JobsD instance")
-	qd.RegisterJob("theJob", jobFunc)
+	jd.RegisterJob("theJob", jobFunc)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(qd.Up())
+	t.NoError(jd.Up())
 
 	delay := 500 * time.Millisecond
 	t.When("we run the job once after ")
 	startTime := time.Now()
 	wait.Add(1)
-	_, err := qd.CreateRun("theJob").RunAfter(delay)
+	_, err := jd.CreateRun("theJob").RunAfter(delay)
 	t.NoError(err)
 
 	t.Then("the job should have run once")
@@ -277,9 +277,9 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 
 	nodes := 10
 	t.Given(strconv.Itoa(nodes) + " JobsD instances to form a cluster")
-	qdInstances := []*JobsD{}
+	jdInstances := []*JobsD{}
 	for i := 0; i < nodes; i++ {
-		qdInstances = append(qdInstances, New(db).Logger(logger).WorkerNum(2))
+		jdInstances = append(jdInstances, New(db).Logger(logger).WorkerNum(2))
 	}
 
 	runTime := 200 * time.Millisecond
@@ -294,7 +294,7 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 	}
 
 	t.Given("the instances can run the job")
-	for _, qInst := range qdInstances {
+	for _, qInst := range jdInstances {
 		qInst.RegisterJob("jobName", jobFunc)
 	}
 
@@ -307,18 +307,18 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 	}
 
 	t.Given("the instances can use the schedule")
-	for _, qInst := range qdInstances {
+	for _, qInst := range jdInstances {
 		qInst.RegisterSchedule("scheduleName", scheduleFunc)
 	}
 
 	t.When("we bring up the JobsD instances")
-	for _, qInst := range qdInstances {
+	for _, qInst := range jdInstances {
 		t.NoError(qInst.Up())
 	}
 
 	t.When("we run the same unique job run on each of the instances in the cluster")
 	wait.Add(2) //we only expect it to run twice
-	for _, qInst := range qdInstances {
+	for _, qInst := range jdInstances {
 		_, err := qInst.CreateRun("jobName").Schedule("scheduleName").Unique("UniqueJobName").Limit(2).Run()
 		t.NoError(err)
 	}
@@ -336,9 +336,71 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 	t.Then("the job should have still only run twice")
 	t.Equal(2, int(runCounter))
 
-	for _, qInst := range qdInstances {
+	for _, qInst := range jdInstances {
 		t.NoError(qInst.Down())
 	}
+}
+
+func TestRunScheduledCreatorRetryTimeout(test *testing.T) {
+	t := testc.New(test)
+
+	logger := setupLogging(logrus.TraceLevel)
+	db := setupDB(logger)
+	jobName := "TestRunScheduledCreatorRetryTimeout" // Must be unique otherwise tests may collide
+
+	retryCheck := 50 * time.Millisecond
+	retryTimeout := 200 * time.Millisecond
+	jobRunTimeTO := 1000 * time.Millisecond
+
+	t.Given("a JobsD instance")
+	jd := New(db).Logger(logger)
+
+	t.Given("the instance checks for jobs that timeout every " + retryCheck.String())
+	jd.JobRetryTimeoutCheck(retryCheck)
+
+	t.Given("a Job that times out on the second run")
+	wait := sync.WaitGroup{}
+	var runCounter uint32
+	jobFunc := func() error {
+		defer wait.Done()
+
+		atomic.AddUint32(&runCounter, 1)
+		if atomic.LoadUint32(&runCounter) == 2 {
+			<-time.After(jobRunTimeTO)
+		}
+		return nil
+	}
+
+	t.Given("we register the job with a retry timeout limit of 1")
+	jd.RegisterJob(jobName, jobFunc).RetryTimeoutLimit(1)
+
+	interval := 200 * time.Millisecond
+	t.Given("a Schedule that runs every " + interval.String())
+	scheduleFunc := func(now time.Time) time.Time {
+		return now.Add(interval)
+	}
+
+	t.Given("we register the schedule to the JobsD instance")
+	jd.RegisterSchedule("theSchedule", scheduleFunc)
+
+	t.When("we bring up the JobsD instance")
+	t.NoError(jd.Up())
+
+	t.Whenf("we create a job run with a retry timeout of %s and a limit of 2 successful runs", retryTimeout.String())
+	jr := jd.CreateRun(jobName).Schedule("theSchedule").RetryTimeout(retryTimeout).Limit(2)
+
+	t.When("we run the job")
+	wait.Add(3)
+	_, err := jr.Run()
+	t.NoError(err)
+
+	t.Then("we wait for the job to finish")
+	t.WaitTimeout(&wait, 5*time.Second)
+
+	t.Then("the job should have run three times (2 successful runs + 1 timed out run")
+	t.Equal(3, int(runCounter))
+
+	t.NoError(jd.Down()) // Cleanup
 }
 
 func TestRunScheduleCreatorRunAfter(test *testing.T) {
@@ -348,7 +410,7 @@ func TestRunScheduleCreatorRunAfter(test *testing.T) {
 	db := setupDB(logger)
 
 	t.Given("a JobsD instance")
-	qd := New(db).Logger(logger)
+	jd := New(db).Logger(logger)
 
 	t.Given("a Job that records the time it started running")
 	wait := sync.WaitGroup{}
@@ -368,19 +430,19 @@ func TestRunScheduleCreatorRunAfter(test *testing.T) {
 	}
 
 	t.Given("we register the job to the JobsD instance")
-	qd.RegisterJob("theJob", jobFunc)
+	jd.RegisterJob("theJob", jobFunc)
 
 	t.Given("we register the schedule to the JobsD instance")
-	qd.RegisterSchedule("theSchedule", scheduleFunc)
+	jd.RegisterSchedule("theSchedule", scheduleFunc)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(qd.Up())
+	t.NoError(jd.Up())
 
 	delay := 500 * time.Millisecond
 	t.When("we run the job once after ")
 	startTime := time.Now()
 	wait.Add(1)
-	_, err := qd.CreateRun("theJob").Schedule("theSchedule").Limit(1).RunAfter(delay)
+	_, err := jd.CreateRun("theJob").Schedule("theSchedule").Limit(1).RunAfter(delay)
 	t.NoError(err)
 
 	t.Then("the job should have run once")
