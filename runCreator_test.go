@@ -363,7 +363,6 @@ func TestRunScheduledCreatorRetryTimeout(test *testing.T) {
 	var runCounter uint32
 	jobFunc := func() error {
 		defer wait.Done()
-
 		atomic.AddUint32(&runCounter, 1)
 		if atomic.LoadUint32(&runCounter) == 2 {
 			<-time.After(jobRunTimeTO)
@@ -399,6 +398,135 @@ func TestRunScheduledCreatorRetryTimeout(test *testing.T) {
 
 	t.Then("the job should have run three times (2 successful runs + 1 timed out run")
 	t.Equal(3, int(runCounter))
+
+	t.NoError(jd.Down()) // Cleanup
+}
+
+func TestRunScheduledCreatorRetryTimeoutLimit(test *testing.T) {
+	t := testc.New(test)
+
+	logger := setupLogging(logrus.ErrorLevel)
+	db := setupDB(logger)
+	jobName := "TestRunScheduledCreatorRetryTimeoutLimit" // Must be unique otherwise tests may collide
+
+	retryCheck := 50 * time.Millisecond
+	retryTimeout := 200 * time.Millisecond
+	jobRunTime := 500 * time.Millisecond
+
+	t.Given("a JobsD instance")
+	jd := New(db).Logger(logger)
+
+	t.Given("the instance checks for jobs that timeout every " + retryCheck.String())
+	jd.JobRetryTimeoutCheck(retryCheck)
+
+	t.Given("a Job that times out consistently (takes too long) after a successful run")
+	wait := sync.WaitGroup{}
+	var runCounter uint32
+	jobFunc := func() error {
+		defer wait.Done()
+		atomic.AddUint32(&runCounter, 1)
+		if runCounter >= 2 && runCounter <= 4 {
+			<-time.After(jobRunTime)
+		}
+		return nil
+	}
+
+	t.Givenf("we register the job with a retry timeout of %s", retryTimeout.String())
+	jd.RegisterJob(jobName, jobFunc).RetryTimeout(retryTimeout)
+
+	interval := 200 * time.Millisecond
+	t.Given("a Schedule that runs every " + interval.String())
+	scheduleFunc := func(now time.Time) time.Time {
+		return now.Add(interval)
+	}
+
+	t.Given("we register the schedule to the JobsD instance")
+	jd.RegisterSchedule("theSchedule", scheduleFunc)
+
+	t.When("we bring up the JobsD instance")
+	t.NoError(jd.Up())
+
+	t.When("we create a scheduled job run with a retry timeout limit of 2")
+	jr := jd.CreateRun(jobName).Schedule("theSchedule").Limit(2).RetryTimeoutLimit(2)
+
+	t.When("we run the job")
+	wait.Add(5)
+	_, err := jr.Run()
+	t.NoError(err)
+
+	t.Then("we wait for the job to finish")
+	t.WaitTimeout(&wait, 5*time.Second)
+
+	t.Then("the job should have run 5 times (1 successful + 3 unsuccessful (2 retries) + 1 successful)")
+	t.Equal(5, int(runCounter))
+
+	t.When("we wait enough time for another job run to complete")
+	<-time.After(jobRunTime)
+	<-time.After(retryTimeout)
+	<-time.After(retryCheck)
+
+	t.Then("the job should have still only run 5 times")
+	t.Equal(5, int(runCounter))
+
+	t.NoError(jd.Down()) // Cleanup
+}
+
+func TestRunScheduledCreatorRetryErrorLimit(test *testing.T) {
+	t := testc.New(test)
+
+	logger := setupLogging(logrus.ErrorLevel)
+	db := setupDB(logger)
+	jobName := "TestRunScheduledCreatorRetryErrorLimit" // Must be unique otherwise tests may collide
+
+	t.Given("a JobsD instance")
+	jd := New(db).Logger(logger)
+
+	t.Given("a Job that errors out consistently")
+	wait := sync.WaitGroup{}
+	var runCounter uint32
+	jobFunc := func() error {
+		defer wait.Done()
+		atomic.AddUint32(&runCounter, 1)
+		if runCounter >= 2 && runCounter <= 4 {
+			return errors.New("some error")
+		}
+		return nil
+	}
+
+	t.Given("we register the job")
+	jd.RegisterJob(jobName, jobFunc)
+
+	interval := 200 * time.Millisecond
+	t.Given("a Schedule that runs every " + interval.String())
+	scheduleFunc := func(now time.Time) time.Time {
+		return now.Add(interval)
+	}
+
+	t.Given("we register the schedule to the JobsD instance")
+	jd.RegisterSchedule("theSchedule", scheduleFunc)
+
+	t.When("we bring up the JobsD instance")
+	t.NoError(jd.Up())
+
+	t.When("we create a scheduled job run with a retry error limit of 2")
+	jr := jd.CreateRun(jobName).Schedule("theSchedule").Limit(2).RetryErrorLimit(2)
+
+	t.When("we run the job")
+	wait.Add(5)
+	_, err := jr.Run()
+	t.NoError(err)
+
+	t.Then("we wait for the job to finish")
+	t.WaitTimeout(&wait, 5*time.Second)
+
+	t.Then("the job should have run 5 times (1 successful + 3 unsuccessful (2 retries) + 1 successful)")
+	t.Equal(5, int(runCounter))
+
+	t.When("we wait enough time for another job run to complete")
+	<-time.After(1 * time.Second)
+
+	t.Then("the job should have still only run 5 times")
+	t.Equal(5, int(runCounter))
 
 	t.NoError(jd.Down()) // Cleanup
 }
