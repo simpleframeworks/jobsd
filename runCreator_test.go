@@ -99,17 +99,17 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 
 	delay := 500 * time.Millisecond
 	t.When("we run the job once after ")
-	startTime := time.Now()
 	wait.Add(1)
+	startTime := time.Now()
 	_, err := jd.CreateRun("theJob").RunAfter(delay)
 	t.NoError(err)
 
 	t.Then("the job should have run once")
-	t.WaitTimeout(&wait, 3*time.Second)
+	t.WaitTimeout(&wait, 4*time.Second)
 	t.Equal(1, runNum)
 
 	t.Then("the job run should run after the specified delay of " + delay.String())
-	t.WithinDuration(startTime.Add(delay), runTime, 250*time.Millisecond)
+	t.WithinDuration(startTime.Add(delay), runTime, 300*time.Millisecond)
 }
 func TestRunOnceCreatorRetryTimeout(test *testing.T) {
 	t := testc.New(test)
@@ -344,7 +344,7 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 func TestRunScheduledCreatorRetryTimeout(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.TraceLevel)
+	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
 	jobName := "TestRunScheduledCreatorRetryTimeout" // Must be unique otherwise tests may collide
 
