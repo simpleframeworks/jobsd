@@ -31,8 +31,8 @@ func TestRunOnceCreatorUnique(test *testing.T) {
 	var runCounter uint32
 	jobFunc := func() error {
 		defer wait.Done()
-		<-time.After(runTime)
 		atomic.AddUint32(&runCounter, 1)
+		<-time.After(runTime)
 		return nil
 	}
 
@@ -133,10 +133,10 @@ func TestRunOnceCreatorRetryTimeout(test *testing.T) {
 	var runCounter uint32
 	jobFunc := func() error {
 		defer wait.Done()
-		if atomic.LoadUint32(&runCounter) == 0 {
+		currentCount := atomic.AddUint32(&runCounter, 1)
+		if currentCount == 1 {
 			<-time.After(firstJobRunTime)
 		}
-		atomic.AddUint32(&runCounter, 1)
 		return nil
 	}
 
@@ -185,8 +185,8 @@ func TestRunOnceCreatorRetryTimeoutLimit(test *testing.T) {
 	var runCounter uint32
 	jobFunc := func() error {
 		defer wait.Done()
-		<-time.After(jobRunTime)
 		atomic.AddUint32(&runCounter, 1)
+		<-time.After(jobRunTime)
 		return nil
 	}
 
@@ -288,8 +288,8 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 	var runCounter uint32
 	jobFunc := func() error {
 		defer wait.Done()
-		<-time.After(runTime)
 		atomic.AddUint32(&runCounter, 1)
+		<-time.After(runTime)
 		return nil
 	}
 
@@ -363,8 +363,8 @@ func TestRunScheduledCreatorRetryTimeout(test *testing.T) {
 	var runCounter uint32
 	jobFunc := func() error {
 		defer wait.Done()
-		atomic.AddUint32(&runCounter, 1)
-		if atomic.LoadUint32(&runCounter) == 2 {
+		currentCount := atomic.AddUint32(&runCounter, 1)
+		if currentCount == 2 {
 			<-time.After(jobRunTimeTO)
 		}
 		return nil
@@ -424,8 +424,8 @@ func TestRunScheduledCreatorRetryTimeoutLimit(test *testing.T) {
 	var runCounter uint32
 	jobFunc := func() error {
 		defer wait.Done()
-		atomic.AddUint32(&runCounter, 1)
-		if runCounter >= 2 && runCounter <= 4 {
+		currentCount := atomic.AddUint32(&runCounter, 1)
+		if currentCount >= 2 && currentCount <= 4 {
 			<-time.After(jobRunTime)
 		}
 		return nil
@@ -486,8 +486,8 @@ func TestRunScheduledCreatorRetryErrorLimit(test *testing.T) {
 	var runCounter uint32
 	jobFunc := func() error {
 		defer wait.Done()
-		atomic.AddUint32(&runCounter, 1)
-		if runCounter >= 2 && runCounter <= 4 {
+		currentCount := atomic.AddUint32(&runCounter, 1)
+		if currentCount >= 2 && currentCount <= 4 {
 			return errors.New("some error")
 		}
 		return nil
