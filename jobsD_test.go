@@ -199,10 +199,10 @@ func TestQueuedJobRunErrRetry(test *testing.T) {
 	var runCounter uint32
 	jobFunc := func(i int) (rtn error) {
 		defer wait.Done()
-		if runCounter == 0 {
+		currentCount := atomic.AddUint32(&runCounter, 1)
+		if currentCount == 1 {
 			rtn = errors.New("an error")
 		}
-		atomic.AddUint32(&runCounter, 1)
 		return rtn
 	}
 
@@ -251,10 +251,10 @@ func TestQueuedJobRunTimeoutRetry(test *testing.T) {
 	var runCounter uint32
 	jobFunc := func() error {
 		defer wait.Done()
-		if atomic.LoadUint32(&runCounter) == 0 {
+		currentCount := atomic.AddUint32(&runCounter, 1)
+		if currentCount == 1 {
 			<-time.After(firstJobRunTime)
 		}
-		atomic.AddUint32(&runCounter, 1)
 		return nil
 	}
 
@@ -462,8 +462,8 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 	var runCounter uint32
 	jobFunc := func() error {
 		defer wait.Done()
-		<-time.After(runTime)
 		atomic.AddUint32(&runCounter, 1)
+		<-time.After(runTime)
 		return nil
 	}
 
