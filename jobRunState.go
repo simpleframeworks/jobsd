@@ -10,7 +10,9 @@ import (
 type JobRunState struct {
 	db                    *gorm.DB
 	OriginID              int64
-	Name                  *string
+	Name                  string
+	Job                   string
+	Schedule              *string
 	RunCount              int
 	RunStartedAt          *time.Time
 	RunStartedBy          *int64
@@ -18,7 +20,6 @@ type JobRunState struct {
 	RunCompletedError     *string
 	RetriesOnErrorCount   int
 	RetriesOnTimeoutCount int
-	Schedule              *string
 	ClosedAt              *time.Time
 	ClosedBy              *int64
 	CreatedAt             time.Time
@@ -33,16 +34,13 @@ func (j *JobRunState) Refresh() error {
 		return tx.Error
 	}
 
+	j.Name = jobRun.Name
 	j.RunCount = jobRun.RunCount
 	j.RetriesOnErrorCount = jobRun.RetriesOnErrorCount
 	j.RetriesOnTimeoutCount = jobRun.RetriesOnTimeoutCount
 	j.CreatedAt = jobRun.CreatedAt
 	j.CreatedBy = jobRun.CreatedBy
 
-	j.Name = nil
-	if jobRun.Name.Valid {
-		j.Name = &jobRun.Name.String
-	}
 	j.RunStartedAt = nil
 	if jobRun.RunStartedAt.Valid {
 		j.RunStartedAt = &jobRun.RunStartedAt.Time

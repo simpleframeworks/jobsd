@@ -11,14 +11,14 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// JobRun .
+// JobRun is a database representation of a job run
 type JobRun struct {
 	ID                    int64 `gorm:"primaryKey"`
 	OriginID              int64 `gorm:"index"`
-	Name                  sql.NullString
+	Name                  string
 	NameActive            sql.NullString `gorm:"unique"`
 	Job                   string
-	JobArgs               Args
+	JobArgs               JobArgs
 	Delay                 time.Duration
 	RunAt                 time.Time
 	RunCount              int
@@ -275,7 +275,7 @@ func (j *JobRun) cloneReset(instanceID int64) *JobRun {
 	return &JobRun{
 		OriginID:              j.ID,
 		Name:                  j.Name,
-		NameActive:            j.Name,
+		NameActive:            sql.NullString{Valid: true, String: j.Name},
 		Job:                   j.Job,
 		JobArgs:               j.JobArgs,
 		RunCount:              j.RunCount,
@@ -295,7 +295,7 @@ func (j *JobRun) cloneReset(instanceID int64) *JobRun {
 func (j *JobRun) logger(logger logc.Logger) logc.Logger {
 	return logger.WithFields(logrus.Fields{
 		"JobRun.ID":   j.ID,
-		"JobRun.Name": j.Name.String,
+		"JobRun.Name": j.Name,
 		"JobRun.Job":  j.Job,
 	})
 }
