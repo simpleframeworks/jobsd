@@ -455,13 +455,12 @@ func (j *JobsD) Down() error {
 
 // CreateRun .
 func (j *JobsD) CreateRun(job string, jobParams ...interface{}) *RunOnceCreator {
-	theUUID := uuid.Must(uuid.NewUUID()) // We die here if time fails.
-	name := sql.NullString{Valid: true, String: theUUID.String()}
+	name := uuid.Must(uuid.NewUUID()).String() // We die here if time fails.
 	rtn := &RunOnceCreator{
 		jobsd: j,
 		jobRun: &JobRun{
 			Name:         name,
-			NameActive:   name,
+			NameActive:   sql.NullString{Valid: true, String: name},
 			Job:          job,
 			JobArgs:      jobParams,
 			RunAt:        time.Now(),

@@ -119,16 +119,16 @@ func (j *JobContainer) RetryTimeoutLimit(limit int) *JobContainer {
 	return j
 }
 
-// Args holds job func parameters used to run a job. It can be serialized for DB storage
-type Args []interface{}
+// JobArgs holds job func parameters used to run a job. It can be serialized for DB storage
+type JobArgs []interface{}
 
 // GormDataType .
-func (p Args) GormDataType() string {
+func (p JobArgs) GormDataType() string {
 	return string(schema.Bytes)
 }
 
 // Scan scan value into []
-func (p *Args) Scan(value interface{}) error {
+func (p *JobArgs) Scan(value interface{}) error {
 	data, ok := value.([]byte)
 	if !ok {
 		return errors.New(fmt.Sprint("failed to unmarshal params value:", value))
@@ -139,7 +139,7 @@ func (p *Args) Scan(value interface{}) error {
 }
 
 // Value return params value, implement driver.Valuer interface
-func (p Args) Value() (driver.Value, error) {
+func (p JobArgs) Value() (driver.Value, error) {
 	if len(p) == 0 {
 		return nil, nil
 	}

@@ -20,7 +20,7 @@ func (r *RunOnceCreator) Unique(name string) *RunOnceCreator {
 	if r.done {
 		return r
 	}
-	r.jobRun.Name = sql.NullString{Valid: true, String: name}
+	r.jobRun.Name = name
 	r.jobRun.NameActive = sql.NullString{Valid: true, String: name}
 	return r
 }
@@ -100,7 +100,7 @@ func (r *RunScheduleCreator) Unique(name string) *RunScheduleCreator {
 	if r.done {
 		return r
 	}
-	r.jobRun.Name = sql.NullString{Valid: true, String: name}
+	r.jobRun.Name = name
 	r.jobRun.NameActive = sql.NullString{Valid: true, String: name}
 	return r
 }
