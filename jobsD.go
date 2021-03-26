@@ -167,29 +167,14 @@ func (j *JobsD) createWorkers() {
 }
 
 func (j *JobsD) createProducers() {
-	pdsDone := make([]chan struct{}, 3)
-	pdsDone[0] = make(chan struct{})
-	pdsDone[1] = make(chan struct{})
-	pdsDone[2] = make(chan struct{})
 
 	j.producerCancelWait.Add(3)
-	go j.jobLoader(pdsDone[0])
-	go j.jobDelegator(pdsDone[1])
-	go j.jobResurrector(pdsDone[2])
-
-	// Tell the producers to finish up
-	go func() {
-		<-j.producerCtx.Done()
-		for _, ch := range pdsDone {
-			go func(c chan struct{}) {
-				c <- struct{}{}
-				close(c)
-			}(ch)
-		}
-	}()
+	go j.jobLoader(j.producerCtx.Done())
+	go j.jobDelegator(j.producerCtx.Done())
+	go j.jobResurrector(j.producerCtx.Done())
 }
 
-func (j *JobsD) jobLoader(done chan struct{}) {
+func (j *JobsD) jobLoader(done <-chan struct{}) {
 	for {
 		select {
 		case <-done:
@@ -230,7 +215,7 @@ func (j *JobsD) jobLoader(done chan struct{}) {
 	}
 }
 
-func (j *JobsD) jobDelegator(done chan struct{}) {
+func (j *JobsD) jobDelegator(done <-chan struct{}) {
 	for {
 		waitTime := time.Second * 10
 		now := time.Now()
@@ -260,7 +245,7 @@ func (j *JobsD) jobDelegator(done chan struct{}) {
 	}
 }
 
-func (j *JobsD) jobRunner(done chan struct{}) {
+func (j *JobsD) jobRunner(done <-chan struct{}) {
 	for {
 		select {
 		case <-done:
@@ -344,7 +329,7 @@ func (j *JobsD) jobFinish(jobRun JobRun) {
 	}
 }
 
-func (j *JobsD) jobResurrector(done chan struct{}) {
+func (j *JobsD) jobResurrector(done <-chan struct{}) {
 	for {
 		select {
 		case <-done:
