@@ -19,25 +19,25 @@ type ScheduleFunc func(now time.Time) time.Time
 
 // Instance .
 type Instance struct {
-	ID                     int64 `gorm:"primaryKey"`
-	Workers                int
-	AutoMigrate            bool
-	SupportedJobs          string
-	SupportedSchedules     string
-	JobPollInterval        time.Duration // When to poll the DB for JobRuns
-	JobPollLimit           int           // How many JobRuns to get during polling
-	JobRetryCheck          time.Duration // Time between checking job runs for timeout or error
-	JobRetryTimeout        time.Duration // Default job retry timeout
-	JobRetryTimeoutLimit   int           // Default number of retries for a job after timeout
-	JobRetryErrorLimit     int           // Default number of retries for a job after error
-	JobRuns                int           // Job runs started
-	JobRunsError           int           // Job runs that returned error
-	JobRunsRescheduled     int           // Job runs rescheduled after finishing
-	JobRunsRequeuedError   int           // Job runs requeued after error
-	JobRunsRequeuedTimeout int           // Job runs requeued after timeout
-	LastSeenAt             sql.NullTime  // Last time instance was alive
-	ShutdownAt             sql.NullTime
-	CreatedAt              time.Time
+	ID                   int64 `gorm:"primaryKey"`
+	Workers              int
+	AutoMigrate          bool
+	SupportedJobs        string
+	SupportedSchedules   string
+	JobPollInterval      time.Duration // When to poll the DB for JobRuns
+	JobPollLimit         int           // How many JobRuns to get during polling
+	JobRetryCheck        time.Duration // Time between checking job runs for timeout or error
+	JobRetryTimeout      time.Duration // Default job retry timeout
+	JobRetryTimeoutLimit int           // Default number of retries for a job after timeout
+	JobRetryErrorLimit   int           // Default number of retries for a job after error
+	JobRuns              int           // Job runs started
+	JobRunsRescheduled   int           // Job runs rescheduled after finishing
+	JobRunsTimedOut      int           // Job runs timed out
+	JobRunsTimedOutRes   int           // Job runs resurrected after time out
+	JobRunsErrors        int           // Job runs that have returned an error
+	LastSeenAt           sql.NullTime  // Last time instance was alive
+	ShutdownAt           sql.NullTime
+	CreatedAt            time.Time
 }
 
 // TableName specifies the db table name
@@ -189,7 +189,7 @@ func (j *JobsD) jobLoader(done <-chan struct{}) {
 		j.log.Trace("loading jobs from the DB - started")
 
 		jobRuns := []JobRun{}
-		tx := j.db.Where("run_started_by IS NULL").Order("run_at ASC").
+		tx := j.db.Where("run_started_at IS NULL").Order("run_at ASC").
 			Limit(int(j.instance.JobPollLimit)).Find(&jobRuns)
 		if tx.Error != nil {
 			j.log.WithError(tx.Error).Warn("failed to load job runs from DB")
@@ -256,76 +256,23 @@ func (j *JobsD) jobRunner(done <-chan struct{}) {
 			j.workertCxCancelWait.Done()
 			return
 		case jobRunnable := <-j.runNow:
-			log := jobRunnable.logger(j.log)
-
-			log.Trace("acquiring job run lock")
-
-			// lock the job
-			locked, err := jobRunnable.lockStart()
-			if err != nil {
-				log.WithError(err).Error("failed to lock job run")
-				break
-			}
-			if !locked {
-				break // another instance is running it
-			}
+			log := jobRunnable.logger()
 
 			log.Trace("running job - started")
 
 			// run the job
 			j.incJobRuns()
 
-			jobErr := jobRunnable.run()
-			if jobErr != nil {
-				j.incJobRunsError()
-				log.WithError(jobErr).Warn("job run finished with an error")
+			res := jobRunnable.run()
+			if res == RunResError {
+				j.incJobRunsErrors()
+			} else if res == RunResTO {
+				j.incJobRunsTimedOut()
 			}
-
-			completeErr := jobRunnable.complete()
-			if completeErr != nil {
-				log.WithError(completeErr).Error("error occurred while finishing job")
-				return
-			}
-			j.jobFinish(jobRunnable)
 
 			log.Trace("running job - completed")
 		}
 
-	}
-}
-
-func (j *JobsD) jobFinish(jobRunnable JobRunnable) {
-	log := jobRunnable.logger(j.log)
-
-	retryJobRun, retryErr := jobRunnable.createRetryOnErr()
-	if retryErr != nil {
-		log.WithError(retryErr).Error("could not create job retry")
-		return
-	}
-	if retryJobRun != nil {
-		log.WithFields(logrus.Fields{
-			"JobRunRetriesOnErrorCount": retryJobRun.RetriesOnErrorCount,
-			"JobRunRetriesOnErrorLimit": retryJobRun.RetriesOnErrorLimit,
-		}).Info("job run error retry has been queued")
-
-		j.incJobRunsRequeuedError()
-		j.addJobRun(jobRunnable)
-		return
-	}
-
-	rescheduleJobRun, rescheduleErr := jobRunnable.createNext()
-	if rescheduleErr != nil {
-		log.WithError(rescheduleErr).Error("could not reschedule job")
-		return
-	}
-	if rescheduleJobRun != nil {
-		j.incJobRunsRescheduled()
-		j.addJobRun(*rescheduleJobRun)
-		return
-	}
-
-	if err := jobRunnable.close(); err != nil {
-		log.WithError(err).Error("could not close job run")
 	}
 }
 
@@ -342,7 +289,7 @@ func (j *JobsD) jobResurrector(done <-chan struct{}) {
 
 		jobRuns := []JobRun{}
 		j.db.Where(
-			"run_started_by IS NOT NULL AND closed_by IS NULL AND retry_timeout_at <= ?",
+			"run_started_at IS NOT NULL AND completed_at IS NULL AND job_timeout_at <= ?",
 			time.Now(),
 		).Limit(int(j.instance.JobPollLimit)).Find(&jobRuns)
 
@@ -350,35 +297,24 @@ func (j *JobsD) jobResurrector(done <-chan struct{}) {
 			j.log.WithField("count", len(jobRuns)).Debug("job runs for resurrection found")
 
 			for _, jobRun := range jobRuns {
-				log := jobRun.logger(j.log)
 
-				jobRunnable, err := j.buildJobRunnable(jobRun)
-
-				retryJobRunnable, retryErr := jobRunnable.createRetryOnTO()
-				if retryErr != nil {
-					log.WithError(retryErr).Error("could not create job resurrection timeout retry")
-					continue
+				if jobRun.hasTimedOut() {
+					jobRunnable, err := j.buildJobRunnable(jobRun)
+					if err != nil {
+						jobRunnable.logger().Warn("could not build job runnable from resurrected job run")
+						continue
+					}
+					jobRunnable.handleTO()
+					j.incJobRunsTimedOutRes()
 				}
-				if retryJobRunnable != nil {
-					log.WithFields(logrus.Fields{
-						"JobRun.RetriesOnTimeoutCount": retryJobRunnable.jobRun.RetriesOnTimeoutCount,
-						"JobRun.RetriesOnTimeoutLimit": retryJobRunnable.jobRun.RetriesOnTimeoutLimit,
-					}).Info("job run timeout retry has been queued")
-
-					j.incJobRunsRequeuedTimeout()
-					j.addJobRun(retryJobRunnable)
-					continue
-				}
-
-				j.jobFinish(retryJobRunnable)
 			}
-		}
 
-		if err := j.updateInstance(); err != nil {
-			j.log.WithError(err).Warn("failed to update instance status")
-		}
+			if err := j.updateInstance(); err != nil {
+				j.log.WithError(err).Warn("failed to update instance status")
+			}
 
-		j.log.Trace("finding jobs to resurrect - completed")
+			j.log.Trace("finding jobs to resurrect - completed")
+		}
 	}
 }
 
@@ -396,28 +332,28 @@ func (j *JobsD) incJobRuns() {
 	j.instance.JobRuns++
 }
 
-func (j *JobsD) incJobRunsError() {
+func (j *JobsD) incJobRunsErrors() {
 	j.instanceMu.Lock()
 	defer j.instanceMu.Unlock()
-	j.instance.JobRunsError++
+	j.instance.JobRunsErrors++
+}
+
+func (j *JobsD) incJobRunsTimedOut() {
+	j.instanceMu.Lock()
+	defer j.instanceMu.Unlock()
+	j.instance.JobRunsTimedOut++
+}
+
+func (j *JobsD) incJobRunsTimedOutRes() {
+	j.instanceMu.Lock()
+	defer j.instanceMu.Unlock()
+	j.instance.JobRunsTimedOutRes++
 }
 
 func (j *JobsD) incJobRunsRescheduled() {
 	j.instanceMu.Lock()
 	defer j.instanceMu.Unlock()
 	j.instance.JobRunsRescheduled++
-}
-
-func (j *JobsD) incJobRunsRequeuedError() {
-	j.instanceMu.Lock()
-	defer j.instanceMu.Unlock()
-	j.instance.JobRunsRequeuedError++
-}
-
-func (j *JobsD) incJobRunsRequeuedTimeout() {
-	j.instanceMu.Lock()
-	defer j.instanceMu.Unlock()
-	j.instance.JobRunsRequeuedTimeout++
 }
 
 func (j *JobsD) updateInstance() error {
@@ -473,7 +409,7 @@ func (j *JobsD) buildJobRunnable(jr JobRun) (rtn JobRunnable, err error) {
 		}
 	}
 
-	return newJobRunnable(j.db, jr, jobC.jobFunc, schedule)
+	return newJobRunnable(j.db, jr, jobC.jobFunc, schedule, j.log, j.instance.ID)
 }
 
 func (j *JobsD) createJobRunnable(jr JobRun) (rtn JobRunnable, err error) {
@@ -482,7 +418,7 @@ func (j *JobsD) createJobRunnable(jr JobRun) (rtn JobRunnable, err error) {
 	if err != nil {
 		return rtn, err
 	}
-	rtn.scheduleNew()
+	rtn.schedule()
 
 	err = rtn.jobRun.insertGet(j.db)
 	if err != nil {
@@ -505,15 +441,15 @@ func (j *JobsD) CreateRun(job string, jobParams ...interface{}) *RunOnceCreator 
 	rtn := &RunOnceCreator{
 		jobsd: j,
 		jobRun: JobRun{
-			Name:         name,
-			NameActive:   sql.NullString{Valid: true, String: name},
-			Job:          job,
-			JobArgs:      jobParams,
-			RunAt:        time.Now(),
-			RunLimit:     sql.NullInt64{Valid: true, Int64: 1},
-			RetryTimeout: j.instance.JobRetryTimeout,
-			CreatedAt:    time.Now(),
-			CreatedBy:    j.instance.ID,
+			Name:            name,
+			NameActive:      sql.NullString{Valid: true, String: name},
+			Job:             job,
+			JobArgs:         jobParams,
+			RunAt:           time.Now(),
+			RunSuccessLimit: sql.NullInt64{Valid: true, Int64: 1},
+			RunTimeout:      sql.NullInt64{Valid: true, Int64: int64(j.instance.JobRetryTimeout)}, //TODO make optional
+			CreatedAt:       time.Now(),
+			CreatedBy:       j.instance.ID,
 		},
 	}
 	if jobC, ok := j.jobs[job]; ok {

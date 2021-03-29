@@ -25,23 +25,31 @@ func (r *RunOnceCreator) Unique(name string) *RunOnceCreator {
 	return r
 }
 
-// RetryTimeout sets the RetryTimeout
+// RunTimeout sets the RunTimeout
 // Setting it to 0 disables timeout
-func (r *RunOnceCreator) RetryTimeout(timeout time.Duration) *RunOnceCreator {
+func (r *RunOnceCreator) RunTimeout(timeout time.Duration) *RunOnceCreator {
 	if r.done {
 		return r
 	}
-	r.jobRun.RetryTimeout = timeout
+	if timeout <= 0 {
+		r.jobRun.RunTimeout = sql.NullInt64{}
+	} else {
+		r.jobRun.RunTimeout = sql.NullInt64{Valid: true, Int64: int64(timeout)}
+	}
 	return r
 }
 
-// RetryTimeoutLimit sets the RetryTimeoutLimit
+// RetriesTimeoutLimit sets how many times a job run can timeout
 // Setting it to -1 removes the limit
-func (r *RunOnceCreator) RetryTimeoutLimit(limit int) *RunOnceCreator {
+func (r *RunOnceCreator) RetriesTimeoutLimit(limit int) *RunOnceCreator {
 	if r.done {
 		return r
 	}
-	r.jobRun.RetriesOnTimeoutLimit = limit
+	if limit < 0 {
+		r.jobRun.RetriesOnTimeoutLimit = sql.NullInt64{}
+	} else {
+		r.jobRun.RetriesOnTimeoutLimit = sql.NullInt64{Valid: true, Int64: int64(limit)}
+	}
 	return r
 }
 
@@ -51,7 +59,11 @@ func (r *RunOnceCreator) RetryErrorLimit(limit int) *RunOnceCreator {
 	if r.done {
 		return r
 	}
-	r.jobRun.RetriesOnErrorLimit = limit
+	if limit < 0 {
+		r.jobRun.RetriesOnErrorLimit = sql.NullInt64{}
+	} else {
+		r.jobRun.RetriesOnErrorLimit = sql.NullInt64{Valid: true, Int64: int64(limit)}
+	}
 	return r
 }
 
@@ -63,6 +75,7 @@ func (r *RunOnceCreator) Run() (int64, error) {
 	}
 	r.done = true
 	jr, err := r.jobsd.createJobRunnable(r.jobRun)
+	jr.schedule()
 	return jr.jobRun.ID, err
 }
 
@@ -84,7 +97,6 @@ func (r *RunOnceCreator) Schedule(schedule string) *RunScheduleCreator {
 		jobRun: r.jobRun,
 	}
 	rtn.jobRun.Schedule = sql.NullString{Valid: true, String: schedule}
-	rtn.jobRun.RunLimit = sql.NullInt64{}
 	return rtn
 }
 
@@ -153,6 +165,7 @@ func (r *RunScheduleCreator) Run() (int64, error) {
 	}
 	r.done = true
 	jr, err := r.jobsd.createJobRunnable(r.jobRun)
+	jr.schedule()
 	return jr.jobRun.ID, err
 }
 

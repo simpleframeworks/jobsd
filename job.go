@@ -60,19 +60,19 @@ func (j *JobFunc) check(args []interface{}) error {
 }
 
 // paramsCount returns the number of parameters required
-func (j *JobFunc) paramsCount() int {
+func (j JobFunc) paramsCount() int {
 	return j.jobFunc.Type().NumIn()
 }
 
 // firstParamJR . Is the first param a Job Runnable struct?
-func (j *JobFunc) firstParamJR() bool {
+func (j JobFunc) firstParamJR() bool {
 	//TODO
 	return false
 }
 
 // execute the JobFunc
 // there is no param validation, use the check func
-func (j *JobFunc) execute(params []interface{}) error {
+func (j JobFunc) execute(params []interface{}) error {
 	in := make([]reflect.Value, len(params))
 	for k, param := range params {
 		in[k] = reflect.ValueOf(param)
@@ -90,15 +90,15 @@ func (j *JobFunc) execute(params []interface{}) error {
 }
 
 // NewJobFunc .
-func NewJobFunc(theFunc interface{}) *JobFunc {
-	return &JobFunc{
+func NewJobFunc(theFunc interface{}) JobFunc {
+	return JobFunc{
 		jobFunc: reflect.ValueOf(theFunc),
 	}
 }
 
 // JobContainer .
 type JobContainer struct {
-	jobFunc             *JobFunc
+	jobFunc             JobFunc
 	retryTimeout        time.Duration
 	retryOnErrorLimit   int
 	retryOnTimeoutLimit int

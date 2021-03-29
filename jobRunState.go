@@ -13,7 +13,7 @@ type JobRunState struct {
 	Name                  string
 	Job                   string
 	Schedule              *string
-	RunCount              int
+	RunSuccessCount       int
 	RunStartedAt          *time.Time
 	RunStartedBy          *int64
 	RunCompletedAt        *time.Time
@@ -35,7 +35,7 @@ func (j *JobRunState) Refresh() error {
 	}
 
 	j.Name = jobRun.Name
-	j.RunCount = jobRun.RunCount
+	j.RunSuccessCount = jobRun.RunSuccessCount
 	j.RetriesOnErrorCount = jobRun.RetriesOnErrorCount
 	j.RetriesOnTimeoutCount = jobRun.RetriesOnTimeoutCount
 	j.CreatedAt = jobRun.CreatedAt
@@ -60,14 +60,6 @@ func (j *JobRunState) Refresh() error {
 	j.Schedule = nil
 	if jobRun.Schedule.Valid {
 		j.Schedule = &jobRun.Schedule.String
-	}
-	j.ClosedAt = nil
-	if jobRun.ClosedAt.Valid {
-		j.ClosedAt = &jobRun.ClosedAt.Time
-	}
-	j.ClosedBy = nil
-	if jobRun.ClosedBy.Valid {
-		j.ClosedBy = &jobRun.ClosedBy.Int64
 	}
 
 	return nil
