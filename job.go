@@ -2,6 +2,7 @@ package jobsd
 
 import (
 	"bytes"
+	"database/sql"
 	"database/sql/driver"
 	"encoding/gob"
 	"fmt"
@@ -99,26 +100,41 @@ func NewJobFunc(theFunc interface{}) JobFunc {
 // JobContainer .
 type JobContainer struct {
 	jobFunc             JobFunc
-	retryTimeout        time.Duration
-	retryOnErrorLimit   int
-	retryOnTimeoutLimit int
+	runTimeout          sql.NullInt64
+	retriesTimeoutLimit sql.NullInt64
+	retriesErrorLimit   sql.NullInt64
 }
 
-// RetryTimeout set the job default timeout
-func (j *JobContainer) RetryTimeout(timeout time.Duration) *JobContainer {
-	j.retryTimeout = timeout
+// RunTimeout sets the default timeout of a job run
+// Setting it to 0 disables timeout
+func (j *JobContainer) RunTimeout(timeout time.Duration) *JobContainer {
+	if timeout <= 0 {
+		j.runTimeout = sql.NullInt64{}
+	} else {
+		j.runTimeout = sql.NullInt64{Valid: true, Int64: int64(timeout)}
+	}
 	return j
 }
 
-// RetryErrorLimit set the job default number of retries on error
+// RetriesTimeoutLimit sets how many times a job run can timeout
+// Setting it to -1 removes the limit
+func (j *JobContainer) RetriesTimeoutLimit(limit int) *JobContainer {
+	if limit < 0 {
+		j.retriesTimeoutLimit = sql.NullInt64{}
+	} else {
+		j.retriesTimeoutLimit = sql.NullInt64{Valid: true, Int64: int64(limit)}
+	}
+	return j
+}
+
+// RetryErrorLimit sets the RetryErrorLimit
+// Setting it to -1 removes the limit
 func (j *JobContainer) RetryErrorLimit(limit int) *JobContainer {
-	j.retryOnErrorLimit = limit
-	return j
-}
-
-// RetryTimeoutLimit set the job default number of retries on timeout
-func (j *JobContainer) RetryTimeoutLimit(limit int) *JobContainer {
-	j.retryOnTimeoutLimit = limit
+	if limit < 0 {
+		j.retriesErrorLimit = sql.NullInt64{}
+	} else {
+		j.retriesErrorLimit = sql.NullInt64{Valid: true, Int64: int64(limit)}
+	}
 	return j
 }
 

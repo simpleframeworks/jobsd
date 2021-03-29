@@ -87,7 +87,9 @@ func (r *RunOnceCreator) RunAfter(delay time.Duration) (int64, error) {
 	}
 	r.jobRun.Delay = delay
 	r.done = true
-	return r.jobRun.run(r.jobsd)
+	jr, err := r.jobsd.createJobRunnable(r.jobRun)
+	jr.schedule()
+	return jr.jobRun.ID, err
 }
 
 // Schedule the job
@@ -118,23 +120,31 @@ func (r *RunScheduleCreator) Unique(name string) *RunScheduleCreator {
 	return r
 }
 
-// RetryTimeout sets the RetryTimeout
+// RunTimeout sets the RunTimeout
 // Setting it to 0 disables timeout
-func (r *RunScheduleCreator) RetryTimeout(timeout time.Duration) *RunScheduleCreator {
+func (r *RunScheduleCreator) RunTimeout(timeout time.Duration) *RunScheduleCreator {
 	if r.done {
 		return r
 	}
-	r.jobRun.RetryTimeout = timeout
+	if timeout <= 0 {
+		r.jobRun.RunTimeout = sql.NullInt64{}
+	} else {
+		r.jobRun.RunTimeout = sql.NullInt64{Valid: true, Int64: int64(timeout)}
+	}
 	return r
 }
 
-// RetryTimeoutLimit sets the RetryTimeoutLimit
+// RetriesTimeoutLimit sets how many times a job run can timeout
 // Setting it to -1 removes the limit
-func (r *RunScheduleCreator) RetryTimeoutLimit(limit int) *RunScheduleCreator {
+func (r *RunScheduleCreator) RetriesTimeoutLimit(limit int) *RunScheduleCreator {
 	if r.done {
 		return r
 	}
-	r.jobRun.RetriesOnTimeoutLimit = limit
+	if limit < 0 {
+		r.jobRun.RetriesOnTimeoutLimit = sql.NullInt64{}
+	} else {
+		r.jobRun.RetriesOnTimeoutLimit = sql.NullInt64{Valid: true, Int64: int64(limit)}
+	}
 	return r
 }
 
@@ -144,7 +154,11 @@ func (r *RunScheduleCreator) RetryErrorLimit(limit int) *RunScheduleCreator {
 	if r.done {
 		return r
 	}
-	r.jobRun.RetriesOnErrorLimit = limit
+	if limit < 0 {
+		r.jobRun.RetriesOnErrorLimit = sql.NullInt64{}
+	} else {
+		r.jobRun.RetriesOnErrorLimit = sql.NullInt64{Valid: true, Int64: int64(limit)}
+	}
 	return r
 }
 
@@ -153,7 +167,7 @@ func (r *RunScheduleCreator) Limit(limit int) *RunScheduleCreator {
 	if r.done {
 		return r
 	}
-	r.jobRun.RunLimit = sql.NullInt64{Valid: true, Int64: int64(limit)}
+	r.jobRun.RunSuccessLimit = sql.NullInt64{Valid: true, Int64: int64(limit)}
 	return r
 }
 
@@ -177,5 +191,7 @@ func (r *RunScheduleCreator) RunAfter(delay time.Duration) (int64, error) {
 	}
 	r.jobRun.Delay = delay
 	r.done = true
-	return r.jobRun.run(r.jobsd)
+	jr, err := r.jobsd.createJobRunnable(r.jobRun)
+	jr.schedule()
+	return jr.jobRun.ID, err
 }
