@@ -65,11 +65,8 @@ func (j *JobFunc) paramsCount() int {
 }
 
 // execute the JobFunc
-// we do simpler validation because the check func should have been run
+// there is no param validation, use the check func
 func (j *JobFunc) execute(params []interface{}) error {
-	if j.paramsCount() != len(params) {
-		return errors.New("func parameters mismatch")
-	}
 	in := make([]reflect.Value, len(params))
 	for k, param := range params {
 		in[k] = reflect.ValueOf(param)

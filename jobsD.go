@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/simpleframeworks/logc"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -52,9 +53,9 @@ type JobsD struct {
 	started               bool
 	jobs                  map[string]*JobContainer
 	schedules             map[string]ScheduleFunc
-	runQ                  *JobRunQueue
+	runQ                  *JobRunnableQueue
 	runQNew               chan struct{}
-	runNow                chan JobRun
+	runNow                chan JobRunnable
 	producerCtx           context.Context
 	producerCtxCancelFunc context.CancelFunc
 	producerCancelWait    sync.WaitGroup
@@ -129,7 +130,7 @@ func (j *JobsD) Up() error {
 	j.log = j.log.WithField("Instance.ID", j.instance.ID)
 
 	j.started = true
-	j.runNow = make(chan JobRun)
+	j.runNow = make(chan JobRunnable)
 	j.runQNew = make(chan struct{})
 
 	j.producerCtx, j.producerCtxCancelFunc = context.WithCancel(context.Background())
@@ -195,11 +196,13 @@ func (j *JobsD) jobLoader(done <-chan struct{}) {
 		}
 
 		for _, jobRun := range jobRuns {
-			// Make sure the job is compatible
-			if err := jobRun.check(j.jobs, j.schedules); err == nil {
-				j.runQ.Push(jobRun)
-				j.log.WithField("Job.ID", jobRun.ID).Trace("added job run from DB")
+			runlog := jobRun.logger(j.log)
+			jr, err := j.buildJobRunnable(jobRun)
+			if err != nil {
+				runlog.WithError(err).Warn("failed to load job")
 			}
+			j.runQ.Push(jr)
+			runlog.Trace("added job run from DB")
 		}
 
 		err := j.updateInstance()
@@ -252,13 +255,13 @@ func (j *JobsD) jobRunner(done <-chan struct{}) {
 			j.log.Trace("shutdown jobRunner")
 			j.workertCxCancelWait.Done()
 			return
-		case jobRun := <-j.runNow:
-			log := jobRun.logger(j.log)
+		case jobRunnable := <-j.runNow:
+			log := jobRunnable.logger(j.log)
 
 			log.Trace("acquiring job run lock")
 
 			// lock the job
-			locked, err := jobRun.lockStart(j.db, j.instance.ID)
+			locked, err := jobRunnable.lockStart()
 			if err != nil {
 				log.WithError(err).Error("failed to lock job run")
 				break
@@ -267,26 +270,23 @@ func (j *JobsD) jobRunner(done <-chan struct{}) {
 				break // another instance is running it
 			}
 
-			log.WithField("JobID", jobRun.ID).Trace("running job - started")
+			log.Trace("running job - started")
 
 			// run the job
 			j.incJobRuns()
-			jobContainer, ok := j.jobs[jobRun.Job]
-			if !ok {
-				log.WithField("JobName", jobRun.Job).Error("can not run job. job does not exists")
-			}
-			jobErr := jobContainer.jobFunc.execute(jobRun.JobArgs)
+
+			jobErr := jobRunnable.run()
 			if jobErr != nil {
 				j.incJobRunsError()
 				log.WithError(jobErr).Warn("job run finished with an error")
 			}
 
-			completeErr := jobRun.complete(j.db, j.instance.ID, jobErr)
+			completeErr := jobRunnable.complete()
 			if completeErr != nil {
 				log.WithError(completeErr).Error("error occurred while finishing job")
 				return
 			}
-			j.jobFinish(jobRun)
+			j.jobFinish(jobRunnable)
 
 			log.Trace("running job - completed")
 		}
@@ -294,10 +294,10 @@ func (j *JobsD) jobRunner(done <-chan struct{}) {
 	}
 }
 
-func (j *JobsD) jobFinish(jobRun JobRun) {
-	log := jobRun.logger(j.log)
+func (j *JobsD) jobFinish(jobRunnable JobRunnable) {
+	log := jobRunnable.logger(j.log)
 
-	retryJobRun, retryErr := jobRun.retryOnError(j.db, j.instance.ID)
+	retryJobRun, retryErr := jobRunnable.createRetryOnErr()
 	if retryErr != nil {
 		log.WithError(retryErr).Error("could not create job retry")
 		return
@@ -309,11 +309,11 @@ func (j *JobsD) jobFinish(jobRun JobRun) {
 		}).Info("job run error retry has been queued")
 
 		j.incJobRunsRequeuedError()
-		j.addJobRun(*retryJobRun)
+		j.addJobRun(jobRunnable)
 		return
 	}
 
-	rescheduleJobRun, rescheduleErr := jobRun.reschedule(j.db, j.instance.ID, j.schedules)
+	rescheduleJobRun, rescheduleErr := jobRunnable.createNext()
 	if rescheduleErr != nil {
 		log.WithError(rescheduleErr).Error("could not reschedule job")
 		return
@@ -324,7 +324,7 @@ func (j *JobsD) jobFinish(jobRun JobRun) {
 		return
 	}
 
-	if err := jobRun.close(j.db, j.instance.ID); err != nil {
+	if err := jobRunnable.close(); err != nil {
 		log.WithError(err).Error("could not close job run")
 	}
 }
@@ -352,23 +352,25 @@ func (j *JobsD) jobResurrector(done <-chan struct{}) {
 			for _, jobRun := range jobRuns {
 				log := jobRun.logger(j.log)
 
-				retryJobRun, retryErr := jobRun.retryOnTimeout(j.db, j.instance.ID)
+				jobRunnable, err := j.buildJobRunnable(jobRun)
+
+				retryJobRunnable, retryErr := jobRunnable.createRetryOnTO()
 				if retryErr != nil {
 					log.WithError(retryErr).Error("could not create job resurrection timeout retry")
 					continue
 				}
-				if retryJobRun != nil {
+				if retryJobRunnable != nil {
 					log.WithFields(logrus.Fields{
-						"JobRun.RetriesOnTimeoutCount": retryJobRun.RetriesOnTimeoutCount,
-						"JobRun.RetriesOnTimeoutLimit": retryJobRun.RetriesOnTimeoutLimit,
+						"JobRun.RetriesOnTimeoutCount": retryJobRunnable.jobRun.RetriesOnTimeoutCount,
+						"JobRun.RetriesOnTimeoutLimit": retryJobRunnable.jobRun.RetriesOnTimeoutLimit,
 					}).Info("job run timeout retry has been queued")
 
 					j.incJobRunsRequeuedTimeout()
-					j.addJobRun(*retryJobRun)
+					j.addJobRun(retryJobRunnable)
 					continue
 				}
 
-				j.jobFinish(jobRun)
+				j.jobFinish(retryJobRunnable)
 			}
 		}
 
@@ -380,8 +382,8 @@ func (j *JobsD) jobResurrector(done <-chan struct{}) {
 	}
 }
 
-func (j *JobsD) addJobRun(jobRun JobRun) {
-	j.runQ.Push(jobRun)
+func (j *JobsD) addJobRun(jr JobRunnable) {
+	j.runQ.Push(jr)
 
 	// Notify the delegator of the new item to run
 	// This needs to be async to prevent a job run from deadlocking trying to reschedule
@@ -453,12 +455,56 @@ func (j *JobsD) Down() error {
 	return err
 }
 
+func (j *JobsD) buildJobRunnable(jr JobRun) (rtn JobRunnable, err error) {
+
+	jobC, exists := j.jobs[jr.Job]
+	if !exists {
+		return rtn, errors.New("cannot run job. job '" + jr.Job + "' does not exist")
+	}
+	if err := jobC.jobFunc.check(jr.JobArgs); err != nil {
+		return rtn, err
+	}
+
+	var schedule *ScheduleFunc
+	if jr.needsScheduling() {
+		schedule, exists := j.schedules[jr.Schedule.String]
+		if !exists {
+			return rtn, errors.New("cannot schedule job. schedule '" + jr.Schedule.String + "' missing")
+		}
+	}
+
+	return newJobRunnable(j.db, jr, jobC.jobFunc, schedule)
+}
+
+func (j *JobsD) createJobRunnable(jr JobRun) (rtn JobRunnable, err error) {
+
+	rtn, err = j.buildJobRunnable(jr)
+	if err != nil {
+		return rtn, err
+	}
+	rtn.scheduleNew()
+
+	err = rtn.jobRun.insertGet(j.db)
+	if err != nil {
+		return rtn, err
+	}
+
+	j.log.WithFields(map[string]interface{}{
+		"Job.ID":    rtn.jobRun.ID,
+		"Job.RunAt": rtn.jobRun.RunAt,
+	}).Trace("created runnable job")
+
+	j.addJobRun(rtn)
+
+	return rtn, err
+}
+
 // CreateRun .
 func (j *JobsD) CreateRun(job string, jobParams ...interface{}) *RunOnceCreator {
 	name := uuid.Must(uuid.NewUUID()).String() // We die here if time fails.
 	rtn := &RunOnceCreator{
 		jobsd: j,
-		jobRun: &JobRun{
+		jobRun: JobRun{
 			Name:         name,
 			NameActive:   sql.NullString{Valid: true, String: name},
 			Job:          job,
@@ -579,7 +625,7 @@ func New(db *gorm.DB) *JobsD {
 		},
 		jobs:      map[string]*JobContainer{},
 		schedules: map[string]ScheduleFunc{},
-		runQ:      NewJobRunQueue(),
+		runQ:      NewJobRunnableQueue(),
 		db:        db,
 	}
 
