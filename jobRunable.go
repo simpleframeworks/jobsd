@@ -35,21 +35,16 @@ type JobRunnable struct {
 	instanceID            int64
 	addJobR               chan<- JobRunnable
 	jobRun                *JobRun
-	jobSchedule           ScheduleFunc
+	jobSchedule           *ScheduleFunc
 	jobFunc               JobFunc
 	db                    *gorm.DB
 	log                   logc.Logger
 }
 
 func (j *JobRunnable) schedule() {
-	if j.jobRun.needsScheduling() {
-		j.jobRun.RunAt = j.jobSchedule(time.Now())
-	}
-}
-func (j *JobRunnable) scheduleNew() {
 	j.jobRun.RunAt = time.Now().Add(j.jobRun.Delay)
-	if j.jobRun.needsScheduling() {
-		j.jobRun.RunAt = j.jobSchedule(j.jobRun.RunAt)
+	if j.jobSchedule != nil && j.jobRun.needsScheduling() {
+		j.jobRun.RunAt = (*j.jobSchedule)(j.jobRun.RunAt)
 	}
 }
 
@@ -191,12 +186,12 @@ func (j *JobRunnable) handleSuccess() {
 }
 
 func (j *JobRunnable) reschedule(tx *gorm.DB) error {
-	if j.jobRun.needsScheduling() {
+	if j.jobSchedule != nil && j.jobRun.needsScheduling() {
 		next := j.cloneReset()
-		next.jobRun.RunAt = j.jobSchedule(j.jobRun.RunCompletedAt.Time)
-		next.jobRun.Delay = 0
 		next.jobRun.resetErrorRetries()
 		next.jobRun.resetTimeoutRetries()
+		next.jobRun.Delay = 0
+		next.schedule()
 		if err := next.jobRun.insertGet(tx); err != nil {
 			return err
 		}
@@ -220,12 +215,13 @@ func (j *JobRunnable) cloneReset() JobRunnable {
 		nexJobRun,
 		j.jobFunc,
 		j.jobSchedule,
+		j.log,
 		j.instanceID,
 	)
 	return rtn
 }
 
-func newJobRunnable(db *gorm.DB, jobRun JobRun, jobFunc JobFunc, jobSchedule ScheduleFunc, instanceID int64) (JobRunnable, error) {
+func newJobRunnable(db *gorm.DB, jobRun JobRun, jobFunc JobFunc, jobSchedule *ScheduleFunc, log logc.Logger, instanceID int64) (JobRunnable, error) {
 
 	rtn := JobRunnable{
 		ID:                    jobRun.ID,
@@ -236,7 +232,6 @@ func newJobRunnable(db *gorm.DB, jobRun JobRun, jobFunc JobFunc, jobSchedule Sch
 		RunAt:                 jobRun.RunAt,
 		RunTotalCount:         jobRun.RunTotalCount,
 		RunSuccessCount:       jobRun.RunSuccessCount,
-		RunTimeout:            jobRun.RunTimeout,
 		RetriesOnErrorCount:   jobRun.RetriesOnErrorCount,
 		RetriesOnTimeoutCount: jobRun.RetriesOnTimeoutCount,
 		CreatedAt:             jobRun.CreatedAt,
@@ -245,6 +240,7 @@ func newJobRunnable(db *gorm.DB, jobRun JobRun, jobFunc JobFunc, jobSchedule Sch
 		jobRun:                &jobRun,
 		jobFunc:               jobFunc,
 		jobSchedule:           jobSchedule,
+		log:                   log,
 	}
 	if jobRun.RunSuccessLimit.Valid {
 		rsl := int(jobRun.RunSuccessLimit.Int64)
@@ -253,6 +249,9 @@ func newJobRunnable(db *gorm.DB, jobRun JobRun, jobFunc JobFunc, jobSchedule Sch
 	if jobRun.RetriesOnErrorLimit.Valid {
 		rel := int(jobRun.RetriesOnErrorLimit.Int64)
 		rtn.RetriesOnErrorLimit = &rel
+	}
+	if jobRun.RunTimeout.Valid {
+		rtn.RunTimeout = time.Duration(jobRun.RunTimeout.Int64)
 	}
 	if jobRun.RetriesOnTimeoutLimit.Valid {
 		rtl := int(jobRun.RetriesOnTimeoutLimit.Int64)
@@ -265,4 +264,5 @@ func newJobRunnable(db *gorm.DB, jobRun JobRun, jobFunc JobFunc, jobSchedule Sch
 	err := jobFunc.check(jobRun.JobArgs)
 
 	return rtn, err
+
 }

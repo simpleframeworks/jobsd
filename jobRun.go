@@ -28,7 +28,7 @@ type JobRun struct {
 	RunStartedBy          sql.NullInt64
 	RunCompletedAt        sql.NullTime `gorm:"index"`
 	RunCompletedError     sql.NullString
-	RunTimeout            time.Duration
+	RunTimeout            sql.NullInt64
 	RunTimeoutAt          sql.NullTime `gorm:"index"`
 	RetriesOnErrorCount   int
 	RetriesOnErrorLimit   sql.NullInt64
@@ -62,7 +62,7 @@ func (j *JobRun) insertGet(db *gorm.DB) error {
 // lock the job to run
 func (j *JobRun) lock(db *gorm.DB, instanceID int64) (bool, error) {
 	startedAt := time.Now()
-	runTimeoutAt := startedAt.Add(j.RunTimeout)
+	runTimeoutAt := startedAt.Add(time.Duration(j.RunTimeout.Int64))
 	tx := db.Model(j).Where("run_started_at IS NULL").Updates(map[string]interface{}{
 		"run_timeout_at": runTimeoutAt,
 		"run_started_at": startedAt,
@@ -95,7 +95,7 @@ func (j *JobRun) markComplete(db *gorm.DB, instanceID int64, jobRunErr error) er
 	}
 	j.RunCompletedAt = sql.NullTime{Valid: true, Time: time.Now()}
 
-	tx := db.Model(j).Where("run_completed_at IS NULL AND run_started_by = ?", instanceID).Updates(map[string]interface{}{
+	tx := db.Model(j).Where("run_completed_at IS NULL").Updates(map[string]interface{}{
 		"name_active":         j.NameActive,
 		"run_total_count":     j.RunTotalCount,
 		"run_success_count":   j.RunSuccessCount,
@@ -109,20 +109,30 @@ func (j *JobRun) markComplete(db *gorm.DB, instanceID int64, jobRunErr error) er
 	return err
 }
 
+func (j *JobRun) hasTimedOut() bool {
+	return j.RunTimeoutAt.Valid && j.RunTimeoutAt.Time.After(time.Now())
+}
+
 func (j *JobRun) hasCompleted() bool {
 	return j.RunCompletedAt.Valid
 }
 
 func (j *JobRun) hasReachedErrorLimit() bool {
-	return j.RetriesOnErrorCount >= j.RetriesOnErrorLimit
+	return j.RetriesOnErrorLimit.Valid && j.RetriesOnErrorCount >= int(j.RetriesOnErrorLimit.Int64)
 }
 
 func (j *JobRun) hasReachedTimeoutLimit() bool {
-	return j.RetriesOnTimeoutCount >= j.RetriesOnTimeoutLimit
+	return j.RetriesOnTimeoutLimit.Valid && j.RetriesOnTimeoutCount >= int(j.RetriesOnTimeoutLimit.Int64)
 }
 
 func (j *JobRun) needsScheduling() bool {
-	return j.Schedule.Valid && (!j.RunSuccessLimit.Valid || j.RunSuccessLimit.Int64 > int64(j.RunSuccessCount))
+	if !j.Schedule.Valid {
+		return false
+	}
+	if j.RunSuccessLimit.Valid {
+		return j.RunSuccessCount < int(j.RunSuccessLimit.Int64)
+	}
+	return true
 }
 
 func (j *JobRun) resetErrorRetries() {
