@@ -21,22 +21,21 @@ type JobRun struct {
 	JobArgs               JobArgs
 	Delay                 time.Duration
 	RunAt                 time.Time
-	RunCount              int
-	RunLimit              sql.NullInt64
-	RunStartedAt          sql.NullTime
-	RunStartedBy          sql.NullInt64 `gorm:"index"`
-	RunCompletedAt        sql.NullTime
+	RunTotalCount         int
+	RunSuccessCount       int
+	RunSuccessLimit       sql.NullInt64
+	RunStartedAt          sql.NullTime `gorm:"index"`
+	RunStartedBy          sql.NullInt64
+	RunCompletedAt        sql.NullTime `gorm:"index"`
 	RunCompletedError     sql.NullString
-	RetryTimeout          time.Duration
-	RetryTimeoutAt        sql.NullTime `gorm:"index"`
+	RunTimeout            time.Duration
+	RunTimeoutAt          sql.NullTime `gorm:"index"`
 	RetriesOnErrorCount   int
-	RetriesOnErrorLimit   int
+	RetriesOnErrorLimit   sql.NullInt64
 	RetriesOnTimeoutCount int
-	RetriesOnTimeoutLimit int
+	RetriesOnTimeoutLimit sql.NullInt64
 	Schedule              sql.NullString
-	ClosedAt              sql.NullTime
-	ClosedBy              sql.NullInt64 `gorm:"index"`
-	CreatedAt             time.Time     `gorm:"index"`
+	CreatedAt             time.Time `gorm:"index"`
 	CreatedBy             int64
 }
 
@@ -63,62 +62,55 @@ func (j *JobRun) insertGet(db *gorm.DB) error {
 // lock the job to run
 func (j *JobRun) lock(db *gorm.DB, instanceID int64) (bool, error) {
 	startedAt := time.Now()
-	retryTimeoutAt := startedAt.Add(j.RetryTimeout)
+	runTimeoutAt := startedAt.Add(j.RunTimeout)
 	tx := db.Model(j).Where("run_started_at IS NULL").Updates(map[string]interface{}{
-		"retry_timeout_at": retryTimeoutAt,
-		"run_started_at":   startedAt,
-		"run_started_by":   instanceID,
+		"run_timeout_at": runTimeoutAt,
+		"run_started_at": startedAt,
+		"run_started_by": instanceID,
 	})
 	if tx.Error != nil {
 		return false, tx.Error
 	}
 	locked := tx.RowsAffected == 1
 	if locked {
-		j.RetryTimeoutAt = sql.NullTime{Valid: true, Time: retryTimeoutAt}
+		j.RunTimeoutAt = sql.NullTime{Valid: true, Time: runTimeoutAt}
 		j.RunStartedAt = sql.NullTime{Valid: true, Time: startedAt}
 		j.RunStartedBy = sql.NullInt64{Valid: true, Int64: instanceID}
 	}
 	return locked, tx.Error
 }
 
-// complete the job
-func (j *JobRun) complete(db *gorm.DB, instanceID int64, jobRunErr error) error {
+// markComplete mark the job completed with error
+func (j *JobRun) markComplete(db *gorm.DB, instanceID int64, jobRunErr error) error {
 
-	completedErr := sql.NullString{}
+	j.NameActive = sql.NullString{}
+
+	j.RunTotalCount++
+
+	j.RunCompletedError = sql.NullString{}
 	if jobRunErr != nil {
-		completedErr = sql.NullString{Valid: true, String: jobRunErr.Error()}
+		j.RunCompletedError = sql.NullString{Valid: true, String: jobRunErr.Error()}
 	} else {
-		j.RunCount++
+		j.RunSuccessCount++
 	}
+	j.RunCompletedAt = sql.NullTime{Valid: true, Time: time.Now()}
 
-	tx := db.Model(j).Where("run_completed_at IS NULL").Updates(map[string]interface{}{
-		"run_count":           j.RunCount,
-		"name_active":         sql.NullString{},
-		"run_completed_at":    sql.NullTime{Valid: true, Time: time.Now()},
-		"run_completed_error": completedErr,
+	tx := db.Model(j).Where("run_completed_at IS NULL AND run_started_by = ?", instanceID).Updates(map[string]interface{}{
+		"name_active":         j.NameActive,
+		"run_total_count":     j.RunTotalCount,
+		"run_success_count":   j.RunSuccessCount,
+		"run_completed_at":    j.RunCompletedAt,
+		"run_completed_error": j.RunCompletedError,
 	})
-	if tx.Error != nil {
-		return tx.Error
+	err := tx.Error
+	if err == nil && tx.RowsAffected != 1 {
+		err = errors.New("could not mark job run as completed")
 	}
-
-	return db.First(j, j.ID).Error
-}
-
-// hasClosed .
-func (j *JobRun) hasClosed() bool {
-	return j.ClosedAt.Valid && j.ClosedBy.Valid
+	return err
 }
 
 func (j *JobRun) hasCompleted() bool {
 	return j.RunCompletedAt.Valid
-}
-
-func (j *JobRun) hasCompletedOk() bool {
-	return j.hasCompleted() && !j.RunCompletedError.Valid
-}
-
-func (j *JobRun) hasCompletedWithError() bool {
-	return j.hasCompleted() && j.RunCompletedError.Valid
 }
 
 func (j *JobRun) hasReachedErrorLimit() bool {
@@ -130,7 +122,7 @@ func (j *JobRun) hasReachedTimeoutLimit() bool {
 }
 
 func (j *JobRun) needsScheduling() bool {
-	return j.Schedule.Valid && (!j.RunLimit.Valid || j.RunLimit.Int64 > int64(j.RunCount))
+	return j.Schedule.Valid && (!j.RunSuccessLimit.Valid || j.RunSuccessLimit.Int64 > int64(j.RunSuccessCount))
 }
 
 func (j *JobRun) resetErrorRetries() {
@@ -141,127 +133,22 @@ func (j *JobRun) resetTimeoutRetries() {
 	j.RetriesOnTimeoutCount = 0
 }
 
-// close the job run so no retries or rescheduling can be done
-func (j *JobRun) close(db *gorm.DB, instanceID int64) error {
-	if j.hasClosed() {
-		return nil
-	}
-	tx := db.Model(j).Where("closed_at IS NULL").Updates(map[string]interface{}{
-		"name_active": sql.NullString{},
-		"closed_at":   time.Now(),
-		"closed_by":   instanceID,
-	})
-	if tx.RowsAffected != 1 {
-		return errors.New("job run already closed")
-	}
-	return nil
-}
-
-// retryOnError does that
-func (j *JobRun) retryOnError(db *gorm.DB, instanceID int64) (*JobRun, error) {
-
-	if j.hasClosed() || !j.hasCompletedWithError() || j.hasReachedErrorLimit() {
-		return nil, nil
-	}
-
-	// retry the job run if it produced an error
-	nextJobRun := j.cloneReset(instanceID)
-	nextJobRun.RetriesOnErrorCount++
-
-	txErr := db.Transaction(func(tx *gorm.DB) error {
-		if err := j.close(tx, instanceID); err != nil {
-			return err
-		}
-		return nextJobRun.insertGet(tx)
-	})
-	return nextJobRun, txErr
-}
-
-// retryOnTimeout does that
-func (j *JobRun) retryOnTimeout(db *gorm.DB, instanceID int64) (*JobRun, error) {
-
-	if j.hasClosed() || j.hasCompleted() || j.hasReachedTimeoutLimit() {
-		return nil, nil
-	}
-
-	// retry the job run because it timed out
-	nextJobRun := j.cloneReset(instanceID)
-	nextJobRun.RetriesOnTimeoutCount++
-
-	txErr := db.Transaction(func(tx *gorm.DB) error {
-		if err := j.close(tx, instanceID); err != nil {
-			return err
-		}
-		return nextJobRun.insertGet(tx)
-	})
-	return nextJobRun, txErr
-}
-
-// reschedule the job run
-func (j *JobRun) reschedule(db *gorm.DB, instanceID int64, schedules map[string]ScheduleFunc) (*JobRun, error) {
-
-	if j.hasClosed() || !j.needsScheduling() {
-		return nil, nil
-	}
-
-	schedule, exists := schedules[j.Schedule.String]
-	if !exists {
-		return nil, errors.New("cannot reschedule job run, schedule does not exist")
-	}
-
-	nextJobRun := j.cloneReset(instanceID)
-	nextJobRun.RunAt = schedule(j.RunCompletedAt.Time)
-	nextJobRun.resetErrorRetries()
-	nextJobRun.resetTimeoutRetries()
-
-	txErr := db.Transaction(func(tx *gorm.DB) error {
-		if err := j.close(tx, instanceID); err != nil {
-			return err
-		}
-		return nextJobRun.insertGet(tx)
-	})
-	return nextJobRun, txErr
-}
-
-func (j *JobRun) check(
-	jobs map[string]*JobContainer,
-	schedules map[string]ScheduleFunc,
-) error {
-
-	jobC, exists := jobs[j.Job]
-	if !exists {
-		return errors.New("cannot run job. job '" + j.Job + "' does not exist")
-	}
-	if err := jobC.jobFunc.check(j.JobArgs); err != nil {
-		return err
-	}
-
-	if j.needsScheduling() {
-		_, exists := schedules[j.Schedule.String]
-		if !exists {
-			return errors.New("cannot schedule job. schedule '" + j.Schedule.String + "' missing")
-		}
-	}
-
-	return nil
-}
-
 // cloneReset clones the JobRun and resets it for the next run
-func (j *JobRun) cloneReset(instanceID int64) *JobRun {
-	return &JobRun{
+func (j *JobRun) cloneReset(instanceID int64) JobRun {
+	return JobRun{
 		OriginID:              j.ID,
 		Name:                  j.Name,
 		NameActive:            sql.NullString{Valid: true, String: j.Name},
 		Job:                   j.Job,
 		JobArgs:               j.JobArgs,
-		RunCount:              j.RunCount,
-		RunLimit:              j.RunLimit,
+		RunSuccessCount:       j.RunSuccessCount,
+		RunSuccessLimit:       j.RunSuccessLimit,
 		RunAt:                 time.Now(),
+		RunTimeout:            j.RunTimeout,
 		RetriesOnErrorCount:   j.RetriesOnErrorCount,
 		RetriesOnErrorLimit:   j.RetriesOnErrorLimit,
 		RetriesOnTimeoutCount: j.RetriesOnTimeoutCount,
 		RetriesOnTimeoutLimit: j.RetriesOnTimeoutLimit,
-		RetryTimeout:          j.RetryTimeout,
 		Schedule:              j.Schedule,
 		CreatedAt:             time.Now(),
 		CreatedBy:             instanceID,
