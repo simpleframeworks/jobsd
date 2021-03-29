@@ -5,91 +5,91 @@ import (
 	"sync"
 )
 
-type jobRunQueue []JobRun
+type jobRunnableQueue []JobRunnable
 
-func (pq *jobRunQueue) Len() int { return len(*pq) }
+func (pq *jobRunnableQueue) Len() int { return len(*pq) }
 
-func (pq *jobRunQueue) Less(i, j int) bool {
+func (pq *jobRunnableQueue) Less(i, j int) bool {
 	return (*pq)[i].RunAt.Before((*pq)[j].RunAt)
 }
 
-func (pq *jobRunQueue) Swap(i, j int) {
+func (pq *jobRunnableQueue) Swap(i, j int) {
 	(*pq)[i], (*pq)[j] = (*pq)[j], (*pq)[i]
 }
 
-func (pq *jobRunQueue) Push(x interface{}) {
-	item := x.(JobRun)
+func (pq *jobRunnableQueue) Push(x interface{}) {
+	item := x.(JobRunnable)
 	*pq = append(*pq, item)
 }
 
-func (pq *jobRunQueue) Pop() interface{} {
-	n := len(jobRunQueue(*pq))
-	x := jobRunQueue(*pq)[n-1]
-	*pq = jobRunQueue(*pq)[0 : n-1]
+func (pq *jobRunnableQueue) Pop() interface{} {
+	n := len(jobRunnableQueue(*pq))
+	x := jobRunnableQueue(*pq)[n-1]
+	*pq = jobRunnableQueue(*pq)[0 : n-1]
 	return x
 }
 
-func (pq *jobRunQueue) Peek() JobRun {
+func (pq *jobRunnableQueue) Peek() JobRunnable {
 	if pq.Len() <= 0 {
-		return JobRun{}
+		return JobRunnable{}
 	}
 	return (*pq)[0]
 }
 
-// JobRunQueue is a priority queue of jobs to run
-type JobRunQueue struct {
+// JobRunnableQueue is a priority queue of jobs to run
+type JobRunnableQueue struct {
 	mx    sync.Mutex
-	queue *jobRunQueue
+	queue *jobRunnableQueue
 	dup   map[string]struct{}
 }
 
 // Push .
-func (q *JobRunQueue) Push(j JobRun) {
+func (q *JobRunnableQueue) Push(j JobRunnable) {
 	q.mx.Lock()
 	defer q.mx.Unlock()
-	if !j.NameActive.Valid {
+	if !j.jobRun.NameActive.Valid {
 		return
 	}
-	if _, ok := q.dup[j.NameActive.String]; ok {
+	if _, ok := q.dup[j.jobRun.NameActive.String]; ok {
 		return // this de-duplicates
 	}
-	q.dup[j.NameActive.String] = struct{}{}
+	q.dup[j.jobRun.NameActive.String] = struct{}{}
 	heap.Push(q.queue, j)
 }
 
 // Pop .
-func (q *JobRunQueue) Pop() JobRun {
+func (q *JobRunnableQueue) Pop() JobRunnable {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 	if q.queue.Len() <= 0 {
-		return JobRun{}
+		return JobRunnable{}
 	}
-	rtn := heap.Pop(q.queue).(JobRun)
-	delete(q.dup, rtn.NameActive.String)
+	rtn := heap.Pop(q.queue).(JobRunnable)
+	delete(q.dup, rtn.jobRun.NameActive.String)
 	return rtn
 }
 
 // Peek .
-func (q *JobRunQueue) Peek() JobRun {
+func (q *JobRunnableQueue) Peek() JobRunnable {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 	if q.queue.Len() <= 0 {
-		return JobRun{}
+		return JobRunnable{}
 	}
 	return q.queue.Peek()
 }
 
 // Len .
-func (q *JobRunQueue) Len() int {
+func (q *JobRunnableQueue) Len() int {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 	return q.queue.Len()
 }
 
-// NewJobRunQueue .
-func NewJobRunQueue() *JobRunQueue {
-	return &JobRunQueue{
-		queue: &jobRunQueue{},
+// NewJobRunnableQueue .
+func NewJobRunnableQueue() *JobRunnableQueue {
+	return &JobRunnableQueue{
+		queue: &jobRunnableQueue{},
 		dup:   map[string]struct{}{},
 	}
 }

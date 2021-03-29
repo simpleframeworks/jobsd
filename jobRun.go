@@ -60,8 +60,8 @@ func (j *JobRun) insertGet(db *gorm.DB) error {
 	return tx.Error
 }
 
-// lockStart lock and start the job to run
-func (j *JobRun) lockStart(db *gorm.DB, instanceID int64) (bool, error) {
+// lock the job to run
+func (j *JobRun) lock(db *gorm.DB, instanceID int64) (bool, error) {
 	startedAt := time.Now()
 	retryTimeoutAt := startedAt.Add(j.RetryTimeout)
 	tx := db.Model(j).Where("run_started_at IS NULL").Updates(map[string]interface{}{
@@ -244,30 +244,6 @@ func (j *JobRun) check(
 	}
 
 	return nil
-}
-
-func (j *JobRun) run(jobsd *JobsD) (int64, error) {
-	if err := j.check(jobsd.jobs, jobsd.schedules); err != nil {
-		return 0, err
-	}
-
-	j.RunAt = time.Now().Add(j.Delay)
-	if j.needsScheduling() {
-		// schedule it
-		j.RunAt = jobsd.schedules[j.Schedule.String](j.RunAt)
-	}
-
-	err := j.insertGet(jobsd.db)
-	if err != nil {
-		return 0, err
-	}
-	jobsd.log.WithFields(map[string]interface{}{
-		"Job.ID":    j.ID,
-		"Job.RunAt": j.RunAt,
-	}).Trace("created job run")
-	jobsd.addJobRun(*j)
-
-	return j.ID, nil
 }
 
 // cloneReset clones the JobRun and resets it for the next run
