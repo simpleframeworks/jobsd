@@ -64,6 +64,12 @@ func (j *JobFunc) paramsCount() int {
 	return j.jobFunc.Type().NumIn()
 }
 
+// firstParamJR . Is the first param a Job Runnable struct?
+func (j *JobFunc) firstParamJR() bool {
+	//TODO
+	return false
+}
+
 // execute the JobFunc
 // there is no param validation, use the check func
 func (j *JobFunc) execute(params []interface{}) error {
