@@ -32,6 +32,7 @@ type JobRunnable struct {
 	CreatedAt             time.Time
 	CreatedBy             int64
 	Stop                  <-chan struct{}
+	kill                  <-chan struct{}
 	instanceID            int64
 	addJobR               chan<- JobRunnable
 	jobRun                *JobRun
@@ -116,11 +117,15 @@ func (j *JobRunnable) exec() error {
 		execRes <- j.jobFunc.execute(j.jobRun.JobArgs)
 	}(execRes)
 
+	stop := make(chan struct{})
+	j.Stop = stop
 	if j.RunTimeoutAt != nil {
 		select {
-		case <-j.Stop:
+		case <-j.kill:
+			close(stop)
 			return ErrRunKill
 		case <-time.After(j.RunTimeoutAt.Sub(time.Now())):
+			close(stop)
 			return ErrRunTimeout
 		case err := <-execRes:
 			return err
@@ -216,12 +221,21 @@ func (j *JobRunnable) cloneReset() JobRunnable {
 		j.jobFunc,
 		j.jobSchedule,
 		j.log,
+		j.kill,
 		j.instanceID,
 	)
 	return rtn
 }
 
-func newJobRunnable(db *gorm.DB, jobRun JobRun, jobFunc JobFunc, jobSchedule *ScheduleFunc, log logc.Logger, instanceID int64) (JobRunnable, error) {
+func newJobRunnable(
+	db *gorm.DB,
+	jobRun JobRun,
+	jobFunc JobFunc,
+	jobSchedule *ScheduleFunc,
+	log logc.Logger,
+	kill <-chan struct{},
+	instanceID int64,
+) (JobRunnable, error) {
 
 	rtn := JobRunnable{
 		ID:                    jobRun.ID,

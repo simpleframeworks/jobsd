@@ -409,7 +409,7 @@ func (j *JobsD) buildJobRunnable(jr JobRun) (rtn JobRunnable, err error) {
 		scheduleFunc = &s
 	}
 
-	return newJobRunnable(j.db, jr, jobC.jobFunc, scheduleFunc, j.log, j.instance.ID)
+	return newJobRunnable(j.db, jr, jobC.jobFunc, scheduleFunc, j.log, j.workerCtx.Done(), j.instance.ID)
 }
 
 func (j *JobsD) createJobRunnable(jr JobRun) (rtn JobRunnable, err error) {
