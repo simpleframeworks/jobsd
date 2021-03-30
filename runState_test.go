@@ -17,7 +17,7 @@ func TestRunState(test *testing.T) {
 	t.Given("a JobsD instance")
 	qd := New(db).Logger(logger)
 
-	t.Given("a Job that signals and then pauses when called")
+	t.Given("a Job that starts and then pauses when called")
 	jobStarted := make(chan struct{})
 	jobContinue := make(chan struct{})
 	jobFunc := func() error {
@@ -41,7 +41,7 @@ func TestRunState(test *testing.T) {
 	theState := qd.GetRunState(theID)
 
 	t.Then("the state should match a job run that has not run")
-	t.Equal(0, int(theState.RunCount))
+	t.Equal(0, int(theState.RunSuccessCount))
 	t.Nil(theState.RunStartedAt)
 	t.Nil(theState.RunStartedBy)
 	t.Nil(theState.RunCompletedAt)
@@ -64,7 +64,7 @@ func TestRunState(test *testing.T) {
 	t.NoError(err)
 
 	t.Then("the state should match a job run that is running")
-	t.Equal(0, int(theState.RunCount))
+	t.Equal(0, int(theState.RunSuccessCount))
 	t.WithinDuration(*theState.RunStartedAt, time.Now(), 800*time.Millisecond)
 	t.Equal(qd.instance.ID, *theState.RunStartedBy)
 	t.Nil(theState.RunCompletedAt)
@@ -90,7 +90,7 @@ func TestRunState(test *testing.T) {
 	t.NoError(err)
 
 	t.Then("the state should match a job run that has completed without error")
-	t.Equal(1, int(theState.RunCount))
+	t.Equal(1, int(theState.RunSuccessCount))
 	t.Equal(*theState.RunStartedAt, RunStartedAt)
 	t.Equal(qd.instance.ID, *theState.RunStartedBy)
 	t.NotNil(theState.RunCompletedAt)

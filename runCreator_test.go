@@ -111,12 +111,12 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 	t.Then("the job run should run after the specified delay of " + delay.String())
 	t.WithinDuration(startTime.Add(delay), runTime, 300*time.Millisecond)
 }
-func TestRunOnceCreatorRetryTimeout(test *testing.T) {
+func TestRunOnceCreatorRunTimeout(test *testing.T) {
 	t := testc.New(test)
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
-	jobName := "TestRunOnceCreatorRetryTimeout" // Must be unique otherwise tests may collide
+	jobName := "TestRunOnceCreatorRunTimeout" // Must be unique otherwise tests may collide
 
 	retryCheck := 50 * time.Millisecond
 	retryTimeout := 200 * time.Millisecond
@@ -126,7 +126,7 @@ func TestRunOnceCreatorRetryTimeout(test *testing.T) {
 	jd := New(db).Logger(logger)
 
 	t.Given("the instance checks for jobs that timeout every " + retryCheck.String())
-	jd.JobRetryTimeoutCheck(retryCheck)
+	jd.TimeoutCheck(retryCheck)
 
 	t.Given("a Job that times out on the first run")
 	wait := sync.WaitGroup{}
@@ -141,13 +141,13 @@ func TestRunOnceCreatorRetryTimeout(test *testing.T) {
 	}
 
 	t.Given("we register the job with a retry timeout limit of 1")
-	jd.RegisterJob(jobName, jobFunc).RetryTimeoutLimit(1)
+	jd.RegisterJob(jobName, jobFunc).RetriesTimeoutLimit(1)
 
 	t.When("we bring up the JobsD instance")
 	t.NoError(jd.Up())
 
 	t.Whenf("we create a job run with a retry timeout of %s", retryTimeout.String())
-	jr := jd.CreateRun(jobName).RetryTimeout(retryTimeout)
+	jr := jd.CreateRun(jobName).RunTimeout(retryTimeout)
 
 	t.When("we run the job")
 	wait.Add(2)
@@ -163,12 +163,12 @@ func TestRunOnceCreatorRetryTimeout(test *testing.T) {
 	t.NoError(jd.Down()) // Cleanup
 }
 
-func TestRunOnceCreatorRetryTimeoutLimit(test *testing.T) {
+func TestRunOnceCreatorRetriesTimeoutLimit(test *testing.T) {
 	t := testc.New(test)
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
-	jobName := "TestRunOnceCreatorRetryTimeoutLimit" // Must be unique otherwise tests may collide
+	jobName := "TestRunOnceCreatorRetriesTimeoutLimit" // Must be unique otherwise tests may collide
 
 	retryCheck := 50 * time.Millisecond
 	retryTimeout := 200 * time.Millisecond
@@ -178,7 +178,7 @@ func TestRunOnceCreatorRetryTimeoutLimit(test *testing.T) {
 	jd := New(db).Logger(logger)
 
 	t.Given("the instance checks for jobs that timeout every " + retryCheck.String())
-	jd.JobRetryTimeoutCheck(retryCheck)
+	jd.TimeoutCheck(retryCheck)
 
 	t.Given("a Job that times out consistently (takes too long)")
 	wait := sync.WaitGroup{}
@@ -191,13 +191,13 @@ func TestRunOnceCreatorRetryTimeoutLimit(test *testing.T) {
 	}
 
 	t.Givenf("we register the job with a retry timeout of %s", retryTimeout.String())
-	jd.RegisterJob(jobName, jobFunc).RetryTimeout(retryTimeout)
+	jd.RegisterJob(jobName, jobFunc).RunTimeout(retryTimeout)
 
 	t.When("we bring up the JobsD instance")
 	t.NoError(jd.Up())
 
 	t.When("we create a job run with a retry timeout limit of 2")
-	jr := jd.CreateRun(jobName).RetryTimeoutLimit(2)
+	jr := jd.CreateRun(jobName).RetriesTimeoutLimit(2)
 
 	t.When("we run the job")
 	wait.Add(3)
@@ -341,12 +341,12 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 	}
 }
 
-func TestRunScheduledCreatorRetryTimeout(test *testing.T) {
+func TestRunScheduledCreatorRunTimeout(test *testing.T) {
 	t := testc.New(test)
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
-	jobName := "TestRunScheduledCreatorRetryTimeout" // Must be unique otherwise tests may collide
+	jobName := "TestRunScheduledCreatorRunTimeout" // Must be unique otherwise tests may collide
 
 	retryCheck := 50 * time.Millisecond
 	retryTimeout := 200 * time.Millisecond
@@ -356,7 +356,7 @@ func TestRunScheduledCreatorRetryTimeout(test *testing.T) {
 	jd := New(db).Logger(logger)
 
 	t.Given("the instance checks for jobs that timeout every " + retryCheck.String())
-	jd.JobRetryTimeoutCheck(retryCheck)
+	jd.TimeoutCheck(retryCheck)
 
 	t.Given("a Job that times out on the second run")
 	wait := sync.WaitGroup{}
@@ -371,7 +371,7 @@ func TestRunScheduledCreatorRetryTimeout(test *testing.T) {
 	}
 
 	t.Given("we register the job with a retry timeout limit of 1")
-	jd.RegisterJob(jobName, jobFunc).RetryTimeoutLimit(1)
+	jd.RegisterJob(jobName, jobFunc).RetriesTimeoutLimit(1)
 
 	interval := 200 * time.Millisecond
 	t.Given("a Schedule that runs every " + interval.String())
@@ -386,7 +386,7 @@ func TestRunScheduledCreatorRetryTimeout(test *testing.T) {
 	t.NoError(jd.Up())
 
 	t.Whenf("we create a job run with a retry timeout of %s and a limit of 2 successful runs", retryTimeout.String())
-	jr := jd.CreateRun(jobName).Schedule("theSchedule").RetryTimeout(retryTimeout).Limit(2)
+	jr := jd.CreateRun(jobName).Schedule("theSchedule").RunTimeout(retryTimeout).Limit(2)
 
 	t.When("we run the job")
 	wait.Add(3)
@@ -402,12 +402,12 @@ func TestRunScheduledCreatorRetryTimeout(test *testing.T) {
 	t.NoError(jd.Down()) // Cleanup
 }
 
-func TestRunScheduledCreatorRetryTimeoutLimit(test *testing.T) {
+func TestRunScheduledCreatorRetriesTimeoutLimit(test *testing.T) {
 	t := testc.New(test)
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
-	jobName := "TestRunScheduledCreatorRetryTimeoutLimit" // Must be unique otherwise tests may collide
+	jobName := "TestRunScheduledCreatorRetriesTimeoutLimit" // Must be unique otherwise tests may collide
 
 	retryCheck := 50 * time.Millisecond
 	retryTimeout := 200 * time.Millisecond
@@ -417,7 +417,7 @@ func TestRunScheduledCreatorRetryTimeoutLimit(test *testing.T) {
 	jd := New(db).Logger(logger)
 
 	t.Given("the instance checks for jobs that timeout every " + retryCheck.String())
-	jd.JobRetryTimeoutCheck(retryCheck)
+	jd.TimeoutCheck(retryCheck)
 
 	t.Given("a Job that times out consistently (takes too long) after a successful run")
 	wait := sync.WaitGroup{}
@@ -432,7 +432,7 @@ func TestRunScheduledCreatorRetryTimeoutLimit(test *testing.T) {
 	}
 
 	t.Givenf("we register the job with a retry timeout of %s", retryTimeout.String())
-	jd.RegisterJob(jobName, jobFunc).RetryTimeout(retryTimeout)
+	jd.RegisterJob(jobName, jobFunc).RunTimeout(retryTimeout)
 
 	interval := 200 * time.Millisecond
 	t.Given("a Schedule that runs every " + interval.String())
@@ -447,7 +447,7 @@ func TestRunScheduledCreatorRetryTimeoutLimit(test *testing.T) {
 	t.NoError(jd.Up())
 
 	t.When("we create a scheduled job run with a retry timeout limit of 2")
-	jr := jd.CreateRun(jobName).Schedule("theSchedule").Limit(2).RetryTimeoutLimit(2)
+	jr := jd.CreateRun(jobName).Schedule("theSchedule").Limit(2).RetriesTimeoutLimit(2)
 
 	t.When("we run the job")
 	wait.Add(5)

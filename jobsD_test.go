@@ -244,7 +244,7 @@ func TestQueuedRunTimeoutRetry(test *testing.T) {
 	jd := New(db).Logger(logger)
 
 	t.Given("the instance checks for jobs that timeout every " + retryCheck.String())
-	jd.JobRetryTimeoutCheck(retryCheck)
+	jd.TimeoutCheck(retryCheck)
 
 	t.Given("a Job that times out on the first run")
 	wait := sync.WaitGroup{}
@@ -259,7 +259,7 @@ func TestQueuedRunTimeoutRetry(test *testing.T) {
 	}
 
 	t.Given("we register the job and set it to retry once on a " + retryTimeout.String() + " timeout")
-	jd.RegisterJob(jobName, jobFunc).RetryTimeoutLimit(1).RetryTimeout(retryTimeout)
+	jd.RegisterJob(jobName, jobFunc).RetriesTimeoutLimit(1).RunTimeout(retryTimeout)
 
 	t.When("we bring up the JobsD instance")
 	t.NoError(jd.Up())
@@ -453,7 +453,7 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 	t.Given("a " + strconv.Itoa(nodes) + " JobsD instance cluster with one worker each")
 	jdInstances := []*JobsD{}
 	for i := 0; i < nodes; i++ {
-		jdInstances = append(jdInstances, New(db).Logger(logger).WorkerNum(1).JobPollInterval(100*time.Millisecond))
+		jdInstances = append(jdInstances, New(db).Logger(logger).WorkerNum(1).PollInterval(100*time.Millisecond))
 	}
 
 	runTime := 150 * time.Millisecond
