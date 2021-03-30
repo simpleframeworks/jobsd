@@ -3,6 +3,7 @@ package jobsd
 import (
 	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/simpleframeworks/testc"
 	"github.com/sirupsen/logrus"
@@ -29,28 +30,43 @@ func TestRunnableLock(test *testing.T) {
 		NameActive: sql.NullString{Valid: true, String: faker.Name().String()},
 		Job:        jobName,
 		JobArgs:    params0,
+		CreatedAt:  time.Now(),
+		CreatedBy:  jd.instance.ID,
 	}
+	j0r.insertGet(jd.db)
+
 	j0, err1 := jd.buildRunnable(j0r)
 	t.NoError(err1)
 	t.Greater(j0.ID, int64(0))
+	t.Equal(jd.instance.ID, j0.CreatedBy)
 
 	t.Given("a Runnable j1 which the same as j0")
 	j1r := Run{
 		NameActive: j0r.NameActive,
-		Job:        jobName,
-		JobArgs:    params0,
+		Job:        j0r.Job,
+		JobArgs:    j0r.JobArgs,
+		CreatedAt:  j0r.CreatedAt,
+		CreatedBy:  j0r.CreatedBy,
 	}
+	j1r.insertGet(jd.db)
+
 	j1, err2 := jd.buildRunnable(j1r)
 	t.NoError(err2)
 	t.Greater(j1.ID, int64(0))
 	t.Equal(j0.ID, j1.ID)
-	t.Equal(j0.JobArgs, j1.JobArgs)
+
+	t.Equal(j0r.NameActive, j1r.NameActive)
+	t.Equal(j0r.Job, j1r.Job)
+	t.Equal(j0r.JobArgs, j1r.JobArgs)
+	t.WithinDuration(j0r.CreatedAt, j1r.CreatedAt, 0)
+	t.Equal(j0r.CreatedBy, j1r.CreatedBy)
 
 	t.When("j0 is locked")
 	locked0 := j0.lock()
 	t.True(locked0)
 
 	t.Then("j0 should record the instance.ID that locked and started it")
+	t.Equal(jd.instance.ID, j0.jobRun.RunStartedBy.Int64)
 	t.Equal(jd.instance.ID, j0.RunStartedBy)
 
 	t.Then("j1 should not be able to lock it")

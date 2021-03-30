@@ -36,8 +36,8 @@ type Runnable struct {
 	instanceID            int64
 	addJobR               chan<- Runnable
 	jobRun                *Run
-	jobSchedule           *ScheduleFunc
 	jobFunc               JobFunc
+	jobSchedule           *ScheduleFunc
 	db                    *gorm.DB
 	log                   logc.Logger
 }
@@ -220,9 +220,9 @@ func (j *Runnable) cloneReset() Runnable {
 		nexRun,
 		j.jobFunc,
 		j.jobSchedule,
-		j.log,
-		j.kill,
 		j.instanceID,
+		j.kill,
+		j.log,
 	)
 	return rtn
 }
@@ -232,9 +232,9 @@ func newRunnable(
 	jobRun Run,
 	jobFunc JobFunc,
 	jobSchedule *ScheduleFunc,
-	log logc.Logger,
-	kill <-chan struct{},
 	instanceID int64,
+	kill <-chan struct{},
+	log logc.Logger,
 ) (Runnable, error) {
 
 	rtn := Runnable{
@@ -250,10 +250,12 @@ func newRunnable(
 		RetriesOnTimeoutCount: jobRun.RetriesOnTimeoutCount,
 		CreatedAt:             jobRun.CreatedAt,
 		CreatedBy:             jobRun.CreatedBy,
-		db:                    db,
+		instanceID:            instanceID,
+		kill:                  kill,
 		jobRun:                &jobRun,
 		jobFunc:               jobFunc,
 		jobSchedule:           jobSchedule,
+		db:                    db,
 		log:                   log,
 	}
 	if jobRun.RunSuccessLimit.Valid {
