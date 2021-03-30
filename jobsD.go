@@ -54,7 +54,8 @@ type JobsD struct {
 	jobs                  map[string]*JobContainer
 	schedules             map[string]ScheduleFunc
 	runQ                  *RunnableQueue
-	runQNew               chan struct{}
+	runQReset             chan struct{}
+	runQAdd               chan Runnable
 	runNow                chan Runnable
 	producerCtx           context.Context
 	producerCtxCancelFunc context.CancelFunc
@@ -131,7 +132,8 @@ func (j *JobsD) Up() error {
 
 	j.started = true
 	j.runNow = make(chan Runnable)
-	j.runQNew = make(chan struct{})
+	j.runQAdd = make(chan Runnable)
+	j.runQReset = make(chan struct{})
 
 	j.producerCtx, j.producerCtxCancelFunc = context.WithCancel(context.Background())
 	j.producerCancelWait = sync.WaitGroup{}
@@ -169,15 +171,27 @@ func (j *JobsD) createWorkers() {
 
 func (j *JobsD) createProducers() {
 
-	j.producerCancelWait.Add(3)
+	j.producerCancelWait.Add(4)
+	go j.runnableAdder(j.producerCtx.Done())
 	go j.runnableLoader(j.producerCtx.Done())
 	go j.runnableDelegator(j.producerCtx.Done())
 	go j.runnableResurrector(j.producerCtx.Done())
 }
 
 func (j *JobsD) runnableAdder(done <-chan struct{}) {
-	// TODO
+	for {
+		select {
+		case <-done:
+			j.log.Trace("shutdown runnableAdder")
+			j.producerCancelWait.Done()
+			return
+		case jr := <-j.runQAdd:
+			j.runQ.Push(jr)
+			go func() { j.runQReset <- struct{}{} }()
+		}
+	}
 }
+
 func (j *JobsD) runnableLoader(done <-chan struct{}) {
 	for {
 		select {
@@ -214,7 +228,7 @@ func (j *JobsD) runnableLoader(done <-chan struct{}) {
 		}
 
 		if len(jobRuns) > 0 {
-			j.runQNew <- struct{}{}
+			j.runQReset <- struct{}{}
 		}
 
 		j.log.Trace("loading job runs from the DB - completed")
@@ -238,15 +252,22 @@ func (j *JobsD) runnableDelegator(done <-chan struct{}) {
 			}
 		}
 		j.log.Trace("waiting for run")
+		timer := time.NewTimer(waitTime)
 
 		select {
 		case <-done:
 			j.log.Trace("shutdown runnableDelegator")
+			if !timer.Stop() {
+				<-timer.C
+			}
 			j.producerCancelWait.Done()
 			return
-		case <-j.runQNew:
+		case <-j.runQReset:
+			if !timer.Stop() {
+				<-timer.C
+			}
 			break
-		case <-time.After(waitTime):
+		case <-timer.C:
 			break
 		}
 	}
@@ -275,7 +296,6 @@ func (j *JobsD) runner(done <-chan struct{}) {
 
 			log.Trace("running job - completed")
 		}
-
 	}
 }
 
@@ -319,14 +339,6 @@ func (j *JobsD) runnableResurrector(done <-chan struct{}) {
 			j.log.Trace("finding job runs to resurrect - completed")
 		}
 	}
-}
-
-func (j *JobsD) addRun(jr Runnable) {
-	j.runQ.Push(jr)
-
-	// Notify the delegator of the new item to run
-	// This needs to be async to prevent a job run from deadlocking trying to reschedule
-	go func() { j.runQNew <- struct{}{} }()
 }
 
 func (j *JobsD) incRunsStarted() {
@@ -383,7 +395,7 @@ func (j *JobsD) Down() error {
 	j.workertCxCancelWait.Wait()
 
 	close(j.runNow)
-	close(j.runQNew)
+	close(j.runQReset)
 	j.started = false
 
 	j.instance.ShutdownAt = sql.NullTime{Valid: true, Time: time.Now()}
@@ -434,7 +446,7 @@ func (j *JobsD) createRunnable(jr Run) (rtn Runnable, err error) {
 		"Run.RunAt": rtn.jobRun.RunAt,
 	}).Trace("created runnable job")
 
-	j.addRun(rtn)
+	j.runQAdd <- rtn
 
 	return rtn, err
 }
