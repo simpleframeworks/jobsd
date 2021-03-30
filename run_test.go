@@ -10,17 +10,17 @@ import (
 	"syreclabs.com/go/faker"
 )
 
-func TestJobRunCreate(test *testing.T) {
+func TestRunCreate(test *testing.T) {
 	t := testc.New(test)
 
 	t.Given("a database connection")
 	db, err0 := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	t.NoError(err0)
 
-	t.Given("a JobRun has been synced")
-	db.AutoMigrate(&JobRun{})
+	t.Given("a Run has been synced")
+	db.AutoMigrate(&Run{})
 	params0 := []interface{}{"hello world!"}
-	j0 := JobRun{
+	j0 := Run{
 		NameActive: sql.NullString{Valid: true, String: faker.Name().String()},
 		JobArgs:    params0,
 	}
@@ -28,8 +28,8 @@ func TestJobRunCreate(test *testing.T) {
 	t.NoError(err1)
 	t.Greater(j0.ID, int64(0))
 
-	t.When("a JobRun with the same NameActive")
-	j1 := JobRun{
+	t.When("a Run with the same NameActive")
+	j1 := Run{
 		NameActive: j0.NameActive,
 		Job:        j0.Job,
 		Schedule:   j0.Schedule,
@@ -45,17 +45,17 @@ func TestJobRunCreate(test *testing.T) {
 	t.Equal(j0.JobArgs, j1.JobArgs)
 }
 
-func TestJobRunLock(test *testing.T) {
+func TestRunLock(test *testing.T) {
 	t := testc.New(test)
 
 	t.Given("a database connection")
 	db, err0 := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	t.NoError(err0)
 
-	t.Given("a JobRun j0 has been created")
-	db.AutoMigrate(&JobRun{})
+	t.Given("a Run j0 has been created")
+	db.AutoMigrate(&Run{})
 	params0 := []interface{}{"hello world!"}
-	j0 := JobRun{
+	j0 := Run{
 		NameActive: sql.NullString{Valid: true, String: faker.Name().String()},
 		JobArgs:    params0,
 	}
@@ -63,8 +63,8 @@ func TestJobRunLock(test *testing.T) {
 	t.NoError(err1)
 	t.Greater(j0.ID, int64(0))
 
-	t.Given("a JobRun j1 which the same as j0")
-	j1 := JobRun{
+	t.Given("a Run j1 which the same as j0")
+	j1 := Run{
 		NameActive: j0.NameActive,
 		Job:        j0.Job,
 		Schedule:   j0.Schedule,

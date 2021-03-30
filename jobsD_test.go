@@ -96,12 +96,12 @@ func setupMySQL(logger logc.Logger) *gorm.DB {
 	return db
 }
 
-func TestJobsDJobRun(test *testing.T) {
+func TestJobsDRun(test *testing.T) {
 	t := testc.New(test)
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
-	jobName := "TestJobsDJobRun" // Must be unique otherwise tests may collide
+	jobName := "TestJobsDRun" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
@@ -139,12 +139,12 @@ func TestJobsDJobRun(test *testing.T) {
 	t.NoError(jd.Down()) // Cleanup
 }
 
-func TestJobsDJobRunMulti(test *testing.T) {
+func TestJobsDRunMulti(test *testing.T) {
 	t := testc.New(test)
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
-	jobName := "TestJobsDJobRunMulti" // Must be unique otherwise tests may collide
+	jobName := "TestJobsDRunMulti" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
@@ -184,12 +184,12 @@ func TestJobsDJobRunMulti(test *testing.T) {
 	t.NoError(jd.Down()) // Cleanup
 }
 
-func TestQueuedJobRunErrRetry(test *testing.T) {
+func TestQueuedRunErrRetry(test *testing.T) {
 	t := testc.New(test)
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
-	jobName := "TestQueuedJobRunErrRetry" // Must be unique otherwise tests may collide
+	jobName := "TestQueuedRunErrRetry" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
@@ -229,16 +229,16 @@ func TestQueuedJobRunErrRetry(test *testing.T) {
 	t.NoError(jd.Down()) // Cleanup
 }
 
-func TestQueuedJobRunTimeoutRetry(test *testing.T) {
+func TestQueuedRunTimeoutRetry(test *testing.T) {
 	t := testc.New(test)
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
-	jobName := "TestQueuedJobRunTimeoutRetry" // Must be unique otherwise tests may collide
+	jobName := "TestQueuedRunTimeoutRetry" // Must be unique otherwise tests may collide
 
 	retryCheck := 50 * time.Millisecond
 	retryTimeout := 200 * time.Millisecond
-	firstJobRunTime := 1000 * time.Millisecond
+	firstRunTime := 1000 * time.Millisecond
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
@@ -253,7 +253,7 @@ func TestQueuedJobRunTimeoutRetry(test *testing.T) {
 		defer wait.Done()
 		currentCount := atomic.AddUint32(&runCounter, 1)
 		if currentCount == 1 {
-			<-time.After(firstJobRunTime)
+			<-time.After(firstRunTime)
 		}
 		return nil
 	}
@@ -278,12 +278,12 @@ func TestQueuedJobRunTimeoutRetry(test *testing.T) {
 	t.NoError(jd.Down()) // Cleanup
 }
 
-func TestJobsDScheduledJobRun(test *testing.T) {
+func TestJobsDScheduledRun(test *testing.T) {
 	t := testc.New(test)
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
-	jobName := "TestJobsDScheduledJobRun" // Must be unique otherwise tests may collide
+	jobName := "TestJobsDScheduledRun" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
@@ -332,12 +332,12 @@ func TestJobsDScheduledJobRun(test *testing.T) {
 	t.NoError(jd.Down()) // Cleanup
 }
 
-func TestJobsDScheduledJobRunRecurrent(test *testing.T) {
+func TestJobsDScheduledRunRecurrent(test *testing.T) {
 	t := testc.New(test)
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
-	jobName := "TestJobsDScheduledJobRunRecurrent" // Must be unique otherwise tests may collide
+	jobName := "TestJobsDScheduledRunRecurrent" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
@@ -388,12 +388,12 @@ func TestJobsDScheduledJobRunRecurrent(test *testing.T) {
 	t.NoError(jd.Down()) // Cleanup
 }
 
-func TestJobsDScheduledJobRunMulti(test *testing.T) {
+func TestJobsDScheduledRunMulti(test *testing.T) {
 	t := testc.New(test)
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
-	jobName := "TestJobsDScheduledJobRunMulti" // Must be unique otherwise tests may collide
+	jobName := "TestJobsDScheduledRunMulti" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger).WorkerNum(1)
@@ -492,14 +492,14 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 	t.Equal(runs, int(runCounter))
 
 	t.Then("the job runs should have been distributed across the cluster and run")
-	nonLocalJobRuns := 0
+	nonLocalRuns := 0
 	for _, runID := range runIDs {
-		theState := jdInstances[0].GetJobRunState(runID)
+		theState := jdInstances[0].GetRunState(runID)
 		if theState.RunStartedBy != nil && *theState.RunStartedBy != jdInstances[0].instance.ID {
-			nonLocalJobRuns++
+			nonLocalRuns++
 		}
 	}
-	t.Greater(nonLocalJobRuns, 1)
+	t.Greater(nonLocalRuns, 1)
 
 	for _, qInst := range jdInstances {
 		t.NoError(qInst.Down())
@@ -539,11 +539,11 @@ func ExampleJobsD() {
 	// Output: Hello World!
 }
 
-func BenchmarkQueueJobRun(b *testing.B) {
+func BenchmarkQueueRun(b *testing.B) {
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
-	jobName := "BenchmarkQueueJobRun" // Must be unique otherwise tests may collide
+	jobName := "BenchmarkQueueRun" // Must be unique otherwise tests may collide
 
 	wait := sync.WaitGroup{}
 	out := []int{}

@@ -9,8 +9,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// JobRunnable represents a single runnable job run
-type JobRunnable struct {
+// Runnable represents a single runnable job run
+type Runnable struct {
 	ID                    int64
 	OriginID              int64
 	Name                  string
@@ -34,15 +34,15 @@ type JobRunnable struct {
 	Stop                  <-chan struct{}
 	kill                  <-chan struct{}
 	instanceID            int64
-	addJobR               chan<- JobRunnable
-	jobRun                *JobRun
+	addJobR               chan<- Runnable
+	jobRun                *Run
 	jobSchedule           *ScheduleFunc
 	jobFunc               JobFunc
 	db                    *gorm.DB
 	log                   logc.Logger
 }
 
-func (j *JobRunnable) schedule() {
+func (j *Runnable) schedule() {
 	j.jobRun.RunAt = time.Now().Add(j.jobRun.Delay)
 	if j.jobSchedule != nil && j.jobRun.needsScheduling() {
 		j.jobRun.RunAt = (*j.jobSchedule)(j.jobRun.RunAt)
@@ -69,7 +69,7 @@ var ErrRunTimeout = errors.New("job run timed out")
 // ErrRunKill returns if a job was killed
 var ErrRunKill = errors.New("job run killed")
 
-func (j *JobRunnable) run() RunRes {
+func (j *Runnable) run() RunRes {
 	log := j.logger()
 
 	if !j.lock() {
@@ -91,7 +91,7 @@ func (j *JobRunnable) run() RunRes {
 	return RunResSuccess
 }
 
-func (j *JobRunnable) lock() bool {
+func (j *Runnable) lock() bool {
 	log := j.logger()
 
 	log.Trace("locking job run")
@@ -110,10 +110,10 @@ func (j *JobRunnable) lock() bool {
 	return locked
 }
 
-func (j *JobRunnable) exec() error {
+func (j *Runnable) exec() error {
 	execRes := make(chan error)
 	go func(execRes chan<- error) {
-		//TODO add the JobRunnabled to the first param if needed
+		//TODO add the Runnabled to the first param if needed
 		execRes <- j.jobFunc.execute(j.jobRun.JobArgs)
 	}(execRes)
 
@@ -134,7 +134,7 @@ func (j *JobRunnable) exec() error {
 	return <-execRes
 }
 
-func (j *JobRunnable) handleTO() {
+func (j *Runnable) handleTO() {
 
 	txErr := j.db.Transaction(func(tx *gorm.DB) error {
 		if err := j.jobRun.markComplete(j.db, j.instanceID, ErrRunTimeout); err != nil {
@@ -156,7 +156,7 @@ func (j *JobRunnable) handleTO() {
 	}
 }
 
-func (j *JobRunnable) handleErr(err error) {
+func (j *Runnable) handleErr(err error) {
 	txErr := j.db.Transaction(func(tx *gorm.DB) error {
 		if err := j.jobRun.markComplete(j.db, j.instanceID, err); err != nil {
 			return err
@@ -177,7 +177,7 @@ func (j *JobRunnable) handleErr(err error) {
 	}
 }
 
-func (j *JobRunnable) handleSuccess() {
+func (j *Runnable) handleSuccess() {
 	txErr := j.db.Transaction(func(tx *gorm.DB) error {
 		if err := j.jobRun.markComplete(j.db, j.instanceID, nil); err != nil {
 			return err
@@ -190,7 +190,7 @@ func (j *JobRunnable) handleSuccess() {
 	}
 }
 
-func (j *JobRunnable) reschedule(tx *gorm.DB) error {
+func (j *Runnable) reschedule(tx *gorm.DB) error {
 	if j.jobSchedule != nil && j.jobRun.needsScheduling() {
 		next := j.cloneReset()
 		next.jobRun.resetErrorRetries()
@@ -205,19 +205,19 @@ func (j *JobRunnable) reschedule(tx *gorm.DB) error {
 	return nil
 }
 
-func (j *JobRunnable) logger() logc.Logger {
+func (j *Runnable) logger() logc.Logger {
 	return j.log.WithFields(logrus.Fields{
-		"JobRun.ID":   j.jobRun.ID,
-		"JobRun.Name": j.jobRun.Name,
-		"JobRun.Job":  j.jobRun.Job,
+		"Run.ID":   j.jobRun.ID,
+		"Run.Name": j.jobRun.Name,
+		"Run.Job":  j.jobRun.Job,
 	})
 }
 
-func (j *JobRunnable) cloneReset() JobRunnable {
-	nexJobRun := j.jobRun.cloneReset(j.instanceID)
-	rtn, _ := newJobRunnable(
+func (j *Runnable) cloneReset() Runnable {
+	nexRun := j.jobRun.cloneReset(j.instanceID)
+	rtn, _ := newRunnable(
 		j.db,
-		nexJobRun,
+		nexRun,
 		j.jobFunc,
 		j.jobSchedule,
 		j.log,
@@ -227,17 +227,17 @@ func (j *JobRunnable) cloneReset() JobRunnable {
 	return rtn
 }
 
-func newJobRunnable(
+func newRunnable(
 	db *gorm.DB,
-	jobRun JobRun,
+	jobRun Run,
 	jobFunc JobFunc,
 	jobSchedule *ScheduleFunc,
 	log logc.Logger,
 	kill <-chan struct{},
 	instanceID int64,
-) (JobRunnable, error) {
+) (Runnable, error) {
 
-	rtn := JobRunnable{
+	rtn := Runnable{
 		ID:                    jobRun.ID,
 		OriginID:              jobRun.OriginID,
 		Name:                  jobRun.Name,

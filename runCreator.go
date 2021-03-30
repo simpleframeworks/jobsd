@@ -11,7 +11,7 @@ import (
 type RunOnceCreator struct {
 	done   bool
 	jobsd  *JobsD
-	jobRun JobRun
+	jobRun Run
 }
 
 // Unique gives the run a unique name across the cluster.
@@ -74,7 +74,7 @@ func (r *RunOnceCreator) Run() (int64, error) {
 		return 0, errors.New("run can only be called once")
 	}
 	r.done = true
-	jr, err := r.jobsd.createJobRunnable(r.jobRun)
+	jr, err := r.jobsd.createRunnable(r.jobRun)
 	jr.schedule()
 	return jr.jobRun.ID, err
 }
@@ -87,7 +87,7 @@ func (r *RunOnceCreator) RunAfter(delay time.Duration) (int64, error) {
 	}
 	r.jobRun.Delay = delay
 	r.done = true
-	jr, err := r.jobsd.createJobRunnable(r.jobRun)
+	jr, err := r.jobsd.createRunnable(r.jobRun)
 	jr.schedule()
 	return jr.jobRun.ID, err
 }
@@ -106,7 +106,7 @@ func (r *RunOnceCreator) Schedule(schedule string) *RunScheduleCreator {
 type RunScheduleCreator struct {
 	done   bool
 	jobsd  *JobsD
-	jobRun JobRun
+	jobRun Run
 }
 
 // Unique gives the run a unique name across the cluster.
@@ -178,7 +178,7 @@ func (r *RunScheduleCreator) Run() (int64, error) {
 		return 0, errors.New("run already called")
 	}
 	r.done = true
-	jr, err := r.jobsd.createJobRunnable(r.jobRun)
+	jr, err := r.jobsd.createRunnable(r.jobRun)
 	jr.schedule()
 	return jr.jobRun.ID, err
 }
@@ -191,7 +191,7 @@ func (r *RunScheduleCreator) RunAfter(delay time.Duration) (int64, error) {
 	}
 	r.jobRun.Delay = delay
 	r.done = true
-	jr, err := r.jobsd.createJobRunnable(r.jobRun)
+	jr, err := r.jobsd.createRunnable(r.jobRun)
 	jr.schedule()
 	return jr.jobRun.ID, err
 }

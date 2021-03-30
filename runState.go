@@ -6,8 +6,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// JobRunState is a snapshot of a job runs latest state
-type JobRunState struct {
+// RunState is a snapshot of a job runs latest state
+type RunState struct {
 	db                    *gorm.DB
 	OriginID              int64
 	Name                  string
@@ -26,9 +26,9 @@ type JobRunState struct {
 	CreatedBy             int64
 }
 
-// Refresh gets and loads the latest data into JobRunState
-func (j *JobRunState) Refresh() error {
-	jobRun := JobRun{}
+// Refresh gets and loads the latest data into RunState
+func (j *RunState) Refresh() error {
+	jobRun := Run{}
 	tx := j.db.Where("id = ? OR origin_id = ?", j.OriginID, j.OriginID).Order("created_at DESC").First(&jobRun)
 	if tx.Error != nil {
 		return tx.Error

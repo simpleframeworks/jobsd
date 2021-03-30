@@ -9,15 +9,15 @@ import (
 	"github.com/simpleframeworks/testc"
 )
 
-func TestJobRunQueue(test *testing.T) {
+func TestRunQueue(test *testing.T) {
 	t := testc.New(test)
 
 	t.Given("a job run queue")
-	q := NewJobRunQueue()
+	q := NewRunQueue()
 
 	t.Given("the queue has job runs")
 	for i := 9; i >= 0; i-- {
-		chr := JobRun{
+		chr := Run{
 			Job:        fmt.Sprintf("%d", i),
 			NameActive: sql.NullString{Valid: true, String: fmt.Sprintf("%d", i)},
 			RunAt:      time.Now(),
@@ -38,17 +38,17 @@ func TestJobRunQueue(test *testing.T) {
 	t.ElementsMatch([]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}, runOrder)
 }
 
-func TestJobRunQueueUnique(test *testing.T) {
+func TestRunQueueUnique(test *testing.T) {
 
 	t := testc.New(test)
 
 	t.Given("a job run queue")
-	q := NewJobRunQueue()
+	q := NewRunQueue()
 	now := time.Now()
 
 	t.Given("the queue has unique job runs")
 	for i := 0; i < 10; i++ {
-		chr := JobRun{
+		chr := Run{
 			Job:        fmt.Sprintf("%d", i),
 			NameActive: sql.NullString{Valid: true, String: fmt.Sprintf("%d", i)},
 			RunAt:      now.Add(time.Second * time.Duration(i)),
@@ -58,7 +58,7 @@ func TestJobRunQueueUnique(test *testing.T) {
 
 	t.When("we add the same unique job runs to the queue")
 	for i := 0; i < 10; i++ {
-		chr := JobRun{
+		chr := Run{
 			Job:        fmt.Sprintf("%d", i),
 			NameActive: sql.NullString{Valid: true, String: fmt.Sprintf("%d", i)},
 			RunAt:      now.Add(time.Second * time.Duration(i)),

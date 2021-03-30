@@ -148,7 +148,7 @@ Getting the job run state:
 id, err := jd.CreateRun("job1", "World A").Run()
 checkError(err)
 
-runState := jd.GetJobRunState(id) // Get the run state of the job.
+runState := jd.GetRunState(id) // Get the run state of the job.
 
 spew.Dump(runState.OriginID)
 spew.Dump(runState.Name)

@@ -120,7 +120,7 @@ func TestRunOnceCreatorRetryTimeout(test *testing.T) {
 
 	retryCheck := 50 * time.Millisecond
 	retryTimeout := 200 * time.Millisecond
-	firstJobRunTime := 1000 * time.Millisecond
+	firstRunTime := 1000 * time.Millisecond
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
@@ -135,7 +135,7 @@ func TestRunOnceCreatorRetryTimeout(test *testing.T) {
 		defer wait.Done()
 		currentCount := atomic.AddUint32(&runCounter, 1)
 		if currentCount == 1 {
-			<-time.After(firstJobRunTime)
+			<-time.After(firstRunTime)
 		}
 		return nil
 	}
