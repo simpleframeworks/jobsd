@@ -8,7 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func TestJobRunState(test *testing.T) {
+func TestRunState(test *testing.T) {
 	t := testc.New(test)
 
 	logger := setupLogging(logrus.ErrorLevel)
@@ -38,7 +38,7 @@ func TestJobRunState(test *testing.T) {
 	t.NoError(err)
 
 	t.When("we get the job run state")
-	theState := qd.GetJobRunState(theID)
+	theState := qd.GetRunState(theID)
 
 	t.Then("the state should match a job run that has not run")
 	t.Equal(0, int(theState.RunCount))

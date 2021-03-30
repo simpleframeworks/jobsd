@@ -11,8 +11,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// JobRun is a database representation of a job run
-type JobRun struct {
+// Run is a database representation of a job run
+type Run struct {
 	ID                    int64 `gorm:"primaryKey"`
 	OriginID              int64 `gorm:"index"`
 	Name                  string
@@ -40,12 +40,12 @@ type JobRun struct {
 }
 
 // TableName specifies the db table name
-func (JobRun) TableName() string {
+func (Run) TableName() string {
 	return "jobsd_runs"
 }
 
 // insertGet inserts the Job in the DB. If it already exists it retrieves it.
-func (j *JobRun) insertGet(db *gorm.DB) error {
+func (j *Run) insertGet(db *gorm.DB) error {
 	if !j.NameActive.Valid {
 		return errors.New("the active name, NameActive, is required")
 	}
@@ -60,7 +60,7 @@ func (j *JobRun) insertGet(db *gorm.DB) error {
 }
 
 // lock the job to run
-func (j *JobRun) lock(db *gorm.DB, instanceID int64) (bool, error) {
+func (j *Run) lock(db *gorm.DB, instanceID int64) (bool, error) {
 	startedAt := time.Now()
 	runTimeoutAt := startedAt.Add(time.Duration(j.RunTimeout.Int64))
 	tx := db.Model(j).Where("run_started_at IS NULL").Updates(map[string]interface{}{
@@ -81,7 +81,7 @@ func (j *JobRun) lock(db *gorm.DB, instanceID int64) (bool, error) {
 }
 
 // markComplete mark the job completed with error
-func (j *JobRun) markComplete(db *gorm.DB, instanceID int64, jobRunErr error) error {
+func (j *Run) markComplete(db *gorm.DB, instanceID int64, jobRunErr error) error {
 
 	j.NameActive = sql.NullString{}
 
@@ -109,23 +109,23 @@ func (j *JobRun) markComplete(db *gorm.DB, instanceID int64, jobRunErr error) er
 	return err
 }
 
-func (j *JobRun) hasTimedOut() bool {
+func (j *Run) hasTimedOut() bool {
 	return j.RunTimeoutAt.Valid && j.RunTimeoutAt.Time.After(time.Now())
 }
 
-func (j *JobRun) hasCompleted() bool {
+func (j *Run) hasCompleted() bool {
 	return j.RunCompletedAt.Valid
 }
 
-func (j *JobRun) hasReachedErrorLimit() bool {
+func (j *Run) hasReachedErrorLimit() bool {
 	return j.RetriesOnErrorLimit.Valid && j.RetriesOnErrorCount >= int(j.RetriesOnErrorLimit.Int64)
 }
 
-func (j *JobRun) hasReachedTimeoutLimit() bool {
+func (j *Run) hasReachedTimeoutLimit() bool {
 	return j.RetriesOnTimeoutLimit.Valid && j.RetriesOnTimeoutCount >= int(j.RetriesOnTimeoutLimit.Int64)
 }
 
-func (j *JobRun) needsScheduling() bool {
+func (j *Run) needsScheduling() bool {
 	if !j.Schedule.Valid {
 		return false
 	}
@@ -135,17 +135,17 @@ func (j *JobRun) needsScheduling() bool {
 	return true
 }
 
-func (j *JobRun) resetErrorRetries() {
+func (j *Run) resetErrorRetries() {
 	j.RetriesOnErrorCount = 0
 }
 
-func (j *JobRun) resetTimeoutRetries() {
+func (j *Run) resetTimeoutRetries() {
 	j.RetriesOnTimeoutCount = 0
 }
 
-// cloneReset clones the JobRun and resets it for the next run
-func (j *JobRun) cloneReset(instanceID int64) JobRun {
-	return JobRun{
+// cloneReset clones the Run and resets it for the next run
+func (j *Run) cloneReset(instanceID int64) Run {
+	return Run{
 		OriginID:              j.ID,
 		Name:                  j.Name,
 		NameActive:            sql.NullString{Valid: true, String: j.Name},
@@ -165,10 +165,10 @@ func (j *JobRun) cloneReset(instanceID int64) JobRun {
 	}
 }
 
-func (j *JobRun) logger(logger logc.Logger) logc.Logger {
+func (j *Run) logger(logger logc.Logger) logc.Logger {
 	return logger.WithFields(logrus.Fields{
-		"JobRun.ID":   j.ID,
-		"JobRun.Name": j.Name,
-		"JobRun.Job":  j.Job,
+		"Run.ID":   j.ID,
+		"Run.Name": j.Name,
+		"Run.Job":  j.Job,
 	})
 }

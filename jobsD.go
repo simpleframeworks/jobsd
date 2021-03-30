@@ -24,8 +24,8 @@ type Instance struct {
 	AutoMigrate           bool
 	SupportedJobs         string
 	SupportedSchedules    string
-	PollInterval          time.Duration // When to poll the DB for JobRuns
-	PollLimit             int           // How many JobRuns to get during polling
+	PollInterval          time.Duration // When to poll the DB for Runs
+	PollLimit             int           // How many Runs to get during polling
 	TimeoutCheck          time.Duration // Time between checking job runs for timeout or error
 	RunTimeout            sql.NullInt64 // Default job retry timeout
 	RetriesOnTimeoutLimit sql.NullInt64 // Default number of retries for a job after timeout
@@ -53,9 +53,9 @@ type JobsD struct {
 	started               bool
 	jobs                  map[string]*JobContainer
 	schedules             map[string]ScheduleFunc
-	runQ                  *JobRunnableQueue
+	runQ                  *RunnableQueue
 	runQNew               chan struct{}
-	runNow                chan JobRunnable
+	runNow                chan Runnable
 	producerCtx           context.Context
 	producerCtxCancelFunc context.CancelFunc
 	producerCancelWait    sync.WaitGroup
@@ -117,7 +117,7 @@ func (j *JobsD) Up() error {
 	j.log.Debug("bringing up the service - started")
 
 	if j.instance.AutoMigrate {
-		txErr := j.db.AutoMigrate(&JobRun{}, &Instance{})
+		txErr := j.db.AutoMigrate(&Run{}, &Instance{})
 		if txErr != nil {
 			return txErr
 		}
@@ -130,7 +130,7 @@ func (j *JobsD) Up() error {
 	j.log = j.log.WithField("Instance.ID", j.instance.ID)
 
 	j.started = true
-	j.runNow = make(chan JobRunnable)
+	j.runNow = make(chan Runnable)
 	j.runQNew = make(chan struct{})
 
 	j.producerCtx, j.producerCtxCancelFunc = context.WithCancel(context.Background())
@@ -188,7 +188,7 @@ func (j *JobsD) jobLoader(done <-chan struct{}) {
 
 		j.log.Trace("loading jobs from the DB - started")
 
-		jobRuns := []JobRun{}
+		jobRuns := []Run{}
 		tx := j.db.Where("run_started_at IS NULL").Order("run_at ASC").
 			Limit(int(j.instance.PollLimit)).Find(&jobRuns)
 		if tx.Error != nil {
@@ -197,7 +197,7 @@ func (j *JobsD) jobLoader(done <-chan struct{}) {
 
 		for _, jobRun := range jobRuns {
 			runlog := jobRun.logger(j.log)
-			jr, err := j.buildJobRunnable(jobRun)
+			jr, err := j.buildRunnable(jobRun)
 			if err != nil {
 				runlog.WithError(err).Warn("failed to load job")
 			}
@@ -286,7 +286,7 @@ func (j *JobsD) jobResurrector(done <-chan struct{}) {
 		}
 		j.log.Trace("finding jobs to resurrect - started")
 
-		jobRuns := []JobRun{}
+		jobRuns := []Run{}
 		j.db.Where(
 			"run_started_at IS NOT NULL AND completed_at IS NULL AND job_timeout_at <= ?",
 			time.Now(),
@@ -298,7 +298,7 @@ func (j *JobsD) jobResurrector(done <-chan struct{}) {
 			for _, jobRun := range jobRuns {
 
 				if jobRun.hasTimedOut() {
-					jobRunnable, err := j.buildJobRunnable(jobRun)
+					jobRunnable, err := j.buildRunnable(jobRun)
 					if err != nil {
 						jobRunnable.logger().Warn("could not build job runnable from resurrected job run")
 						continue
@@ -317,7 +317,7 @@ func (j *JobsD) jobResurrector(done <-chan struct{}) {
 	}
 }
 
-func (j *JobsD) addJobRun(jr JobRunnable) {
+func (j *JobsD) addRun(jr Runnable) {
 	j.runQ.Push(jr)
 
 	// Notify the delegator of the new item to run
@@ -390,7 +390,7 @@ func (j *JobsD) Down() error {
 	return err
 }
 
-func (j *JobsD) buildJobRunnable(jr JobRun) (rtn JobRunnable, err error) {
+func (j *JobsD) buildRunnable(jr Run) (rtn Runnable, err error) {
 
 	jobC, exists := j.jobs[jr.Job]
 	if !exists {
@@ -409,12 +409,12 @@ func (j *JobsD) buildJobRunnable(jr JobRun) (rtn JobRunnable, err error) {
 		scheduleFunc = &s
 	}
 
-	return newJobRunnable(j.db, jr, jobC.jobFunc, scheduleFunc, j.log, j.workerCtx.Done(), j.instance.ID)
+	return newRunnable(j.db, jr, jobC.jobFunc, scheduleFunc, j.log, j.workerCtx.Done(), j.instance.ID)
 }
 
-func (j *JobsD) createJobRunnable(jr JobRun) (rtn JobRunnable, err error) {
+func (j *JobsD) createRunnable(jr Run) (rtn Runnable, err error) {
 
-	rtn, err = j.buildJobRunnable(jr)
+	rtn, err = j.buildRunnable(jr)
 	if err != nil {
 		return rtn, err
 	}
@@ -430,7 +430,7 @@ func (j *JobsD) createJobRunnable(jr JobRun) (rtn JobRunnable, err error) {
 		"Job.RunAt": rtn.jobRun.RunAt,
 	}).Trace("created runnable job")
 
-	j.addJobRun(rtn)
+	j.addRun(rtn)
 
 	return rtn, err
 }
@@ -441,7 +441,7 @@ func (j *JobsD) CreateRun(job string, jobParams ...interface{}) *RunOnceCreator 
 	now := time.Now()
 	rtn := &RunOnceCreator{
 		jobsd: j,
-		jobRun: JobRun{
+		jobRun: Run{
 			Name:            name,
 			NameActive:      sql.NullString{Valid: true, String: name},
 			Job:             job,
@@ -461,9 +461,9 @@ func (j *JobsD) CreateRun(job string, jobParams ...interface{}) *RunOnceCreator 
 	return rtn
 }
 
-// GetJobRunState retrieves the current state of the job run
-func (j *JobsD) GetJobRunState(id int64) *JobRunState {
-	rtn := &JobRunState{
+// GetRunState retrieves the current state of the job run
+func (j *JobsD) GetRunState(id int64) *RunState {
+	rtn := &RunState{
 		db:       j.db,
 		OriginID: id,
 	}
@@ -487,7 +487,7 @@ func (j *JobsD) AutoMigration(run bool) *JobsD {
 	return j
 }
 
-// PollInterval sets the time between getting JobRuns from the DB
+// PollInterval sets the time between getting Runs from the DB
 func (j *JobsD) PollInterval(pollInt time.Duration) *JobsD {
 	if !j.started {
 		j.instance.PollInterval = pollInt
@@ -495,7 +495,7 @@ func (j *JobsD) PollInterval(pollInt time.Duration) *JobsD {
 	return j
 }
 
-// PollLimit sets the number of upcoming JobRuns to retrieve from the DB at a time
+// PollLimit sets the number of upcoming Runs to retrieve from the DB at a time
 func (j *JobsD) PollLimit(limit int) *JobsD {
 	if !j.started {
 		j.instance.PollLimit = limit
@@ -579,7 +579,7 @@ func New(db *gorm.DB) *JobsD {
 		},
 		jobs:      map[string]*JobContainer{},
 		schedules: map[string]ScheduleFunc{},
-		runQ:      NewJobRunnableQueue(),
+		runQ:      NewRunnableQueue(),
 		db:        db,
 	}
 
