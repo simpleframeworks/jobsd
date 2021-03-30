@@ -32,8 +32,8 @@ func TestRunQueue(test *testing.T) {
 	for i := 0; i < 10; i++ {
 		topItem := q.Peek()
 		j := q.Pop()
-		t.Equal(topItem.Job, j.Job)
-		runOrder = append(runOrder, j.Job)
+		t.Equal(topItem.jobRun.Job, j.jobRun.Job)
+		runOrder = append(runOrder, j.jobRun.Job)
 	}
 
 	t.Then("the order of job runs should be sorted in chronological order")
@@ -76,7 +76,7 @@ func TestRunQueueUnique(test *testing.T) {
 	items := []string{}
 	for q.Len() > 0 {
 		j := q.Pop()
-		items = append(items, j.Job)
+		items = append(items, j.jobRun.Job)
 	}
 
 	t.ElementsMatch([]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}, items)
