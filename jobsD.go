@@ -152,7 +152,7 @@ func (j *JobsD) createWorkers() {
 		j.workertCxCancelWait.Add(1)
 		done := make(chan struct{})
 		wksDone = append(wksDone, done)
-		go j.jobRunner(done)
+		go j.runner(done)
 	}
 
 	// Tell the workers to finish up
@@ -170,23 +170,26 @@ func (j *JobsD) createWorkers() {
 func (j *JobsD) createProducers() {
 
 	j.producerCancelWait.Add(3)
-	go j.jobLoader(j.producerCtx.Done())
-	go j.jobDelegator(j.producerCtx.Done())
-	go j.jobResurrector(j.producerCtx.Done())
+	go j.runnableLoader(j.producerCtx.Done())
+	go j.runnableDelegator(j.producerCtx.Done())
+	go j.runnableResurrector(j.producerCtx.Done())
 }
 
-func (j *JobsD) jobLoader(done <-chan struct{}) {
+func (j *JobsD) runnableAdder(done <-chan struct{}) {
+	// TODO
+}
+func (j *JobsD) runnableLoader(done <-chan struct{}) {
 	for {
 		select {
 		case <-done:
-			j.log.Trace("shutdown jobLoader")
+			j.log.Trace("shutdown runnableLoader")
 			j.producerCancelWait.Done()
 			return
 		case <-time.After(j.instance.PollInterval):
 			break
 		}
 
-		j.log.Trace("loading jobs from the DB - started")
+		j.log.Trace("loading job runs from the DB - started")
 
 		jobRuns := []Run{}
 		tx := j.db.Where("run_started_at IS NULL").Order("run_at ASC").
@@ -214,11 +217,11 @@ func (j *JobsD) jobLoader(done <-chan struct{}) {
 			j.runQNew <- struct{}{}
 		}
 
-		j.log.Trace("loading jobs from the DB - completed")
+		j.log.Trace("loading job runs from the DB - completed")
 	}
 }
 
-func (j *JobsD) jobDelegator(done <-chan struct{}) {
+func (j *JobsD) runnableDelegator(done <-chan struct{}) {
 	for {
 		waitTime := time.Second * 10
 		now := time.Now()
@@ -226,18 +229,19 @@ func (j *JobsD) jobDelegator(done <-chan struct{}) {
 		if j.runQ.Len() > 0 {
 			nextRunAt := j.runQ.Peek().RunAt
 			if now.Equal(nextRunAt) || now.After(nextRunAt) {
-				j.log.WithField("Job.ID", j.runQ.Peek().ID).Trace("delegating job")
-				j.runNow <- j.runQ.Pop()
+				runnable := j.runQ.Pop()
+				runnable.logger().Trace("delegating run to worker")
+				j.runNow <- runnable
 				continue
 			} else {
 				waitTime = nextRunAt.Sub(now)
 			}
 		}
-		j.log.Trace("waiting for job")
+		j.log.Trace("waiting for run")
 
 		select {
 		case <-done:
-			j.log.Trace("shutdown jobDelegator")
+			j.log.Trace("shutdown runnableDelegator")
 			j.producerCancelWait.Done()
 			return
 		case <-j.runQNew:
@@ -248,11 +252,11 @@ func (j *JobsD) jobDelegator(done <-chan struct{}) {
 	}
 }
 
-func (j *JobsD) jobRunner(done <-chan struct{}) {
+func (j *JobsD) runner(done <-chan struct{}) {
 	for {
 		select {
 		case <-done:
-			j.log.Trace("shutdown jobRunner")
+			j.log.Trace("shutdown runner")
 			j.workertCxCancelWait.Done()
 			return
 		case jobRunnable := <-j.runNow:
@@ -275,7 +279,7 @@ func (j *JobsD) jobRunner(done <-chan struct{}) {
 	}
 }
 
-func (j *JobsD) jobResurrector(done <-chan struct{}) {
+func (j *JobsD) runnableResurrector(done <-chan struct{}) {
 	for {
 		select {
 		case <-done:
@@ -284,7 +288,7 @@ func (j *JobsD) jobResurrector(done <-chan struct{}) {
 		case <-time.After(j.instance.TimeoutCheck):
 			break
 		}
-		j.log.Trace("finding jobs to resurrect - started")
+		j.log.Trace("finding job runs to resurrect - started")
 
 		jobRuns := []Run{}
 		j.db.Where(
@@ -312,7 +316,7 @@ func (j *JobsD) jobResurrector(done <-chan struct{}) {
 				j.log.WithError(err).Warn("failed to update instance status")
 			}
 
-			j.log.Trace("finding jobs to resurrect - completed")
+			j.log.Trace("finding job runs to resurrect - completed")
 		}
 	}
 }
@@ -426,8 +430,8 @@ func (j *JobsD) createRunnable(jr Run) (rtn Runnable, err error) {
 	}
 
 	j.log.WithFields(map[string]interface{}{
-		"Job.ID":    rtn.jobRun.ID,
-		"Job.RunAt": rtn.jobRun.RunAt,
+		"Run.ID":    rtn.jobRun.ID,
+		"Run.RunAt": rtn.jobRun.RunAt,
 	}).Trace("created runnable job")
 
 	j.addRun(rtn)
