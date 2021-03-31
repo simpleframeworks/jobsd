@@ -5,12 +5,12 @@ import (
 	"sync"
 )
 
-type runnableQueue []Runnable
+type runnableQueue []*Runnable
 
 func (pq *runnableQueue) Len() int { return len(*pq) }
 
 func (pq *runnableQueue) Less(i, j int) bool {
-	return (*pq)[i].jobRun.RunAt.Before((*pq)[j].jobRun.RunAt)
+	return (*pq)[i].runAt().Before((*pq)[j].runAt())
 }
 
 func (pq *runnableQueue) Swap(i, j int) {
@@ -18,7 +18,7 @@ func (pq *runnableQueue) Swap(i, j int) {
 }
 
 func (pq *runnableQueue) Push(x interface{}) {
-	item := x.(Runnable)
+	item := x.(*Runnable)
 	*pq = append(*pq, item)
 }
 
@@ -29,9 +29,9 @@ func (pq *runnableQueue) Pop() interface{} {
 	return x
 }
 
-func (pq *runnableQueue) Peek() Runnable {
+func (pq *runnableQueue) Peek() *Runnable {
 	if pq.Len() <= 0 {
-		return Runnable{}
+		return &Runnable{}
 	}
 	return (*pq)[0]
 }
@@ -44,7 +44,7 @@ type RunnableQueue struct {
 }
 
 // Push .
-func (q *RunnableQueue) Push(j Runnable) {
+func (q *RunnableQueue) Push(j *Runnable) {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 	if !j.jobRun.NameActive.Valid {
@@ -58,23 +58,23 @@ func (q *RunnableQueue) Push(j Runnable) {
 }
 
 // Pop .
-func (q *RunnableQueue) Pop() Runnable {
+func (q *RunnableQueue) Pop() *Runnable {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 	if q.queue.Len() <= 0 {
-		return Runnable{}
+		return &Runnable{}
 	}
-	rtn := heap.Pop(q.queue).(Runnable)
+	rtn := heap.Pop(q.queue).(*Runnable)
 	delete(q.dup, rtn.jobRun.NameActive.String)
 	return rtn
 }
 
 // Peek .
-func (q *RunnableQueue) Peek() Runnable {
+func (q *RunnableQueue) Peek() *Runnable {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 	if q.queue.Len() <= 0 {
-		return Runnable{}
+		return &Runnable{}
 	}
 	return q.queue.Peek()
 }

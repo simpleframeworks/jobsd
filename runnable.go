@@ -16,11 +16,16 @@ type Runnable struct {
 	jobRun      *Run
 	jobFunc     JobFunc
 	jobSchedule *ScheduleFunc
-	runQAdd     chan<- Runnable
+	runQAdd     chan<- *Runnable
 	db          *gorm.DB
 	stop        chan struct{}
 	kill        <-chan struct{}
 	log         logc.Logger
+	mu          sync.Mutex
+}
+
+func (j *Runnable) runAt() time.Time {
+	return j.jobRun.RunAt
 }
 
 func (j *Runnable) schedule() {
@@ -54,6 +59,7 @@ func (j *Runnable) run() RunRes {
 	log := j.log
 
 	if !j.lock() {
+		log.Debug("job run already locked")
 		return RunResLockLost
 	}
 
@@ -132,7 +138,7 @@ func (j *Runnable) handleTO() {
 			return err
 		}
 		if !j.jobRun.hasReachedTimeoutLimit() {
-			next := j.cloneReset()
+			next := j.cloneReset(false)
 			next.jobRun.RetriesOnTimeoutCount++
 			next.save(tx)
 			j.runQAdd <- next
@@ -155,7 +161,7 @@ func (j *Runnable) handleErr(err error) {
 			return err
 		}
 		if !j.jobRun.hasReachedErrorLimit() {
-			next := j.cloneReset()
+			next := j.cloneReset(false)
 			next.jobRun.RetriesOnErrorCount++
 			next.save(tx)
 			j.runQAdd <- next
@@ -186,17 +192,14 @@ func (j *Runnable) handleSuccess() {
 func (j *Runnable) reschedule(tx *gorm.DB) error {
 
 	if j.jobSchedule != nil && j.jobRun.needsScheduling() {
-		next := j.cloneReset()
-		next.jobRun.resetErrorRetries()
-		next.jobRun.resetTimeoutRetries()
-		next.jobRun.Delay = 0
-		next.schedule()
+		next := j.cloneReset(true)
 		if err := next.save(tx); err != nil {
 			return err
 		}
 		next.log.WithFields(map[string]interface{}{
 			"Run.At": next.jobRun.RunAt,
 		}).Debug("reschedule job run")
+
 		j.runQAdd <- next
 	}
 	return nil
@@ -214,8 +217,12 @@ func (j *Runnable) save(tx *gorm.DB) error {
 	return nil
 }
 
-func (j *Runnable) cloneReset() Runnable {
+func (j *Runnable) cloneReset(failCounts bool) *Runnable {
 	nexRun := j.jobRun.cloneReset(j.instanceID)
+	if failCounts {
+		nexRun.resetErrorRetries()
+		nexRun.resetTimeoutRetries()
+	}
 	rtn, _ := newRunnable(
 		j.instanceID,
 		nexRun,
@@ -226,6 +233,7 @@ func (j *Runnable) cloneReset() Runnable {
 		j.kill,
 		j.log,
 	)
+	rtn.schedule()
 
 	return rtn
 }
@@ -235,13 +243,13 @@ func newRunnable(
 	jobRun Run,
 	jobFunc JobFunc,
 	jobSchedule *ScheduleFunc,
-	runQAdd chan<- Runnable,
+	runQAdd chan<- *Runnable,
 	db *gorm.DB,
 	kill <-chan struct{},
 	log logc.Logger,
-) (Runnable, error) {
+) (*Runnable, error) {
 
-	rtn := Runnable{
+	rtn := &Runnable{
 		kill:        kill,
 		instanceID:  instanceID,
 		jobRun:      &jobRun,
@@ -255,6 +263,7 @@ func newRunnable(
 		"Run.Name": rtn.jobRun.Name,
 		"Run.Job":  rtn.jobRun.Job,
 	})
+	rtn.schedule()
 
 	err := jobFunc.check(jobRun.JobArgs)
 

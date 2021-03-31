@@ -177,7 +177,6 @@ func (r *RunScheduleCreator) Run() (int64, error) {
 	}
 	r.done = true
 	jr, err := r.jobsd.createRunnable(r.jobRun)
-	jr.schedule()
 	return jr.jobRun.ID, err
 }
 
@@ -190,6 +189,5 @@ func (r *RunScheduleCreator) RunAfter(delay time.Duration) (int64, error) {
 	r.jobRun.Delay = delay
 	r.done = true
 	jr, err := r.jobsd.createRunnable(r.jobRun)
-	jr.schedule()
 	return jr.jobRun.ID, err
 }
