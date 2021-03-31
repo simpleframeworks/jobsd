@@ -30,6 +30,7 @@ func TestRunnableLock(test *testing.T) {
 		NameActive: sql.NullString{Valid: true, String: faker.Name().String()},
 		Job:        jobName,
 		JobArgs:    params0,
+		RunAt:      time.Now(),
 		CreatedAt:  time.Now(),
 		CreatedBy:  jd.instance.ID,
 	}
@@ -45,6 +46,7 @@ func TestRunnableLock(test *testing.T) {
 		NameActive: j0r.NameActive,
 		Job:        j0r.Job,
 		JobArgs:    j0r.JobArgs,
+		RunAt:      time.Now(),
 		CreatedAt:  j0r.CreatedAt,
 		CreatedBy:  j0r.CreatedBy,
 	}
