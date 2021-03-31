@@ -17,7 +17,7 @@ func TestRunQueue(test *testing.T) {
 
 	t.Given("the queue has job runs")
 	for i := 9; i >= 0; i-- {
-		chr := Runnable{
+		chr := &Runnable{
 			jobRun: &Run{
 				Job:        fmt.Sprintf("%d", i),
 				NameActive: sql.NullString{Valid: true, String: fmt.Sprintf("%d", i)},
@@ -50,7 +50,7 @@ func TestRunQueueUnique(test *testing.T) {
 
 	t.Given("the queue has unique job runs")
 	for i := 0; i < 10; i++ {
-		chr := Runnable{
+		chr := &Runnable{
 			jobRun: &Run{
 				Job:        fmt.Sprintf("%d", i),
 				NameActive: sql.NullString{Valid: true, String: fmt.Sprintf("%d", i)},
@@ -62,7 +62,7 @@ func TestRunQueueUnique(test *testing.T) {
 
 	t.When("we add the same unique job runs to the queue")
 	for i := 0; i < 10; i++ {
-		chr := Runnable{
+		chr := &Runnable{
 			jobRun: &Run{
 				Job:        fmt.Sprintf("%d", i),
 				NameActive: sql.NullString{Valid: true, String: fmt.Sprintf("%d", i)},

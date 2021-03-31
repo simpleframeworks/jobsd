@@ -275,6 +275,7 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
+	jobName := "TestRunScheduleCreatorUnique" // Must be unique otherwise tests may collide
 
 	nodes := 10
 	t.Given(strconv.Itoa(nodes) + " JobsD instances to form a cluster")
@@ -296,7 +297,7 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 
 	t.Given("the instances can run the job")
 	for _, qInst := range jdInstances {
-		qInst.RegisterJob("jobName", jobFunc)
+		qInst.RegisterJob(jobName, jobFunc)
 	}
 
 	interval := 200 * time.Millisecond
@@ -319,7 +320,7 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 	t.When("we run the same unique job run on each of the instances in the cluster")
 	wait.Add(2) //we only expect it to run twice
 	for _, qInst := range jdInstances {
-		_, err := qInst.CreateRun("jobName").Schedule("scheduleName").Unique("UniqueJobName").Limit(2).Run()
+		_, err := qInst.CreateRun(jobName).Schedule("scheduleName").Unique(jobName + "UniqueJobName").Limit(2).Run()
 		t.Assert.NoError(err)
 	}
 

@@ -58,7 +58,7 @@ func TestRunnableLock(test *testing.T) {
 	t.Assert.Equal(j0r.NameActive, j1r.NameActive)
 	t.Assert.Equal(j0r.Job, j1r.Job)
 	t.Assert.Equal(j0r.JobArgs, j1r.JobArgs)
-	t.Assert.WithinDuration(j0r.CreatedAt, j1r.CreatedAt, 0)
+	t.Assert.WithinDuration(j0r.CreatedAt, j1r.CreatedAt, 1*time.Millisecond)
 	t.Assert.Equal(j0r.CreatedBy, j1r.CreatedBy)
 
 	t.When("j0 is locked")

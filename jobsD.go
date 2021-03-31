@@ -55,8 +55,8 @@ type JobsD struct {
 	schedules             map[string]ScheduleFunc
 	runQ                  *RunnableQueue
 	runQReset             chan struct{}
-	runQAdd               chan Runnable
-	runNow                chan Runnable
+	runQAdd               chan *Runnable
+	runNow                chan *Runnable
 	producerCtx           context.Context
 	producerCtxCancelFunc context.CancelFunc
 	producerCancelWait    sync.WaitGroup
@@ -131,8 +131,8 @@ func (j *JobsD) Up() error {
 	j.log = j.log.WithField("Instance.ID", j.instance.ID)
 
 	j.started = true
-	j.runNow = make(chan Runnable)
-	j.runQAdd = make(chan Runnable)
+	j.runNow = make(chan *Runnable)
+	j.runQAdd = make(chan *Runnable)
 	j.runQReset = make(chan struct{})
 
 	j.producerCtx, j.producerCtxCancelFunc = context.WithCancel(context.Background())
@@ -229,7 +229,7 @@ func (j *JobsD) runnableDelegator(done <-chan struct{}) {
 		now := time.Now()
 
 		if j.runQ.Len() > 0 {
-			nextRunAt := j.runQ.Peek().jobRun.RunAt
+			nextRunAt := j.runQ.Peek().runAt()
 			if now.Equal(nextRunAt) || now.After(nextRunAt) {
 				runnable := j.runQ.Pop()
 				runnable.log.Trace("delegating run to worker")
@@ -394,7 +394,7 @@ func (j *JobsD) Down() error {
 	return err
 }
 
-func (j *JobsD) buildRunnable(jr Run) (rtn Runnable, err error) {
+func (j *JobsD) buildRunnable(jr Run) (rtn *Runnable, err error) {
 
 	jobC, exists := j.jobs[jr.Job]
 	if !exists {
@@ -425,13 +425,12 @@ func (j *JobsD) buildRunnable(jr Run) (rtn Runnable, err error) {
 	)
 }
 
-func (j *JobsD) createRunnable(jr Run) (rtn Runnable, err error) {
+func (j *JobsD) createRunnable(jr Run) (rtn *Runnable, err error) {
 
 	rtn, err = j.buildRunnable(jr)
 	if err != nil {
 		return rtn, err
 	}
-	rtn.schedule()
 
 	err = rtn.save(j.db)
 	if err != nil {
