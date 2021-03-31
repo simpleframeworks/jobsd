@@ -50,7 +50,7 @@ func setupDB(logger logc.Logger) *gorm.DB {
 
 func setupSQLLite(logger logc.Logger) *gorm.DB {
 	db, err0 := gorm.Open(sqlite.Open("file::memory:"), &gorm.Config{
-		Logger: logc.NewGormLogger(logger),
+		// Logger: logc.NewGormLogger(logger),
 	})
 
 	sqlDB, err := db.DB()
