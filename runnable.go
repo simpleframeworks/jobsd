@@ -179,7 +179,7 @@ func (j *Runnable) handleErr(err error) {
 
 func (j *Runnable) handleSuccess() {
 	txErr := j.db.Transaction(func(tx *gorm.DB) error {
-		if err := j.jobRun.markComplete(j.db, j.instanceID, nil); err != nil {
+		if err := j.jobRun.markComplete(tx, j.instanceID, nil); err != nil {
 			return err
 		}
 		return j.reschedule(tx)
