@@ -20,8 +20,6 @@ type RunState struct {
 	RunCompletedError     *string
 	RetriesOnErrorCount   int
 	RetriesOnTimeoutCount int
-	ClosedAt              *time.Time
-	ClosedBy              *int64
 	CreatedAt             time.Time
 	CreatedBy             int64
 }
