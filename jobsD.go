@@ -299,7 +299,7 @@ func (j *JobsD) runnableResurrector(done <-chan struct{}) {
 
 		jobRuns := []Run{}
 		j.db.Where(
-			"run_started_at IS NOT NULL AND completed_at IS NULL AND job_timeout_at <= ?",
+			"run_started_at IS NOT NULL AND run_completed_at IS NULL AND run_timeout_at <= ?",
 			time.Now(),
 		).Limit(int(j.instance.PollLimit)).Find(&jobRuns)
 
