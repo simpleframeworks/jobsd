@@ -133,8 +133,10 @@ github.com/shopspring/decimal v0.0.0-20200227202807-02e2044944cc h1:jUIKcSPO9MoM
 github.com/shopspring/decimal v0.0.0-20200227202807-02e2044944cc/go.mod h1:DKyhrW/HYNuLGql+MJL6WCR6knT2jwCFRcu2hWCYk4o=
 github.com/simpleframeworks/logc v0.0.0-20210310041638-1d81c99c5fdb h1:KozKIgCIwGbzRXkEAq63qrHuvjh4Nu6VHxrhwH4Cwl8=
 github.com/simpleframeworks/logc v0.0.0-20210310041638-1d81c99c5fdb/go.mod h1:m97IJ9tlQSKaMiK8NfH+TZOzGyYCX9k+55n7/4Wwox4=
-github.com/simpleframeworks/testc v0.0.0-20210310045339-869c260e7723 h1:Ghrz1thbL5anyxcE4IPMuxGz3E/RDkeALn/rKGhXeYM=
-github.com/simpleframeworks/testc v0.0.0-20210310045339-869c260e7723/go.mod h1:Tnadg+D22tBbuHA3s6pz2+cwy/V+utraf5piG8qCl5w=
+github.com/simpleframeworks/testc v0.0.0-20210331033607-c55f087e95ff h1:7Yzn7fo+dBA/xjfVsady6GIyL2iGYuj1crxgHFbspA4=
+github.com/simpleframeworks/testc v0.0.0-20210331033607-c55f087e95ff/go.mod h1:Tnadg+D22tBbuHA3s6pz2+cwy/V+utraf5piG8qCl5w=
+github.com/simpleframeworks/testc v0.0.0-20210331124217-01b720cceb07 h1:1PiBFRaPgKWINdKUeGc01oy0HvqaF1B18OMyUeFqpzM=
+github.com/simpleframeworks/testc v0.0.0-20210331124217-01b720cceb07/go.mod h1:Tnadg+D22tBbuHA3s6pz2+cwy/V+utraf5piG8qCl5w=
 github.com/sirupsen/logrus v1.4.1/go.mod h1:ni0Sbl8bgC9z8RoU9G6nDWqqs/fq4eDPysMBDgk/93Q=
 github.com/sirupsen/logrus v1.4.2/go.mod h1:tLMulIdttU9McNUspp0xgXVQah82FyeX6MwdIuYE2rE=
 github.com/sirupsen/logrus v1.8.1 h1:dJKuHgqk1NNQlqoA6BTlM1Wf9DOH3NBjQyu0h9+AZZE=

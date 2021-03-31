@@ -119,24 +119,24 @@ func TestJobsDRun(test *testing.T) {
 	jd.RegisterJob(jobName, jobFunc)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(jd.Up())
+	t.Assert.NoError(jd.Up())
 
 	t.When("we run the job once")
 	startTime := time.Now()
 	wait.Add(1)
 	_, err := jd.CreateRun(jobName).Run()
-	t.NoError(err)
+	t.Assert.NoError(err)
 
 	t.Then("the job should have run once")
 	t.WaitTimeout(&wait, 500*time.Millisecond)
-	t.Equal(1, int(runCounter))
+	t.Assert.Equal(1, int(runCounter))
 
 	t.Then("the job run should have completed within 1 second")
-	t.WithinDuration(time.Now(), startTime, 1*time.Second)
+	t.Assert.WithinDuration(time.Now(), startTime, 1*time.Second)
 	// If it takes longer it means it ran after being recovered from the DB
 
 	// Cleanup
-	t.NoError(jd.Down()) // Cleanup
+	t.Assert.NoError(jd.Down()) // Cleanup
 }
 
 func TestJobsDRunMulti(test *testing.T) {
@@ -162,7 +162,7 @@ func TestJobsDRunMulti(test *testing.T) {
 	jd.RegisterJob(jobName, jobFunc)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(jd.Up())
+	t.Assert.NoError(jd.Up())
 
 	runNum := 20
 	t.Whenf("we run the job %d times", runNum)
@@ -170,18 +170,18 @@ func TestJobsDRunMulti(test *testing.T) {
 	for i := 0; i < runNum; i++ {
 		wait.Add(1)
 		_, errR := jd.CreateRun(jobName).Run()
-		t.NoError(errR)
+		t.Assert.NoError(errR)
 	}
 
 	t.Thenf("the job should have run %d times", runNum)
 	t.WaitTimeout(&wait, 5000*time.Millisecond)
-	t.Equal(runNum, int(runCounter))
+	t.Assert.Equal(runNum, int(runCounter))
 
 	t.Then("the all job runs should have completed within 3 second")
-	t.WithinDuration(time.Now(), startTime, 3*time.Second)
+	t.Assert.WithinDuration(time.Now(), startTime, 3*time.Second)
 	// If it takes longer it means it ran after being recovered from the DB
 
-	t.NoError(jd.Down()) // Cleanup
+	t.Assert.NoError(jd.Down()) // Cleanup
 }
 
 func TestQueuedRunErrRetry(test *testing.T) {
@@ -210,23 +210,23 @@ func TestQueuedRunErrRetry(test *testing.T) {
 	jd.RegisterJob(jobName, jobFunc).RetryErrorLimit(1)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(jd.Up())
+	t.Assert.NoError(jd.Up())
 
 	t.When("we run the job")
 	wait.Add(2)
 	startTime := time.Now()
 	_, err := jd.CreateRun(jobName, 0).Run()
-	t.NoError(err)
+	t.Assert.NoError(err)
 
 	t.Then("the job should have run twice")
 	t.WaitTimeout(&wait, 500*time.Millisecond)
-	t.Equal(2, int(runCounter))
+	t.Assert.Equal(2, int(runCounter))
 
 	t.Then("the job runs should have completed within 1 second")
-	t.WithinDuration(time.Now(), startTime, 1*time.Second)
+	t.Assert.WithinDuration(time.Now(), startTime, 1*time.Second)
 	// If it takes longer it means it ran after being recovered from the DB
 
-	t.NoError(jd.Down()) // Cleanup
+	t.Assert.NoError(jd.Down()) // Cleanup
 }
 
 func TestQueuedRunTimeoutRetry(test *testing.T) {
@@ -262,20 +262,20 @@ func TestQueuedRunTimeoutRetry(test *testing.T) {
 	jd.RegisterJob(jobName, jobFunc).RetriesTimeoutLimit(1).RunTimeout(retryTimeout)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(jd.Up())
+	t.Assert.NoError(jd.Up())
 
 	t.When("we run the job")
 	wait.Add(2)
 	_, err := jd.CreateRun(jobName).Run()
-	t.NoError(err)
+	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
 	t.WaitTimeout(&wait, 5*time.Second)
 
 	t.Then("the job should have run twice")
-	t.Equal(2, int(runCounter))
+	t.Assert.Equal(2, int(runCounter))
 
-	t.NoError(jd.Down()) // Cleanup
+	t.Assert.NoError(jd.Down()) // Cleanup
 }
 
 func TestJobsDScheduledRun(test *testing.T) {
@@ -310,26 +310,26 @@ func TestJobsDScheduledRun(test *testing.T) {
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(jd.Up())
+	t.Assert.NoError(jd.Up())
 
 	t.When("we run the job with the schedule")
 	wait.Add(1)
 	startTime := time.Now()
 	_, errR := jd.CreateRun(jobName).Schedule("theSchedule").Limit(1).Run()
-	t.NoError(errR)
+	t.Assert.NoError(errR)
 
 	t.Then("the job should have run")
 	t.WaitTimeout(&wait, 500*timer)
 	finishTime := time.Now()
 
 	t.Then("the job should have run within " + timer.String() + " with a tolerance of 150ms")
-	t.WithinDuration(finishTime, startTime.Add(timer), time.Duration(150*time.Millisecond))
+	t.Assert.WithinDuration(finishTime, startTime.Add(timer), time.Duration(150*time.Millisecond))
 
 	t.Then("the job should only run once even if we wait for another 500ms")
 	<-time.After(500 * time.Millisecond)
-	t.Equal(1, int(runCounter))
+	t.Assert.Equal(1, int(runCounter))
 
-	t.NoError(jd.Down()) // Cleanup
+	t.Assert.NoError(jd.Down()) // Cleanup
 }
 
 func TestJobsDScheduledRunRecurrent(test *testing.T) {
@@ -364,13 +364,13 @@ func TestJobsDScheduledRunRecurrent(test *testing.T) {
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(jd.Up())
+	t.Assert.NoError(jd.Up())
 
 	t.When("we run the job with the schedule")
 	wait.Add(3)
 	startTime := time.Now()
 	_, errR := jd.CreateRun(jobName).Schedule("theSchedule").Limit(3).Run()
-	t.NoError(errR)
+	t.Assert.NoError(errR)
 
 	t.Then("the job should have run 3 times")
 	t.WaitTimeout(&wait, 5000*time.Millisecond)
@@ -378,14 +378,14 @@ func TestJobsDScheduledRunRecurrent(test *testing.T) {
 
 	t.Then("the job should only run three times even if we wait for another 500ms")
 	<-time.After(500 * time.Millisecond)
-	t.Equal(3, int(runCounter))
+	t.Assert.Equal(3, int(runCounter))
 
 	timerFor3 := time.Duration(3 * timer)
 	tolerance := time.Duration(1000 * time.Millisecond)
 	t.Thenf("3 jobs should have run within %s with a tolerance of %s", timerFor3.String(), tolerance.String())
-	t.WithinDuration(finishTime, startTime.Add(timerFor3), tolerance)
+	t.Assert.WithinDuration(finishTime, startTime.Add(timerFor3), tolerance)
 
-	t.NoError(jd.Down()) // Cleanup
+	t.Assert.NoError(jd.Down()) // Cleanup
 }
 
 func TestJobsDScheduledRunMulti(test *testing.T) {
@@ -420,26 +420,26 @@ func TestJobsDScheduledRunMulti(test *testing.T) {
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(jd.Up())
+	t.Assert.NoError(jd.Up())
 
 	t.When("we schedule the job to run 10 times with a limit of 2 runs")
 	startTime := time.Now()
 	for i := 0; i < 10; i++ {
 		wait.Add(2)
 		_, errR := jd.CreateRun(jobName).Schedule("theSchedule").Limit(2).Run()
-		t.NoError(errR)
+		t.Assert.NoError(errR)
 	}
 
 	t.Then("the job should have run 20 times")
 	t.WaitTimeout(&wait, 2000*time.Millisecond)
 	finishTime := time.Now()
-	t.Equal(20, int(runCounter))
+	t.Assert.Equal(20, int(runCounter))
 
 	expectedRunTime := 2 * timer
 	t.Then("the jobs should have run within " + expectedRunTime.String() + " with a tolerance of 300ms")
-	t.WithinDuration(finishTime, startTime.Add(expectedRunTime), time.Duration(300*time.Millisecond))
+	t.Assert.WithinDuration(finishTime, startTime.Add(expectedRunTime), time.Duration(300*time.Millisecond))
 
-	t.NoError(jd.Down()) // Cleanup
+	t.Assert.NoError(jd.Down()) // Cleanup
 }
 
 func TestJobsDClusterWorkSharing(test *testing.T) {
@@ -474,7 +474,7 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 
 	t.When("we bring up the JobsD instances")
 	for _, qInst := range jdInstances {
-		t.NoError(qInst.Up())
+		t.Assert.NoError(qInst.Up())
 	}
 
 	runs := nodes * 3
@@ -483,13 +483,13 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 	for i := 0; i < runs; i++ {
 		wait.Add(1)
 		runID, err := jdInstances[0].CreateRun(jobName).Run()
-		t.NoError(err)
+		t.Assert.NoError(err)
 		runIDs = append(runIDs, runID)
 	}
 
 	t.Then("the job should have run " + strconv.Itoa(runs) + " times")
 	t.WaitTimeout(&wait, 10*runTime)
-	t.Equal(runs, int(runCounter))
+	t.Assert.Equal(runs, int(runCounter))
 
 	t.Then("the job runs should have been distributed across the cluster and run")
 	nonLocalRuns := 0
@@ -499,10 +499,10 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 			nonLocalRuns++
 		}
 	}
-	t.Greater(nonLocalRuns, 1)
+	t.Assert.Greater(nonLocalRuns, 1)
 
 	for _, qInst := range jdInstances {
-		t.NoError(qInst.Down())
+		t.Assert.NoError(qInst.Down())
 	}
 }
 func ExampleJobsD() {

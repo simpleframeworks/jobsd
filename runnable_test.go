@@ -22,7 +22,7 @@ func TestRunnableLock(test *testing.T) {
 	jd.RegisterJob(jobName, func(name string) error { return nil })
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(jd.Up())
+	t.Assert.NoError(jd.Up())
 
 	t.Given("a Runnable j0 has been created")
 	params0 := []interface{}{"hello world!"}
@@ -36,9 +36,9 @@ func TestRunnableLock(test *testing.T) {
 	j0r.insertGet(jd.db)
 
 	j0, err1 := jd.buildRunnable(j0r)
-	t.NoError(err1)
-	t.Greater(j0.ID, int64(0))
-	t.Equal(jd.instance.ID, j0.CreatedBy)
+	t.Assert.NoError(err1)
+	t.Assert.Greater(j0.ID, int64(0))
+	t.Assert.Equal(jd.instance.ID, j0.CreatedBy)
 
 	t.Given("a Runnable j1 which the same as j0")
 	j1r := Run{
@@ -51,26 +51,26 @@ func TestRunnableLock(test *testing.T) {
 	j1r.insertGet(jd.db)
 
 	j1, err2 := jd.buildRunnable(j1r)
-	t.NoError(err2)
-	t.Greater(j1.ID, int64(0))
-	t.Equal(j0.ID, j1.ID)
+	t.Assert.NoError(err2)
+	t.Assert.Greater(j1.ID, int64(0))
+	t.Assert.Equal(j0.ID, j1.ID)
 
-	t.Equal(j0r.NameActive, j1r.NameActive)
-	t.Equal(j0r.Job, j1r.Job)
-	t.Equal(j0r.JobArgs, j1r.JobArgs)
-	t.WithinDuration(j0r.CreatedAt, j1r.CreatedAt, 0)
-	t.Equal(j0r.CreatedBy, j1r.CreatedBy)
+	t.Assert.Equal(j0r.NameActive, j1r.NameActive)
+	t.Assert.Equal(j0r.Job, j1r.Job)
+	t.Assert.Equal(j0r.JobArgs, j1r.JobArgs)
+	t.Assert.WithinDuration(j0r.CreatedAt, j1r.CreatedAt, 0)
+	t.Assert.Equal(j0r.CreatedBy, j1r.CreatedBy)
 
 	t.When("j0 is locked")
 	locked0 := j0.lock()
-	t.True(locked0)
+	t.Assert.True(locked0)
 
 	t.Then("j0 should record the instance.ID that locked and started it")
-	t.Equal(jd.instance.ID, j0.jobRun.RunStartedBy.Int64)
-	t.Equal(jd.instance.ID, j0.RunStartedBy)
+	t.Assert.Equal(jd.instance.ID, j0.jobRun.RunStartedBy.Int64)
+	t.Assert.Equal(jd.instance.ID, j0.RunStartedBy)
 
 	t.Then("j1 should not be able to lock it")
 	locked1 := j1.lock()
-	t.False(locked1)
+	t.Assert.False(locked1)
 
 }

@@ -17,8 +17,8 @@ func TestJobFuncNotFunc(test *testing.T) {
 	err := jf.check([]interface{}{})
 
 	t.Then("it should return the not func error")
-	t.NotNil(err)
-	t.Equal(ErrJobFuncNotFunc, err)
+	t.Require.NotNil(err)
+	t.Assert.Equal(ErrJobFuncNotFunc, err)
 }
 func TestJobFuncNotFuncWithErr(test *testing.T) {
 
@@ -33,8 +33,8 @@ func TestJobFuncNotFuncWithErr(test *testing.T) {
 			err := jf.check([]interface{}{})
 
 			t.Then("it should return the 'func no error return' error")
-			t.NotNil(err)
-			t.Equal(ErrJobFuncNoErrRtn, err)
+			t.Require.NotNil(err)
+			t.Assert.Equal(ErrJobFuncNoErrRtn, err)
 		}
 	}
 
@@ -59,8 +59,8 @@ func TestJobFuncArgsMismatch(test *testing.T) {
 			err := jf.check(args)
 
 			t.Then("it should return the 'func args mismatch' error")
-			t.NotNil(err)
-			t.ErrorIs(err, ErrJobFuncArgsMismatch)
+			t.Require.NotNil(err)
+			t.Assert.ErrorIs(err, ErrJobFuncArgsMismatch)
 		}
 	}
 
@@ -86,8 +86,8 @@ func TestJobFuncExecute(test *testing.T) {
 
 	t.When("we execute the JobFunc")
 	err := jf.execute(args)
-	t.Nil(err)
+	t.Assert.Nil(err)
 
 	t.Then("the results contain an expected string")
-	t.Equal("1, 2, 3", results)
+	t.Assert.Equal("1, 2, 3", results)
 }

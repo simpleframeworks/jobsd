@@ -43,31 +43,31 @@ func TestRunOnceCreatorUnique(test *testing.T) {
 
 	t.When("we bring up the JobsD instances")
 	for _, qInst := range jdInstances {
-		t.NoError(qInst.Up())
+		t.Assert.NoError(qInst.Up())
 	}
 
 	t.When("we run the same unique job run on each of the instances in the cluster")
 	wait.Add(1) //we only expect it to run once
 	for _, qInst := range jdInstances {
 		_, err := qInst.CreateRun("jobName").Unique("UniqueJobName").Run()
-		t.NoError(err)
+		t.Assert.NoError(err)
 	}
 
 	t.When("we wait until it finishes")
 	t.WaitTimeout(&wait, 5*runTime)
 
 	t.Then("the job should have run only once")
-	t.Equal(1, int(runCounter))
+	t.Assert.Equal(1, int(runCounter))
 
 	waitTime := 500 * time.Millisecond
 	t.When("we wait " + waitTime.String())
 	<-time.After(waitTime)
 
 	t.Then("the job should have still only run once")
-	t.Equal(1, int(runCounter))
+	t.Assert.Equal(1, int(runCounter))
 
 	for _, qInst := range jdInstances {
-		t.NoError(qInst.Down())
+		t.Assert.NoError(qInst.Down())
 	}
 }
 
@@ -95,21 +95,21 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 	jd.RegisterJob("theJob", jobFunc)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(jd.Up())
+	t.Assert.NoError(jd.Up())
 
 	delay := 500 * time.Millisecond
 	t.When("we run the job once after ")
 	wait.Add(1)
 	startTime := time.Now()
 	_, err := jd.CreateRun("theJob").RunAfter(delay)
-	t.NoError(err)
+	t.Assert.NoError(err)
 
 	t.Then("the job should have run once")
 	t.WaitTimeout(&wait, 4*time.Second)
-	t.Equal(1, runNum)
+	t.Assert.Equal(1, runNum)
 
 	t.Then("the job run should run after the specified delay of " + delay.String())
-	t.WithinDuration(startTime.Add(delay), runTime, 300*time.Millisecond)
+	t.Assert.WithinDuration(startTime.Add(delay), runTime, 300*time.Millisecond)
 }
 func TestRunOnceCreatorRunTimeout(test *testing.T) {
 	t := testc.New(test)
@@ -144,7 +144,7 @@ func TestRunOnceCreatorRunTimeout(test *testing.T) {
 	jd.RegisterJob(jobName, jobFunc).RetriesTimeoutLimit(1)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(jd.Up())
+	t.Assert.NoError(jd.Up())
 
 	t.Whenf("we create a job run with a retry timeout of %s", retryTimeout.String())
 	jr := jd.CreateRun(jobName).RunTimeout(retryTimeout)
@@ -152,15 +152,15 @@ func TestRunOnceCreatorRunTimeout(test *testing.T) {
 	t.When("we run the job")
 	wait.Add(2)
 	_, err := jr.Run()
-	t.NoError(err)
+	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
 	t.WaitTimeout(&wait, 5*time.Second)
 
 	t.Then("the job should have run twice")
-	t.Equal(2, int(runCounter))
+	t.Assert.Equal(2, int(runCounter))
 
-	t.NoError(jd.Down()) // Cleanup
+	t.Assert.NoError(jd.Down()) // Cleanup
 }
 
 func TestRunOnceCreatorRetriesTimeoutLimit(test *testing.T) {
@@ -194,7 +194,7 @@ func TestRunOnceCreatorRetriesTimeoutLimit(test *testing.T) {
 	jd.RegisterJob(jobName, jobFunc).RunTimeout(retryTimeout)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(jd.Up())
+	t.Assert.NoError(jd.Up())
 
 	t.When("we create a job run with a retry timeout limit of 2")
 	jr := jd.CreateRun(jobName).RetriesTimeoutLimit(2)
@@ -202,13 +202,13 @@ func TestRunOnceCreatorRetriesTimeoutLimit(test *testing.T) {
 	t.When("we run the job")
 	wait.Add(3)
 	_, err := jr.Run()
-	t.NoError(err)
+	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
 	t.WaitTimeout(&wait, 5*time.Second)
 
 	t.Then("the job should have run three times (1 + 2 retries)")
-	t.Equal(3, int(runCounter))
+	t.Assert.Equal(3, int(runCounter))
 
 	t.When("we wait enough time for another job run to complete")
 	<-time.After(jobRunTime)
@@ -216,9 +216,9 @@ func TestRunOnceCreatorRetriesTimeoutLimit(test *testing.T) {
 	<-time.After(retryCheck)
 
 	t.Then("the job should have still only run three times (1 + 2 retries)")
-	t.Equal(3, int(runCounter))
+	t.Assert.Equal(3, int(runCounter))
 
-	t.NoError(jd.Down()) // Cleanup
+	t.Assert.NoError(jd.Down()) // Cleanup
 }
 
 func TestRunOnceCreatorRetryErrorLimit(test *testing.T) {
@@ -244,7 +244,7 @@ func TestRunOnceCreatorRetryErrorLimit(test *testing.T) {
 	jd.RegisterJob(jobName, jobFunc)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(jd.Up())
+	t.Assert.NoError(jd.Up())
 
 	t.When("we create a job run with a retry error limit of 2")
 	jr := jd.CreateRun(jobName).RetryErrorLimit(2)
@@ -252,21 +252,21 @@ func TestRunOnceCreatorRetryErrorLimit(test *testing.T) {
 	t.When("we run the job")
 	wait.Add(3)
 	_, err := jr.Run()
-	t.NoError(err)
+	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
 	t.WaitTimeout(&wait, 5*time.Second)
 
 	t.Then("the job should have run three times (1 + 2 retries)")
-	t.Equal(3, int(runCounter))
+	t.Assert.Equal(3, int(runCounter))
 
 	t.When("we wait enough time for another job run to complete")
 	<-time.After(1 * time.Second)
 
 	t.Then("the job should have still only run three times (1 + 2 retries)")
-	t.Equal(3, int(runCounter))
+	t.Assert.Equal(3, int(runCounter))
 
-	t.NoError(jd.Down()) // Cleanup
+	t.Assert.NoError(jd.Down()) // Cleanup
 }
 
 func TestRunScheduleCreatorUnique(test *testing.T) {
@@ -313,31 +313,31 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 
 	t.When("we bring up the JobsD instances")
 	for _, qInst := range jdInstances {
-		t.NoError(qInst.Up())
+		t.Assert.NoError(qInst.Up())
 	}
 
 	t.When("we run the same unique job run on each of the instances in the cluster")
 	wait.Add(2) //we only expect it to run twice
 	for _, qInst := range jdInstances {
 		_, err := qInst.CreateRun("jobName").Schedule("scheduleName").Unique("UniqueJobName").Limit(2).Run()
-		t.NoError(err)
+		t.Assert.NoError(err)
 	}
 
 	t.When("we wait until it finishes")
 	t.WaitTimeout(&wait, 3*time.Second)
 
 	t.Then("the job should have run twice")
-	t.Equal(2, int(runCounter))
+	t.Assert.Equal(2, int(runCounter))
 
 	waitTime := 500 * time.Millisecond
 	t.When("we wait " + waitTime.String())
 	<-time.After(waitTime)
 
 	t.Then("the job should have still only run twice")
-	t.Equal(2, int(runCounter))
+	t.Assert.Equal(2, int(runCounter))
 
 	for _, qInst := range jdInstances {
-		t.NoError(qInst.Down())
+		t.Assert.NoError(qInst.Down())
 	}
 }
 
@@ -383,7 +383,7 @@ func TestRunScheduledCreatorRunTimeout(test *testing.T) {
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(jd.Up())
+	t.Assert.NoError(jd.Up())
 
 	t.Whenf("we create a job run with a retry timeout of %s and a limit of 2 successful runs", retryTimeout.String())
 	jr := jd.CreateRun(jobName).Schedule("theSchedule").RunTimeout(retryTimeout).Limit(2)
@@ -391,15 +391,15 @@ func TestRunScheduledCreatorRunTimeout(test *testing.T) {
 	t.When("we run the job")
 	wait.Add(3)
 	_, err := jr.Run()
-	t.NoError(err)
+	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
 	t.WaitTimeout(&wait, 5*time.Second)
 
 	t.Then("the job should have run three times (2 successful runs + 1 timed out run")
-	t.Equal(3, int(runCounter))
+	t.Assert.Equal(3, int(runCounter))
 
-	t.NoError(jd.Down()) // Cleanup
+	t.Assert.NoError(jd.Down()) // Cleanup
 }
 
 func TestRunScheduledCreatorRetriesTimeoutLimit(test *testing.T) {
@@ -444,7 +444,7 @@ func TestRunScheduledCreatorRetriesTimeoutLimit(test *testing.T) {
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(jd.Up())
+	t.Assert.NoError(jd.Up())
 
 	t.When("we create a scheduled job run with a retry timeout limit of 2")
 	jr := jd.CreateRun(jobName).Schedule("theSchedule").Limit(2).RetriesTimeoutLimit(2)
@@ -452,13 +452,13 @@ func TestRunScheduledCreatorRetriesTimeoutLimit(test *testing.T) {
 	t.When("we run the job")
 	wait.Add(5)
 	_, err := jr.Run()
-	t.NoError(err)
+	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
 	t.WaitTimeout(&wait, 5*time.Second)
 
 	t.Then("the job should have run 5 times (1 successful + 3 unsuccessful (2 retries) + 1 successful)")
-	t.Equal(5, int(runCounter))
+	t.Assert.Equal(5, int(runCounter))
 
 	t.When("we wait enough time for another job run to complete")
 	<-time.After(jobRunTime)
@@ -466,9 +466,9 @@ func TestRunScheduledCreatorRetriesTimeoutLimit(test *testing.T) {
 	<-time.After(retryCheck)
 
 	t.Then("the job should have still only run 5 times")
-	t.Equal(5, int(runCounter))
+	t.Assert.Equal(5, int(runCounter))
 
-	t.NoError(jd.Down()) // Cleanup
+	t.Assert.NoError(jd.Down()) // Cleanup
 }
 
 func TestRunScheduledCreatorRetryErrorLimit(test *testing.T) {
@@ -506,7 +506,7 @@ func TestRunScheduledCreatorRetryErrorLimit(test *testing.T) {
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(jd.Up())
+	t.Assert.NoError(jd.Up())
 
 	t.When("we create a scheduled job run with a retry error limit of 2")
 	jr := jd.CreateRun(jobName).Schedule("theSchedule").Limit(2).RetryErrorLimit(2)
@@ -514,21 +514,21 @@ func TestRunScheduledCreatorRetryErrorLimit(test *testing.T) {
 	t.When("we run the job")
 	wait.Add(5)
 	_, err := jr.Run()
-	t.NoError(err)
+	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
 	t.WaitTimeout(&wait, 5*time.Second)
 
 	t.Then("the job should have run 5 times (1 successful + 3 unsuccessful (2 retries) + 1 successful)")
-	t.Equal(5, int(runCounter))
+	t.Assert.Equal(5, int(runCounter))
 
 	t.When("we wait enough time for another job run to complete")
 	<-time.After(1 * time.Second)
 
 	t.Then("the job should have still only run 5 times")
-	t.Equal(5, int(runCounter))
+	t.Assert.Equal(5, int(runCounter))
 
-	t.NoError(jd.Down()) // Cleanup
+	t.Assert.NoError(jd.Down()) // Cleanup
 }
 
 func TestRunScheduleCreatorRunAfter(test *testing.T) {
@@ -564,19 +564,19 @@ func TestRunScheduleCreatorRunAfter(test *testing.T) {
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(jd.Up())
+	t.Assert.NoError(jd.Up())
 
 	delay := 500 * time.Millisecond
 	t.When("we run the job once after ")
 	startTime := time.Now()
 	wait.Add(1)
 	_, err := jd.CreateRun("theJob").Schedule("theSchedule").Limit(1).RunAfter(delay)
-	t.NoError(err)
+	t.Assert.NoError(err)
 
 	t.Then("the job should have run once")
 	t.WaitTimeout(&wait, 3*time.Second)
-	t.Equal(1, runNum)
+	t.Assert.Equal(1, runNum)
 
 	t.Then("the job run should run after the specified delay of " + delay.String())
-	t.WithinDuration(startTime.Add(delay).Add(interval), runTime, 250*time.Millisecond)
+	t.Assert.WithinDuration(startTime.Add(delay).Add(interval), runTime, 250*time.Millisecond)
 }
