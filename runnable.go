@@ -50,7 +50,7 @@ var ErrRunTimeout = errors.New("job run timed out")
 var ErrRunKill = errors.New("job run killed")
 
 func (j *Runnable) run() RunRes {
-	log := j.logger()
+	log := j.log
 
 	if !j.lock() {
 		return RunResLockLost
@@ -71,7 +71,7 @@ func (j *Runnable) run() RunRes {
 }
 
 func (j *Runnable) lock() bool {
-	log := j.logger()
+	log := j.log
 
 	log.Trace("locking job run")
 	locked, err := j.jobRun.lock(j.db, j.instanceID)
@@ -84,7 +84,7 @@ func (j *Runnable) lock() bool {
 }
 
 func (j *Runnable) exec() error {
-	log := j.logger()
+	log := j.log
 	j.stop = make(chan struct{})
 	defer close(j.stop)
 
@@ -124,7 +124,7 @@ func (j *Runnable) exec() error {
 }
 
 func (j *Runnable) handleTO() {
-	log := j.logger()
+	log := j.log
 	log.Debug("handling job run time out")
 	txErr := j.db.Transaction(func(tx *gorm.DB) error {
 		if err := j.jobRun.markComplete(tx, j.instanceID, ErrRunTimeout); err != nil {
@@ -142,12 +142,12 @@ func (j *Runnable) handleTO() {
 	})
 
 	if txErr != nil {
-		j.logger().WithError(txErr).Error("failed to complete and progress job run after time out")
+		j.log.WithError(txErr).Error("failed to complete and progress job run after time out")
 	}
 }
 
 func (j *Runnable) handleErr(err error) {
-	log := j.logger()
+	log := j.log
 	log.Debug("handling job run error")
 	txErr := j.db.Transaction(func(tx *gorm.DB) error {
 		if err := j.jobRun.markComplete(tx, j.instanceID, err); err != nil {
@@ -165,7 +165,7 @@ func (j *Runnable) handleErr(err error) {
 	})
 
 	if txErr != nil {
-		j.logger().WithError(txErr).Error("failed to complete and progress job run after erroring out")
+		j.log.WithError(txErr).Error("failed to complete and progress job run after erroring out")
 	}
 }
 
@@ -178,14 +178,13 @@ func (j *Runnable) handleSuccess() {
 	})
 
 	if txErr != nil {
-		j.logger().WithError(txErr).Error("failed to complete and progress successful job run")
+		j.log.WithError(txErr).Error("failed to complete and progress successful job run")
 	}
 }
 
 func (j *Runnable) reschedule(tx *gorm.DB) error {
 
 	if j.jobSchedule != nil && j.jobRun.needsScheduling() {
-		j.logger().Debug("rescheduling job run")
 		next := j.cloneReset()
 		next.jobRun.resetErrorRetries()
 		next.jobRun.resetTimeoutRetries()
@@ -194,17 +193,24 @@ func (j *Runnable) reschedule(tx *gorm.DB) error {
 		if err := next.jobRun.insertGet(tx); err != nil {
 			return err
 		}
+		next.log.WithFields(map[string]interface{}{
+			"Run.At": next.jobRun.RunAt,
+		}).Debug("reschedule job run")
 		j.runQAdd <- next
 	}
 	return nil
 }
 
-func (j *Runnable) logger() logc.Logger {
-	return j.log.WithFields(logrus.Fields{
+func (j *Runnable) save(tx *gorm.DB) error {
+	if err := j.jobRun.insertGet(tx); err != nil {
+		return err
+	}
+	j.log = j.log.WithFields(logrus.Fields{
 		"Run.ID":   j.jobRun.ID,
 		"Run.Name": j.jobRun.Name,
 		"Run.Job":  j.jobRun.Job,
 	})
+	return nil
 }
 
 func (j *Runnable) cloneReset() Runnable {
@@ -219,6 +225,7 @@ func (j *Runnable) cloneReset() Runnable {
 		j.kill,
 		j.log,
 	)
+
 	return rtn
 }
 
@@ -241,8 +248,12 @@ func newRunnable(
 		jobSchedule: jobSchedule,
 		runQAdd:     runQAdd,
 		db:          db,
-		log:         log,
 	}
+	rtn.log = log.WithFields(logrus.Fields{
+		"Run.ID":   "",
+		"Run.Name": rtn.jobRun.Name,
+		"Run.Job":  rtn.jobRun.Job,
+	})
 
 	err := jobFunc.check(jobRun.JobArgs)
 
