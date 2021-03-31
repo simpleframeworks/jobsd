@@ -49,8 +49,6 @@ func TestRunState(test *testing.T) {
 	t.Assert.Equal(0, int(theState.RetriesOnErrorCount))
 	t.Assert.Equal(0, int(theState.RetriesOnTimeoutCount))
 	t.Assert.Nil(theState.Schedule)
-	t.Assert.Nil(theState.ClosedAt)
-	t.Assert.Nil(theState.ClosedBy)
 	t.Assert.WithinDuration(theState.CreatedAt, time.Now(), 100*time.Millisecond)
 	t.Assert.Equal(qd.instance.ID, theState.CreatedBy)
 
@@ -72,8 +70,6 @@ func TestRunState(test *testing.T) {
 	t.Assert.Equal(0, int(theState.RetriesOnErrorCount))
 	t.Assert.Equal(0, int(theState.RetriesOnTimeoutCount))
 	t.Assert.Nil(theState.Schedule)
-	t.Assert.Nil(theState.ClosedAt)
-	t.Assert.Nil(theState.ClosedBy)
 	t.Assert.Equal(theState.CreatedAt, createdAt)
 	t.Assert.Equal(qd.instance.ID, theState.CreatedBy)
 
@@ -99,10 +95,6 @@ func TestRunState(test *testing.T) {
 	t.Assert.Equal(0, int(theState.RetriesOnErrorCount))
 	t.Assert.Equal(0, int(theState.RetriesOnTimeoutCount))
 	t.Assert.Nil(theState.Schedule)
-	t.Require.NotNil(theState.ClosedAt)
-	t.Assert.WithinDuration(*theState.ClosedAt, time.Now(), 100*time.Millisecond)
-	t.Require.NotNil(theState.ClosedBy)
-	t.Assert.Equal(qd.instance.ID, *theState.ClosedBy)
 	t.Assert.Equal(theState.CreatedAt, createdAt)
 	t.Assert.Equal(qd.instance.ID, theState.CreatedBy)
 
