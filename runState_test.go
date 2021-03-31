@@ -11,7 +11,7 @@ import (
 func TestRunState(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.TraceLevel)
+	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
 
 	t.Given("a JobsD instance")

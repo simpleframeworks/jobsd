@@ -115,7 +115,7 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 func TestRunOnceCreatorRunTimeout(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.DebugLevel)
+	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
 	jobName := "TestRunOnceCreatorRunTimeout" // Must be unique otherwise tests may collide
 
@@ -273,7 +273,7 @@ func TestRunOnceCreatorRetryErrorLimit(test *testing.T) {
 func TestRunScheduleCreatorUnique(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.TraceLevel)
+	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
 
 	nodes := 10
