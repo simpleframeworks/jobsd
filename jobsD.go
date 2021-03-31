@@ -231,14 +231,14 @@ func (j *JobsD) runnableDelegator(done <-chan struct{}) {
 			nextRunAt := j.runQ.Peek().jobRun.RunAt
 			if now.Equal(nextRunAt) || now.After(nextRunAt) {
 				runnable := j.runQ.Pop()
-				runnable.logger().Trace("delegating run to worker")
+				runnable.log.Trace("delegating run to worker")
 				j.runNow <- runnable
 				continue
 			} else {
 				waitTime = nextRunAt.Sub(now)
 			}
 		}
-		j.log.Trace("waiting for run")
+		j.log.WithField("WaitTime", waitTime).Trace("waiting for run")
 		timer := time.NewTimer(waitTime)
 
 		select {
@@ -267,21 +267,20 @@ func (j *JobsD) runner(done <-chan struct{}) {
 			j.log.Trace("shutdown runner")
 			j.workertCxCancelWait.Done()
 			return
-		case jobRunnable := <-j.runNow:
-			log := jobRunnable.logger()
+		case jr := <-j.runNow:
 
-			log.Trace("running job - started")
+			jr.log.Trace("running job - started")
 
 			j.incRunsStarted()
 
-			res := jobRunnable.run()
+			res := jr.run()
 			if res == RunResError {
 				j.incRunsErrors()
 			} else if res == RunResTO {
 				j.incRunsTimedOut()
 			}
 
-			log.Trace("running job - completed")
+			jr.log.Trace("running job - completed")
 		}
 	}
 }
@@ -310,12 +309,12 @@ func (j *JobsD) runnableResurrector(done <-chan struct{}) {
 			for _, jobRun := range jobRuns {
 
 				if jobRun.hasTimedOut() {
-					jobRunnable, err := j.buildRunnable(jobRun)
+					jr, err := j.buildRunnable(jobRun)
 					if err != nil {
-						jobRunnable.logger().Warn("could not build job runnable from resurrected job run")
+						jr.log.Warn("could not build job runnable from resurrected job run")
 						continue
 					}
-					jobRunnable.handleTO()
+					jr.handleTO()
 					j.incRunsTimedOut()
 				}
 			}

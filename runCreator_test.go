@@ -273,7 +273,7 @@ func TestRunOnceCreatorRetryErrorLimit(test *testing.T) {
 func TestRunScheduleCreatorUnique(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
+	logger := setupLogging(logrus.TraceLevel)
 	db := setupDB(logger)
 
 	nodes := 10
@@ -299,12 +299,11 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 		qInst.RegisterJob("jobName", jobFunc)
 	}
 
-	interval := 150 * time.Millisecond
+	interval := 200 * time.Millisecond
 	t.Given("a schedule that runs at set uniform interval of " + interval.String())
 	triggerTime := time.Now()
 	scheduleFunc := func(now time.Time) time.Time {
-		triggerTime = triggerTime.Add(interval)
-		return triggerTime
+		return triggerTime.Add(interval)
 	}
 
 	t.Given("the instances can use the schedule")
