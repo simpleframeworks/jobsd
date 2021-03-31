@@ -115,12 +115,12 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 func TestRunOnceCreatorRunTimeout(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
+	logger := setupLogging(logrus.DebugLevel)
 	db := setupDB(logger)
 	jobName := "TestRunOnceCreatorRunTimeout" // Must be unique otherwise tests may collide
 
 	retryCheck := 50 * time.Millisecond
-	retryTimeout := 200 * time.Millisecond
+	runTimeout := 200 * time.Millisecond
 	firstRunTime := 1000 * time.Millisecond
 
 	t.Given("a JobsD instance")
@@ -147,8 +147,8 @@ func TestRunOnceCreatorRunTimeout(test *testing.T) {
 	t.When("we bring up the JobsD instance")
 	t.Assert.NoError(jd.Up())
 
-	t.Whenf("we create a job run with a retry timeout of %s", retryTimeout.String())
-	jr := jd.CreateRun(jobName).RunTimeout(retryTimeout)
+	t.Whenf("we create a job run with a retry timeout of %s", runTimeout.String())
+	jr := jd.CreateRun(jobName).RunTimeout(runTimeout)
 
 	t.When("we run the job")
 	wait.Add(2)
@@ -156,7 +156,7 @@ func TestRunOnceCreatorRunTimeout(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, 5*time.Second)
+	t.WaitTimeout(&wait, 500*time.Second)
 
 	t.Then("the job should have run twice")
 	t.Assert.Equal(2, int(runCounter))

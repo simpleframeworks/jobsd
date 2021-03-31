@@ -172,6 +172,7 @@ func (j *JobsD) runnableAdder(done <-chan struct{}) {
 			j.producerCancelWait.Done()
 			return
 		case jr := <-j.runQAdd:
+			j.log.Debug("adding job runnable to run queue")
 			j.runQ.Push(jr)
 			go func() { j.runQReset <- struct{}{} }()
 		}
@@ -204,7 +205,7 @@ func (j *JobsD) runnableLoader(done <-chan struct{}) {
 			if err != nil {
 				runlog.WithError(err).Warn("failed to load job")
 			}
-			j.runQ.Push(jr)
+			j.runQAdd <- jr
 			runlog.Trace("added job run from DB")
 		}
 
@@ -412,7 +413,16 @@ func (j *JobsD) buildRunnable(jr Run) (rtn Runnable, err error) {
 		scheduleFunc = &s
 	}
 
-	return newRunnable(j.db, jr, jobC.jobFunc, scheduleFunc, j.instance.ID, j.workerCtx.Done(), j.log)
+	return newRunnable(
+		j.instance.ID,
+		jr,
+		jobC.jobFunc,
+		scheduleFunc,
+		j.runQAdd,
+		j.db,
+		j.workerCtx.Done(),
+		j.log,
+	)
 }
 
 func (j *JobsD) createRunnable(jr Run) (rtn Runnable, err error) {
