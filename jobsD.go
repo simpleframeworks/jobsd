@@ -432,7 +432,7 @@ func (j *JobsD) createRunnable(jr Run) (rtn Runnable, err error) {
 	}
 	rtn.schedule()
 
-	err = rtn.jobRun.insertGet(j.db)
+	err = rtn.save(j.db)
 	if err != nil {
 		return rtn, err
 	}
@@ -451,26 +451,25 @@ func (j *JobsD) createRunnable(jr Run) (rtn Runnable, err error) {
 func (j *JobsD) CreateRun(job string, jobParams ...interface{}) *RunOnceCreator {
 	name := uuid.Must(uuid.NewUUID()).String() // We die here if time fails.
 	now := time.Now()
-	rtn := &RunOnceCreator{
-		jobsd: j,
-		jobRun: Run{
-			Name:            name,
-			NameActive:      sql.NullString{Valid: true, String: name},
-			Job:             job,
-			JobArgs:         jobParams,
-			RunAt:           now,
-			RunSuccessLimit: sql.NullInt64{Valid: true, Int64: 1},
-			CreatedAt:       now,
-			CreatedBy:       j.instance.ID,
-		},
+	jr := Run{
+		Name:            name,
+		NameActive:      sql.NullString{Valid: true, String: name},
+		Job:             job,
+		JobArgs:         jobParams,
+		RunAt:           now,
+		RunSuccessLimit: sql.NullInt64{Valid: true, Int64: 1},
+		CreatedAt:       now,
+		CreatedBy:       j.instance.ID,
 	}
 	if jobC, ok := j.jobs[job]; ok {
-		rtn.jobRun.RunTimeout = jobC.runTimeout
-		rtn.jobRun.RetriesOnTimeoutLimit = jobC.retriesTimeoutLimit
-		rtn.jobRun.RetriesOnErrorLimit = jobC.retriesErrorLimit
+		jr.RunTimeout = jobC.runTimeout
+		jr.RetriesOnTimeoutLimit = jobC.retriesTimeoutLimit
+		jr.RetriesOnErrorLimit = jobC.retriesErrorLimit
 	}
-
-	return rtn
+	return &RunOnceCreator{
+		jobsd:  j,
+		jobRun: jr,
+	}
 }
 
 // GetRunState retrieves the current state of the job run
