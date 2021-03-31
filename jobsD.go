@@ -204,6 +204,7 @@ func (j *JobsD) runnableLoader(done <-chan struct{}) {
 			jr, err := j.buildRunnable(jobRun)
 			if err != nil {
 				runlog.WithError(err).Warn("failed to load job")
+				continue
 			}
 			j.runQAdd <- jr
 			runlog.Trace("added job run from DB")
