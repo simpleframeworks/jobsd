@@ -1,6 +1,7 @@
 package jobsd
 
 import (
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -133,7 +134,7 @@ func (j *Runnable) handleTO() {
 		if !j.jobRun.hasReachedTimeoutLimit() {
 			next := j.cloneReset()
 			next.jobRun.RetriesOnTimeoutCount++
-			next.jobRun.insertGet(tx)
+			next.save(tx)
 			j.runQAdd <- next
 		} else {
 			return j.reschedule(tx)
@@ -156,7 +157,7 @@ func (j *Runnable) handleErr(err error) {
 		if !j.jobRun.hasReachedErrorLimit() {
 			next := j.cloneReset()
 			next.jobRun.RetriesOnErrorCount++
-			next.jobRun.insertGet(tx)
+			next.save(tx)
 			j.runQAdd <- next
 		} else {
 			return j.reschedule(tx)
@@ -190,7 +191,7 @@ func (j *Runnable) reschedule(tx *gorm.DB) error {
 		next.jobRun.resetTimeoutRetries()
 		next.jobRun.Delay = 0
 		next.schedule()
-		if err := next.jobRun.insertGet(tx); err != nil {
+		if err := next.save(tx); err != nil {
 			return err
 		}
 		next.log.WithFields(map[string]interface{}{

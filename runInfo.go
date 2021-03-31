@@ -27,41 +27,41 @@ type RunInfo struct {
 	Stop                  <-chan struct{}
 }
 
-func newRunInfo(r Runnable) RunInfo {
+func newRunInfo(r Run, stop <-chan struct{}) RunInfo {
 
 	rtn := RunInfo{
-		ID:                    r.jobRun.ID,
-		OriginID:              r.jobRun.OriginID,
-		Name:                  r.jobRun.Name,
-		Job:                   r.jobRun.Job,
-		JobArgs:               r.jobRun.JobArgs,
-		RunAt:                 r.jobRun.RunAt,
-		RunTotalCount:         r.jobRun.RunTotalCount,
-		RunSuccessCount:       r.jobRun.RunSuccessCount,
-		RetriesOnErrorCount:   r.jobRun.RetriesOnErrorCount,
-		RetriesOnTimeoutCount: r.jobRun.RetriesOnTimeoutCount,
-		CreatedAt:             r.jobRun.CreatedAt,
-		CreatedBy:             r.jobRun.CreatedBy,
-		Stop:                  r.stop,
+		ID:                    r.ID,
+		OriginID:              r.OriginID,
+		Name:                  r.Name,
+		Job:                   r.Job,
+		JobArgs:               r.JobArgs,
+		RunAt:                 r.RunAt,
+		RunTotalCount:         r.RunTotalCount,
+		RunSuccessCount:       r.RunSuccessCount,
+		RetriesOnErrorCount:   r.RetriesOnErrorCount,
+		RetriesOnTimeoutCount: r.RetriesOnTimeoutCount,
+		CreatedAt:             r.CreatedAt,
+		CreatedBy:             r.CreatedBy,
+		Stop:                  stop,
 	}
 
-	if r.jobRun.RunSuccessLimit.Valid {
-		rsl := int(r.jobRun.RunSuccessLimit.Int64)
+	if r.RunSuccessLimit.Valid {
+		rsl := int(r.RunSuccessLimit.Int64)
 		rtn.RunSuccessLimit = &rsl
 	}
-	if r.jobRun.RetriesOnErrorLimit.Valid {
-		rel := int(r.jobRun.RetriesOnErrorLimit.Int64)
+	if r.RetriesOnErrorLimit.Valid {
+		rel := int(r.RetriesOnErrorLimit.Int64)
 		rtn.RetriesOnErrorLimit = &rel
 	}
-	if r.jobRun.RunTimeout.Valid {
-		rtn.RunTimeout = time.Duration(r.jobRun.RunTimeout.Int64)
+	if r.RunTimeout.Valid {
+		rtn.RunTimeout = time.Duration(r.RunTimeout.Int64)
 	}
-	if r.jobRun.RetriesOnTimeoutLimit.Valid {
-		rtl := int(r.jobRun.RetriesOnTimeoutLimit.Int64)
+	if r.RetriesOnTimeoutLimit.Valid {
+		rtl := int(r.RetriesOnTimeoutLimit.Int64)
 		rtn.RetriesOnTimeoutLimit = &rtl
 	}
-	if r.jobRun.Schedule.Valid {
-		rtn.Schedule = &r.jobRun.Schedule.String
+	if r.Schedule.Valid {
+		rtn.Schedule = &r.Schedule.String
 	}
 
 	return rtn
