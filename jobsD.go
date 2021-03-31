@@ -227,7 +227,7 @@ func (j *JobsD) runnableDelegator(done <-chan struct{}) {
 		now := time.Now()
 
 		if j.runQ.Len() > 0 {
-			nextRunAt := j.runQ.Peek().RunAt
+			nextRunAt := j.runQ.Peek().jobRun.RunAt
 			if now.Equal(nextRunAt) || now.After(nextRunAt) {
 				runnable := j.runQ.Pop()
 				runnable.logger().Trace("delegating run to worker")

@@ -37,8 +37,8 @@ func TestRunnableLock(test *testing.T) {
 
 	j0, err1 := jd.buildRunnable(j0r)
 	t.Assert.NoError(err1)
-	t.Assert.Greater(j0.ID, int64(0))
-	t.Assert.Equal(jd.instance.ID, j0.CreatedBy)
+	t.Assert.Greater(j0.jobRun.ID, int64(0))
+	t.Assert.Equal(jd.instance.ID, j0.jobRun.CreatedBy)
 
 	t.Given("a Runnable j1 which the same as j0")
 	j1r := Run{
@@ -52,8 +52,8 @@ func TestRunnableLock(test *testing.T) {
 
 	j1, err2 := jd.buildRunnable(j1r)
 	t.Assert.NoError(err2)
-	t.Assert.Greater(j1.ID, int64(0))
-	t.Assert.Equal(j0.ID, j1.ID)
+	t.Assert.Greater(j1.jobRun.ID, int64(0))
+	t.Assert.Equal(j0.jobRun.ID, j1.jobRun.ID)
 
 	t.Assert.Equal(j0r.NameActive, j1r.NameActive)
 	t.Assert.Equal(j0r.Job, j1r.Job)
@@ -67,7 +67,6 @@ func TestRunnableLock(test *testing.T) {
 
 	t.Then("j0 should record the instance.ID that locked and started it")
 	t.Assert.Equal(jd.instance.ID, j0.jobRun.RunStartedBy.Int64)
-	t.Assert.Equal(jd.instance.ID, j0.RunStartedBy)
 
 	t.Then("j1 should not be able to lock it")
 	locked1 := j1.lock()
