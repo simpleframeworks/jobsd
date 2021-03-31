@@ -10,7 +10,7 @@ type runnableQueue []Runnable
 func (pq *runnableQueue) Len() int { return len(*pq) }
 
 func (pq *runnableQueue) Less(i, j int) bool {
-	return (*pq)[i].RunAt.Before((*pq)[j].RunAt)
+	return (*pq)[i].jobRun.RunAt.Before((*pq)[j].jobRun.RunAt)
 }
 
 func (pq *runnableQueue) Swap(i, j int) {

@@ -11,35 +11,15 @@ import (
 
 // Runnable represents a single runnable job run
 type Runnable struct {
-	ID                    int64
-	OriginID              int64
-	Name                  string
-	Job                   string
-	JobArgs               JobArgs
-	RunAt                 time.Time
-	RunTotalCount         int
-	RunSuccessCount       int
-	RunSuccessLimit       *int
-	RunStartedAt          time.Time
-	RunStartedBy          int64
-	RunTimeout            time.Duration
-	RunTimeoutAt          *time.Time
-	RetriesOnErrorCount   int
-	RetriesOnErrorLimit   *int
-	RetriesOnTimeoutCount int
-	RetriesOnTimeoutLimit *int
-	Schedule              *string
-	CreatedAt             time.Time
-	CreatedBy             int64
-	Stop                  <-chan struct{}
-	kill                  <-chan struct{}
-	instanceID            int64
-	addJobR               chan<- Runnable
-	jobRun                *Run
-	jobFunc               JobFunc
-	jobSchedule           *ScheduleFunc
-	db                    *gorm.DB
-	log                   logc.Logger
+	stop        chan struct{}
+	kill        <-chan struct{}
+	instanceID  int64
+	addJobR     chan<- Runnable
+	jobRun      *Run
+	jobFunc     JobFunc
+	jobSchedule *ScheduleFunc
+	db          *gorm.DB
+	log         logc.Logger
 }
 
 func (j *Runnable) schedule() {
@@ -100,13 +80,7 @@ func (j *Runnable) lock() bool {
 		log.WithError(err).Warn("failed to lock job run")
 		return false
 	}
-	if locked {
-		j.RunStartedAt = j.jobRun.RunStartedAt.Time
-		j.RunStartedBy = j.jobRun.RunStartedBy.Int64
-		if j.jobRun.RunTimeoutAt.Valid {
-			j.RunTimeoutAt = &j.jobRun.RunTimeoutAt.Time
-		}
-	}
+
 	return locked
 }
 
@@ -117,15 +91,14 @@ func (j *Runnable) exec() error {
 		execRes <- j.jobFunc.execute(j.jobRun.JobArgs)
 	}(execRes)
 
-	stop := make(chan struct{})
-	j.Stop = stop
-	if j.RunTimeoutAt != nil {
+	j.stop = make(chan struct{})
+	if j.jobRun.RunTimeoutAt.Valid {
 		select {
 		case <-j.kill:
-			close(stop)
+			close(j.stop)
 			return ErrRunKill
-		case <-time.After(j.RunTimeoutAt.Sub(time.Now())):
-			close(stop)
+		case <-time.After(j.jobRun.RunTimeoutAt.Time.Sub(time.Now())):
+			close(j.stop)
 			return ErrRunTimeout
 		case err := <-execRes:
 			return err
@@ -238,43 +211,13 @@ func newRunnable(
 ) (Runnable, error) {
 
 	rtn := Runnable{
-		ID:                    jobRun.ID,
-		OriginID:              jobRun.OriginID,
-		Name:                  jobRun.Name,
-		Job:                   jobRun.Job,
-		JobArgs:               jobRun.JobArgs,
-		RunAt:                 jobRun.RunAt,
-		RunTotalCount:         jobRun.RunTotalCount,
-		RunSuccessCount:       jobRun.RunSuccessCount,
-		RetriesOnErrorCount:   jobRun.RetriesOnErrorCount,
-		RetriesOnTimeoutCount: jobRun.RetriesOnTimeoutCount,
-		CreatedAt:             jobRun.CreatedAt,
-		CreatedBy:             jobRun.CreatedBy,
-		instanceID:            instanceID,
-		kill:                  kill,
-		jobRun:                &jobRun,
-		jobFunc:               jobFunc,
-		jobSchedule:           jobSchedule,
-		db:                    db,
-		log:                   log,
-	}
-	if jobRun.RunSuccessLimit.Valid {
-		rsl := int(jobRun.RunSuccessLimit.Int64)
-		rtn.RunSuccessLimit = &rsl
-	}
-	if jobRun.RetriesOnErrorLimit.Valid {
-		rel := int(jobRun.RetriesOnErrorLimit.Int64)
-		rtn.RetriesOnErrorLimit = &rel
-	}
-	if jobRun.RunTimeout.Valid {
-		rtn.RunTimeout = time.Duration(jobRun.RunTimeout.Int64)
-	}
-	if jobRun.RetriesOnTimeoutLimit.Valid {
-		rtl := int(jobRun.RetriesOnTimeoutLimit.Int64)
-		rtn.RetriesOnTimeoutLimit = &rtl
-	}
-	if jobRun.Schedule.Valid {
-		rtn.Schedule = &jobRun.Schedule.String
+		instanceID:  instanceID,
+		kill:        kill,
+		jobRun:      &jobRun,
+		jobFunc:     jobFunc,
+		jobSchedule: jobSchedule,
+		db:          db,
+		log:         log,
 	}
 
 	err := jobFunc.check(jobRun.JobArgs)

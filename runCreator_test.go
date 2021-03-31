@@ -98,7 +98,7 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 	t.Assert.NoError(jd.Up())
 
 	delay := 500 * time.Millisecond
-	t.When("we run the job once after ")
+	t.Whenf("we run the job once after %s", delay.String())
 	wait.Add(1)
 	startTime := time.Now()
 	_, err := jd.CreateRun("theJob").RunAfter(delay)
@@ -111,6 +111,7 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 	t.Then("the job run should run after the specified delay of " + delay.String())
 	t.Assert.WithinDuration(startTime.Add(delay), runTime, 300*time.Millisecond)
 }
+
 func TestRunOnceCreatorRunTimeout(test *testing.T) {
 	t := testc.New(test)
 
