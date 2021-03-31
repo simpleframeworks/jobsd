@@ -32,12 +32,12 @@ func TestRunQueue(test *testing.T) {
 	for i := 0; i < 10; i++ {
 		topItem := q.Peek()
 		j := q.Pop()
-		t.Equal(topItem.jobRun.Job, j.jobRun.Job)
+		t.Assert.Equal(topItem.jobRun.Job, j.jobRun.Job)
 		runOrder = append(runOrder, j.jobRun.Job)
 	}
 
 	t.Then("the order of job runs should be sorted in chronological order")
-	t.ElementsMatch([]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}, runOrder)
+	t.Assert.ElementsMatch([]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}, runOrder)
 }
 
 func TestRunQueueUnique(test *testing.T) {
@@ -79,5 +79,5 @@ func TestRunQueueUnique(test *testing.T) {
 		items = append(items, j.jobRun.Job)
 	}
 
-	t.ElementsMatch([]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}, items)
+	t.Assert.ElementsMatch([]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}, items)
 }

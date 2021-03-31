@@ -11,7 +11,7 @@ import (
 func TestRunState(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
+	logger := setupLogging(logrus.TraceLevel)
 	db := setupDB(logger)
 
 	t.Given("a JobsD instance")
@@ -30,29 +30,29 @@ func TestRunState(test *testing.T) {
 	qd.RegisterJob("theJob", jobFunc)
 
 	t.When("we bring up the JobsD instance")
-	t.NoError(qd.Up())
+	t.Assert.NoError(qd.Up())
 
 	delay := 200 * time.Millisecond
 	t.When("we run the job after " + delay.String())
 	theID, err := qd.CreateRun("theJob").RunAfter(delay)
-	t.NoError(err)
+	t.Assert.NoError(err)
 
 	t.When("we get the job run state")
 	theState := qd.GetRunState(theID)
 
 	t.Then("the state should match a job run that has not run")
-	t.Equal(0, int(theState.RunSuccessCount))
-	t.Nil(theState.RunStartedAt)
-	t.Nil(theState.RunStartedBy)
-	t.Nil(theState.RunCompletedAt)
-	t.Nil(theState.RunCompletedError)
-	t.Equal(0, int(theState.RetriesOnErrorCount))
-	t.Equal(0, int(theState.RetriesOnTimeoutCount))
-	t.Nil(theState.Schedule)
-	t.Nil(theState.ClosedAt)
-	t.Nil(theState.ClosedBy)
-	t.WithinDuration(theState.CreatedAt, time.Now(), 100*time.Millisecond)
-	t.Equal(qd.instance.ID, theState.CreatedBy)
+	t.Assert.Equal(0, int(theState.RunSuccessCount))
+	t.Assert.Nil(theState.RunStartedAt)
+	t.Assert.Nil(theState.RunStartedBy)
+	t.Assert.Nil(theState.RunCompletedAt)
+	t.Assert.Nil(theState.RunCompletedError)
+	t.Assert.Equal(0, int(theState.RetriesOnErrorCount))
+	t.Assert.Equal(0, int(theState.RetriesOnTimeoutCount))
+	t.Assert.Nil(theState.Schedule)
+	t.Assert.Nil(theState.ClosedAt)
+	t.Assert.Nil(theState.ClosedBy)
+	t.Assert.WithinDuration(theState.CreatedAt, time.Now(), 100*time.Millisecond)
+	t.Assert.Equal(qd.instance.ID, theState.CreatedBy)
 
 	createdAt := theState.CreatedAt
 
@@ -61,21 +61,21 @@ func TestRunState(test *testing.T) {
 
 	t.When("we refresh the job run state")
 	err = theState.Refresh()
-	t.NoError(err)
+	t.Assert.NoError(err)
 
 	t.Then("the state should match a job run that is running")
-	t.Equal(0, int(theState.RunSuccessCount))
-	t.WithinDuration(*theState.RunStartedAt, time.Now(), 800*time.Millisecond)
-	t.Equal(qd.instance.ID, *theState.RunStartedBy)
-	t.Nil(theState.RunCompletedAt)
-	t.Nil(theState.RunCompletedError)
-	t.Equal(0, int(theState.RetriesOnErrorCount))
-	t.Equal(0, int(theState.RetriesOnTimeoutCount))
-	t.Nil(theState.Schedule)
-	t.Nil(theState.ClosedAt)
-	t.Nil(theState.ClosedBy)
-	t.Equal(theState.CreatedAt, createdAt)
-	t.Equal(qd.instance.ID, theState.CreatedBy)
+	t.Assert.Equal(0, int(theState.RunSuccessCount))
+	t.Assert.WithinDuration(*theState.RunStartedAt, time.Now(), 800*time.Millisecond)
+	t.Assert.Equal(qd.instance.ID, *theState.RunStartedBy)
+	t.Assert.Nil(theState.RunCompletedAt)
+	t.Assert.Nil(theState.RunCompletedError)
+	t.Assert.Equal(0, int(theState.RetriesOnErrorCount))
+	t.Assert.Equal(0, int(theState.RetriesOnTimeoutCount))
+	t.Assert.Nil(theState.Schedule)
+	t.Assert.Nil(theState.ClosedAt)
+	t.Assert.Nil(theState.ClosedBy)
+	t.Assert.Equal(theState.CreatedAt, createdAt)
+	t.Assert.Equal(qd.instance.ID, theState.CreatedBy)
 
 	RunStartedAt := *theState.RunStartedAt
 
@@ -83,27 +83,27 @@ func TestRunState(test *testing.T) {
 	jobContinue <- struct{}{}
 
 	t.When("we shutdown the JobsD instance to let everything complete")
-	t.NoError(qd.Down())
+	t.Assert.NoError(qd.Down())
 
 	t.When("we refresh the job run state")
 	err = theState.Refresh()
-	t.NoError(err)
+	t.Assert.NoError(err)
 
 	t.Then("the state should match a job run that has completed without error")
-	t.Equal(1, int(theState.RunSuccessCount))
-	t.Equal(*theState.RunStartedAt, RunStartedAt)
-	t.Equal(qd.instance.ID, *theState.RunStartedBy)
-	t.NotNil(theState.RunCompletedAt)
-	t.WithinDuration(*theState.RunCompletedAt, time.Now(), 100*time.Millisecond)
-	t.Nil(theState.RunCompletedError)
-	t.Equal(0, int(theState.RetriesOnErrorCount))
-	t.Equal(0, int(theState.RetriesOnTimeoutCount))
-	t.Nil(theState.Schedule)
-	t.NotNil(theState.ClosedAt)
-	t.WithinDuration(*theState.ClosedAt, time.Now(), 100*time.Millisecond)
-	t.NotNil(theState.ClosedBy)
-	t.Equal(qd.instance.ID, *theState.ClosedBy)
-	t.Equal(theState.CreatedAt, createdAt)
-	t.Equal(qd.instance.ID, theState.CreatedBy)
+	t.Assert.Equal(1, int(theState.RunSuccessCount))
+	t.Assert.Equal(*theState.RunStartedAt, RunStartedAt)
+	t.Assert.Equal(qd.instance.ID, *theState.RunStartedBy)
+	t.Require.NotNil(theState.RunCompletedAt)
+	t.Assert.WithinDuration(*theState.RunCompletedAt, time.Now(), 100*time.Millisecond)
+	t.Assert.Nil(theState.RunCompletedError)
+	t.Assert.Equal(0, int(theState.RetriesOnErrorCount))
+	t.Assert.Equal(0, int(theState.RetriesOnTimeoutCount))
+	t.Assert.Nil(theState.Schedule)
+	t.Require.NotNil(theState.ClosedAt)
+	t.Assert.WithinDuration(*theState.ClosedAt, time.Now(), 100*time.Millisecond)
+	t.Require.NotNil(theState.ClosedBy)
+	t.Assert.Equal(qd.instance.ID, *theState.ClosedBy)
+	t.Assert.Equal(theState.CreatedAt, createdAt)
+	t.Assert.Equal(qd.instance.ID, theState.CreatedBy)
 
 }
