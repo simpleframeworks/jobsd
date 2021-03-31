@@ -206,7 +206,7 @@ func TestRunOnceCreatorRetriesTimeoutLimit(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, 5*time.Second)
+	t.WaitTimeout(&wait, 8*time.Second)
 
 	t.Then("the job should have run three times (1 + 2 retries)")
 	t.Assert.Equal(3, int(runCounter))
@@ -256,7 +256,7 @@ func TestRunOnceCreatorRetryErrorLimit(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, 5*time.Second)
+	t.WaitTimeout(&wait, 7*time.Second)
 
 	t.Then("the job should have run three times (1 + 2 retries)")
 	t.Assert.Equal(3, int(runCounter))
@@ -325,7 +325,7 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 	}
 
 	t.When("we wait until it finishes")
-	t.WaitTimeout(&wait, 3*time.Second)
+	t.WaitTimeout(&wait, 5*time.Second)
 
 	t.Then("the job should have run twice")
 	t.Assert.Equal(2, int(runCounter))
