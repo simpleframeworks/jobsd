@@ -411,8 +411,8 @@ func TestRunScheduledCreatorRetriesTimeoutLimit(test *testing.T) {
 	jobName := "TestRunScheduledCreatorRetriesTimeoutLimit" // Must be unique otherwise tests may collide
 
 	retryCheck := 50 * time.Millisecond
-	runTimeout := 300 * time.Millisecond
-	jobRunTime := 1000 * time.Millisecond
+	runTimeout := 200 * time.Millisecond
+	jobRunTime := 500 * time.Millisecond
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
@@ -451,15 +451,15 @@ func TestRunScheduledCreatorRetriesTimeoutLimit(test *testing.T) {
 	jr := jd.CreateRun(jobName).Schedule("theSchedule").Limit(2).RetriesTimeoutLimit(2)
 
 	t.When("we run the job")
-	wait.Add(5)
+	wait.Add(4)
 	_, err := jr.Run()
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
 	t.WaitTimeout(&wait, ciDuration(7*time.Second, 10*time.Second))
 
-	t.Then("the job should have run 5 times (1 successful + 3 unsuccessful (2 retries) + 1 successful)")
-	t.Assert.Equal(5, int(runCounter))
+	t.Then("the job should have run 5 times (1 successful + 2 unsuccessful (2 retries) + 1 successful)")
+	t.Assert.Equal(4, int(runCounter))
 
 	t.When("we wait enough time for another job run to complete")
 	<-time.After(jobRunTime)
@@ -467,7 +467,7 @@ func TestRunScheduledCreatorRetriesTimeoutLimit(test *testing.T) {
 	<-time.After(retryCheck)
 
 	t.Then("the job should have still only run 5 times")
-	t.Assert.Equal(5, int(runCounter))
+	t.Assert.Equal(4, int(runCounter))
 
 	t.Assert.NoError(jd.Down()) // Cleanup
 }
