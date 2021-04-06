@@ -96,6 +96,14 @@ func setupMySQL(logger logc.Logger) *gorm.DB {
 	return db
 }
 
+func ciDuration(localVal, ciVal time.Duration) time.Duration {
+	ci := os.Getenv("JOBSD_CI_TEST") != ""
+	if ci {
+		return ciVal
+	}
+	return localVal
+}
+
 func TestJobsDRun(test *testing.T) {
 	t := testc.New(test)
 
@@ -128,7 +136,7 @@ func TestJobsDRun(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("the job should have run once")
-	t.WaitTimeout(&wait, 500*time.Millisecond)
+	t.WaitTimeout(&wait, ciDuration(500*time.Millisecond, 10*time.Second))
 	t.Assert.Equal(1, int(runCounter))
 
 	t.Then("the job run should have completed within 1 second")
@@ -174,7 +182,7 @@ func TestJobsDRunMulti(test *testing.T) {
 	}
 
 	t.Thenf("the job should have run %d times", runNum)
-	t.WaitTimeout(&wait, 5000*time.Millisecond)
+	t.WaitTimeout(&wait, ciDuration(5000*time.Millisecond, 10*time.Second))
 	t.Assert.Equal(runNum, int(runCounter))
 
 	t.Then("the all job runs should have completed within 3 second")
@@ -219,7 +227,7 @@ func TestQueuedRunErrRetry(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("the job should have run twice")
-	t.WaitTimeout(&wait, 500*time.Millisecond)
+	t.WaitTimeout(&wait, ciDuration(500*time.Millisecond, 10*time.Second))
 	t.Assert.Equal(2, int(runCounter))
 
 	t.Then("the job runs should have completed within 1 second")
@@ -270,7 +278,7 @@ func TestQueuedRunTimeoutRetry(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, 5*time.Second)
+	t.WaitTimeout(&wait, ciDuration(5*time.Second, 10*time.Second))
 
 	t.Then("the job should have run twice")
 	t.Assert.Equal(2, int(runCounter))
@@ -319,7 +327,7 @@ func TestJobsDScheduledRun(test *testing.T) {
 	t.Assert.NoError(errR)
 
 	t.Then("the job should have run")
-	t.WaitTimeout(&wait, 500*timer)
+	t.WaitTimeout(&wait, ciDuration(500*timer, 10*time.Second))
 	finishTime := time.Now()
 
 	t.Then("the job should have run within " + timer.String() + " with a tolerance of 150ms")
@@ -373,7 +381,7 @@ func TestJobsDScheduledRunRecurrent(test *testing.T) {
 	t.Assert.NoError(errR)
 
 	t.Then("the job should have run 3 times")
-	t.WaitTimeout(&wait, 5000*time.Millisecond)
+	t.WaitTimeout(&wait, ciDuration(5000*time.Millisecond, 10*time.Second))
 	finishTime := time.Now()
 
 	t.Then("the job should only run three times even if we wait for another 500ms")
@@ -431,7 +439,7 @@ func TestJobsDScheduledRunMulti(test *testing.T) {
 	}
 
 	t.Then("the job should have run 20 times")
-	t.WaitTimeout(&wait, 4*time.Second)
+	t.WaitTimeout(&wait, ciDuration(4*time.Second, 10*time.Second))
 	finishTime := time.Now()
 	t.Assert.Equal(20, int(runCounter))
 
@@ -489,7 +497,7 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 	}
 
 	t.Then("the job should have run " + strconv.Itoa(runs) + " times")
-	t.WaitTimeout(&wait, 10*runTime)
+	t.WaitTimeout(&wait, ciDuration(10*runTime, 10*time.Second))
 	t.Assert.Equal(runs, int(runCounter))
 
 	t.Then("the job runs should have been distributed across the cluster and run")
