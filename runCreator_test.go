@@ -54,7 +54,7 @@ func TestRunOnceCreatorUnique(test *testing.T) {
 	}
 
 	t.When("we wait until it finishes")
-	t.WaitTimeout(&wait, 5*runTime)
+	t.WaitTimeout(&wait, ciDuration(5*runTime, 10*time.Second))
 
 	t.Then("the job should have run only once")
 	t.Assert.Equal(1, int(runCounter))
@@ -105,7 +105,7 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("the job should have run once")
-	t.WaitTimeout(&wait, 4*time.Second)
+	t.WaitTimeout(&wait, ciDuration(4*time.Second, 10*time.Second))
 	t.Assert.Equal(1, runNum)
 
 	t.Then("the job run should run after the specified delay of " + delay.String())
@@ -156,7 +156,7 @@ func TestRunOnceCreatorRunTimeout(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, 500*time.Second)
+	t.WaitTimeout(&wait, ciDuration(500*time.Second, 10*time.Second))
 
 	t.Then("the job should have run twice")
 	t.Assert.Equal(2, int(runCounter))
@@ -206,7 +206,7 @@ func TestRunOnceCreatorRetriesTimeoutLimit(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, 8*time.Second)
+	t.WaitTimeout(&wait, ciDuration(8*time.Second, 10*time.Second))
 
 	t.Then("the job should have run three times (1 + 2 retries)")
 	t.Assert.Equal(3, int(runCounter))
@@ -256,7 +256,7 @@ func TestRunOnceCreatorRetryErrorLimit(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, 7*time.Second)
+	t.WaitTimeout(&wait, ciDuration(7*time.Second, 10*time.Second))
 
 	t.Then("the job should have run three times (1 + 2 retries)")
 	t.Assert.Equal(3, int(runCounter))
@@ -325,7 +325,7 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 	}
 
 	t.When("we wait until it finishes")
-	t.WaitTimeout(&wait, 5*time.Second)
+	t.WaitTimeout(&wait, ciDuration(5*time.Second, 10*time.Second))
 
 	t.Then("the job should have run twice")
 	t.Assert.Equal(2, int(runCounter))
@@ -395,7 +395,7 @@ func TestRunScheduledCreatorRunTimeout(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, 5*time.Second)
+	t.WaitTimeout(&wait, ciDuration(5*time.Second, 10*time.Second))
 
 	t.Then("the job should have run three times (2 successful runs + 1 timed out run")
 	t.Assert.Equal(3, int(runCounter))
@@ -456,7 +456,7 @@ func TestRunScheduledCreatorRetriesTimeoutLimit(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, 5*time.Second)
+	t.WaitTimeout(&wait, ciDuration(5*time.Second, 10*time.Second))
 
 	t.Then("the job should have run 5 times (1 successful + 3 unsuccessful (2 retries) + 1 successful)")
 	t.Assert.Equal(5, int(runCounter))
@@ -518,7 +518,7 @@ func TestRunScheduledCreatorRetryErrorLimit(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, 5*time.Second)
+	t.WaitTimeout(&wait, ciDuration(5*time.Second, 10*time.Second))
 
 	t.Then("the job should have run 5 times (1 successful + 3 unsuccessful (2 retries) + 1 successful)")
 	t.Assert.Equal(5, int(runCounter))
@@ -575,7 +575,7 @@ func TestRunScheduleCreatorRunAfter(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("the job should have run once")
-	t.WaitTimeout(&wait, 3*time.Second)
+	t.WaitTimeout(&wait, ciDuration(3*time.Second, 10*time.Second))
 	t.Assert.Equal(1, runNum)
 
 	t.Then("the job run should run after the specified delay of " + delay.String())

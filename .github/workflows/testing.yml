@@ -102,6 +102,7 @@ jobs:
         JOBSD_PG_PASSWORD: jobsd
         JOBSD_PG_USER: jobsd
         JOBSD_PG_DB: jobsd
+        JOBSD_CI_TEST: 1
       run: go test -v -race ./...
 
   mysql:
@@ -161,4 +162,5 @@ jobs:
         JOBSD_MY_PASSWORD: jobsd
         JOBSD_MY_USER: jobsd
         JOBSD_MY_DB: jobsd
+        JOBSD_CI_TEST: 1
       run: go test -v -race ./...
