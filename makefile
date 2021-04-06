@@ -1,6 +1,6 @@
-.PHONY: test test-sqlite test-postgres cleanup
+.PHONY: test test-sqlite test-postgres test-mysql cleanup
 
-test: test-sqlite test-postgres cleanup
+test: test-sqlite test-postgres test-mysql cleanup
 
 test-local:
 	@echo "Running SQLite tests - Started"
