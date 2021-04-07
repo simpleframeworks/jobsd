@@ -399,7 +399,7 @@ func TestJobsDScheduledRunRecurrent(test *testing.T) {
 func TestJobsDScheduledRunMulti(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
+	logger := setupLogging(logrus.WarnLevel)
 	db := setupDB(logger)
 	jobName := "TestJobsDScheduledRunMulti" // Must be unique otherwise tests may collide
 
@@ -445,7 +445,7 @@ func TestJobsDScheduledRunMulti(test *testing.T) {
 
 	expectedRunTime := 2 * timer
 	tolerance := 1 * time.Second
-	t.Then("the jobs should have run within %s with a tolerance of %s", expectedRunTime.String(), tolerance.String())
+	t.Thenf("the jobs should have run within %s with a tolerance of %s", expectedRunTime.String(), tolerance.String())
 	t.Assert.WithinDuration(startTime.Add(expectedRunTime), finishTime, tolerance)
 
 	t.Assert.NoError(jd.Down()) // Cleanup

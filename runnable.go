@@ -141,7 +141,7 @@ func (j *Runnable) handleTO() {
 			next := j.cloneReset(false)
 			next.jobRun.RetriesOnTimeoutCount++
 			next.save(tx)
-			j.runQAdd <- next
+			go func() { j.runQAdd <- next }()
 		} else {
 			return j.reschedule(tx)
 		}
@@ -164,7 +164,7 @@ func (j *Runnable) handleErr(err error) {
 			next := j.cloneReset(false)
 			next.jobRun.RetriesOnErrorCount++
 			next.save(tx)
-			j.runQAdd <- next
+			go func() { j.runQAdd <- next }()
 		} else {
 			return j.reschedule(tx)
 		}
@@ -200,7 +200,7 @@ func (j *Runnable) reschedule(tx *gorm.DB) error {
 			"Run.At": next.jobRun.RunAt,
 		}).Debug("reschedule job run")
 
-		j.runQAdd <- next
+		go func() { j.runQAdd <- next }()
 	}
 	return nil
 }
