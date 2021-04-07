@@ -396,6 +396,7 @@ func (j *JobsD) Down() error {
 	j.addertCxCancelWait.Wait()
 
 	close(j.runNow)
+	close(j.runQAdd)
 	close(j.runQReset)
 	j.started = false
 
@@ -454,7 +455,6 @@ func (j *JobsD) createRunnable(jr Run) (rtn *Runnable, err error) {
 		"Run.ID":    rtn.jobRun.ID,
 		"Run.RunAt": rtn.jobRun.RunAt,
 	}).Trace("created runnable job")
-
 	j.runQAdd <- rtn
 
 	return rtn, err
