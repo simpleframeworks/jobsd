@@ -63,6 +63,9 @@ type JobsD struct {
 	workerCtx             context.Context
 	workerCtxCancelFunc   context.CancelFunc
 	workertCxCancelWait   sync.WaitGroup
+	adderCtx              context.Context
+	adderCtxCancelFunc    context.CancelFunc
+	addertCxCancelWait    sync.WaitGroup
 	db                    *gorm.DB
 }
 
@@ -135,20 +138,18 @@ func (j *JobsD) Up() error {
 	j.runQAdd = make(chan *Runnable)
 	j.runQReset = make(chan struct{})
 
-	j.producerCtx, j.producerCtxCancelFunc = context.WithCancel(context.Background())
-	j.producerCancelWait = sync.WaitGroup{}
-
-	j.workerCtx, j.workerCtxCancelFunc = context.WithCancel(context.Background())
-	j.workertCxCancelWait = sync.WaitGroup{}
-
 	j.createWorkers()
 	j.createProducers()
+	j.createAdder()
 
 	j.log.Debug("bringing up the service - completed")
 	return nil
 }
 
 func (j *JobsD) createWorkers() {
+	j.workerCtx, j.workerCtxCancelFunc = context.WithCancel(context.Background())
+	j.workertCxCancelWait = sync.WaitGroup{}
+
 	for i := 0; i < j.instance.Workers; i++ {
 		j.workertCxCancelWait.Add(1)
 		go j.runner(j.workerCtx.Done())
@@ -156,12 +157,21 @@ func (j *JobsD) createWorkers() {
 }
 
 func (j *JobsD) createProducers() {
+	j.producerCtx, j.producerCtxCancelFunc = context.WithCancel(context.Background())
+	j.producerCancelWait = sync.WaitGroup{}
 
-	j.producerCancelWait.Add(4)
-	go j.runnableAdder(j.producerCtx.Done())
+	j.producerCancelWait.Add(3)
 	go j.runnableLoader(j.producerCtx.Done())
 	go j.runnableDelegator(j.producerCtx.Done())
 	go j.runnableResurrector(j.producerCtx.Done())
+}
+
+func (j *JobsD) createAdder() {
+	j.adderCtx, j.adderCtxCancelFunc = context.WithCancel(context.Background())
+	j.addertCxCancelWait = sync.WaitGroup{}
+
+	j.addertCxCancelWait.Add(1)
+	go j.runnableAdder(j.adderCtx.Done())
 }
 
 func (j *JobsD) runnableAdder(done <-chan struct{}) {
@@ -169,7 +179,7 @@ func (j *JobsD) runnableAdder(done <-chan struct{}) {
 		select {
 		case <-done:
 			j.log.Trace("shutdown runnableAdder")
-			j.producerCancelWait.Done()
+			j.addertCxCancelWait.Done()
 			return
 		case jr := <-j.runQAdd:
 			j.log.Debug("adding job runnable to run queue")
@@ -381,6 +391,9 @@ func (j *JobsD) Down() error {
 
 	j.workerCtxCancelFunc()
 	j.workertCxCancelWait.Wait()
+
+	j.adderCtxCancelFunc()
+	j.addertCxCancelWait.Wait()
 
 	close(j.runNow)
 	close(j.runQReset)

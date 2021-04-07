@@ -141,7 +141,7 @@ func (j *Runnable) handleTO() {
 			next := j.cloneReset(false)
 			next.jobRun.RetriesOnTimeoutCount++
 			next.save(tx)
-			go func() { j.runQAdd <- next }()
+			j.runQAdd <- next
 		} else {
 			return j.reschedule(tx)
 		}
@@ -164,7 +164,7 @@ func (j *Runnable) handleErr(err error) {
 			next := j.cloneReset(false)
 			next.jobRun.RetriesOnErrorCount++
 			next.save(tx)
-			go func() { j.runQAdd <- next }()
+			j.runQAdd <- next
 		} else {
 			return j.reschedule(tx)
 		}
@@ -192,15 +192,15 @@ func (j *Runnable) handleSuccess() {
 func (j *Runnable) reschedule(tx *gorm.DB) error {
 
 	if j.jobSchedule != nil && j.jobRun.needsScheduling() {
+		j.log.Debug("rescheduling")
 		next := j.cloneReset(true)
 		if err := next.save(tx); err != nil {
 			return err
 		}
+		j.runQAdd <- next
 		next.log.WithFields(map[string]interface{}{
 			"Run.At": next.jobRun.RunAt,
-		}).Debug("reschedule job run")
-
-		go func() { j.runQAdd <- next }()
+		}).Debug("rescheduled new job run")
 	}
 	return nil
 }
