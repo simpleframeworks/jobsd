@@ -15,7 +15,8 @@ import (
 
 // JobFunc .
 type JobFunc struct {
-	jobFunc reflect.Value
+	runInfoArg bool
+	jobFunc    reflect.Value
 }
 
 var (
@@ -29,29 +30,39 @@ var (
 
 // check throws an error if the func is not valid and the args don't match func args
 func (j *JobFunc) check(args []interface{}) error {
+
+	// Make sure its a func
 	if j.jobFunc.Kind() != reflect.Func {
 		return ErrJobFuncNotFunc
 	}
 
 	theType := j.jobFunc.Type()
-	// We expect 1 return value
+	// Make sure it returns 1 value
 	if theType.NumOut() != 1 {
 		return ErrJobFuncNoErrRtn
 	}
 
-	// We expect the return value is an error
+	// Make sure the return value is an error
 	errorInterface := reflect.TypeOf((*error)(nil)).Elem()
 	if !theType.Out(0).Implements(errorInterface) {
 		return ErrJobFuncNoErrRtn
 	}
 
-	// We expect the number of jobFunc args matches
-	if theType.NumIn() != len(args) {
+	// Make sure the number of jobFunc args matches
+	lenArgs := len(args)
+	if j.runInfoArg {
+		lenArgs--
+	}
+	if theType.NumIn() != lenArgs {
 		return ErrJobFuncArgsMismatch
 	}
 
-	// We expect the supplied args types are equal to the jobFuncs args
-	for i := 0; i < theType.NumIn(); i++ {
+	// Make sure the supplied args types are equal to the jobFuncs args
+	start := 0
+	if j.runInfoArg {
+		start = 1
+	}
+	for i := start; i < theType.NumIn(); i++ {
 		if reflect.ValueOf(args[i]).Kind() != theType.In(i).Kind() {
 			return fmt.Errorf("%w, arg %d is not a %s", ErrJobFuncArgsMismatch, i, theType.In(i).Kind().String())
 		}
@@ -60,15 +71,35 @@ func (j *JobFunc) check(args []interface{}) error {
 	return nil
 }
 
-// paramsCount returns the number of parameters required
-func (j JobFunc) paramsCount() int {
-	return j.jobFunc.Type().NumIn()
-}
+var riType = reflect.TypeOf(RunInfo{})
 
-// firstParamJR . Is the first param a Job Runnable struct?
-func (j JobFunc) firstParamJR() bool {
-	//TODO
-	return false
+// setRunInfoArg. Checks to see if first arg is a Run Info struct?
+func (j *JobFunc) setRunInfoArg() {
+	theType := j.jobFunc.Type()
+
+	// Make sure its a func
+	if j.jobFunc.Kind() != reflect.Func {
+		j.runInfoArg = false
+		return
+	}
+
+	// Make sure there is at least one arg
+	if theType.NumIn() < 1 {
+		j.runInfoArg = false
+		return
+	}
+
+	theArg := theType.In(0)
+	// Make sure the first arg is a struct
+	if theArg.Kind() != reflect.Struct {
+		j.runInfoArg = false
+		return
+	}
+
+	// Make sure the arg is a RunInfo struct
+	if theArg.AssignableTo(riType) {
+		j.runInfoArg = true
+	}
 }
 
 // execute the JobFunc
@@ -92,9 +123,11 @@ func (j JobFunc) execute(params []interface{}) error {
 
 // NewJobFunc .
 func NewJobFunc(theFunc interface{}) JobFunc {
-	return JobFunc{
+	rtn := JobFunc{
 		jobFunc: reflect.ValueOf(theFunc),
 	}
+	rtn.setRunInfoArg()
+	return rtn
 }
 
 // JobContainer .
