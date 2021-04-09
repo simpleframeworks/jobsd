@@ -25,7 +25,7 @@ func TestRunOnceCreatorUnique(test *testing.T) {
 		jdInstances = append(jdInstances, New(db).Logger(logger).WorkerNum(2))
 	}
 
-	runTime := 200 * time.Millisecond
+	runTime := 800 * time.Millisecond
 	t.Given("a job that increments a counter and takes " + runTime.String())
 	wait := sync.WaitGroup{}
 	var runCounter uint32

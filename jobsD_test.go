@@ -399,7 +399,7 @@ func TestJobsDScheduledRunRecurrent(test *testing.T) {
 func TestJobsDScheduledRunMulti(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.DebugLevel)
+	logger := setupLogging(logrus.WarnLevel)
 	db := setupDB(logger)
 	jobName := "TestJobsDScheduledRunMulti" // Must be unique otherwise tests may collide
 
