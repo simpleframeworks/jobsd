@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -57,6 +58,7 @@ type JobsD struct {
 	runQReset             chan struct{}
 	runQAdd               chan *Runnable
 	runNow                chan *Runnable
+	busyWorkers           int32
 	producerCtx           context.Context
 	producerCtxCancelFunc context.CancelFunc
 	producerCancelWait    sync.WaitGroup
@@ -136,7 +138,7 @@ func (j *JobsD) Up() error {
 	j.started = true
 	j.runNow = make(chan *Runnable)
 	j.runQAdd = make(chan *Runnable, j.instance.Workers)
-	j.runQReset = make(chan struct{}, j.instance.Workers)
+	j.runQReset = make(chan struct{})
 
 	j.createWorkers()
 	j.createProducers()
@@ -226,37 +228,30 @@ func (j *JobsD) runnableLoader(done <-chan struct{}) {
 			j.log.WithError(err).Warn("failed to update instance status")
 		}
 
-		if len(jobRuns) > 0 {
-			j.runQReset <- struct{}{}
-		}
-
 		j.log.Trace("loading job runs from the DB - completed")
 	}
 }
 
 func (j *JobsD) runnableDelegator(done <-chan struct{}) {
-	var runBatch int //counts the jobs running
 	var waitTime time.Duration
 	for {
-		waitTime = time.Second * 10
+		waitTime = time.Second * 5
 		now := time.Now()
 
 		if j.runQ.Len() > 0 {
 			nextRunAt := j.runQ.Peek().runAt()
-			if runBatch >= j.instance.Workers {
+			if atomic.LoadInt32(&j.busyWorkers) >= int32(j.instance.Workers) {
 				// introduce a pause because all workers are busy
-				waitTime = time.Millisecond * 100
+				waitTime = time.Millisecond * 20
 			} else if now.Equal(nextRunAt) || now.After(nextRunAt) {
 				runnable := j.runQ.Pop()
 				runnable.log.Debug("delegating run to worker")
 				j.runNow <- runnable
-				runBatch++
 				continue
 			} else {
 				waitTime = nextRunAt.Sub(now)
 			}
 		}
-		runBatch = 0
 		j.log.WithField("WaitTime", waitTime).Debug("waiting for run")
 		timer := time.NewTimer(waitTime)
 
@@ -288,6 +283,7 @@ func (j *JobsD) runner(done <-chan struct{}) {
 			return
 		case jr := <-j.runNow:
 
+			atomic.AddInt32(&j.busyWorkers, 1)
 			jr.log.Debug("running job - started")
 
 			j.incRunsStarted()
@@ -300,6 +296,7 @@ func (j *JobsD) runner(done <-chan struct{}) {
 			}
 
 			jr.log.Debug("running job - completed")
+			atomic.AddInt32(&j.busyWorkers, -1)
 		}
 	}
 }
