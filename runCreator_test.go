@@ -281,10 +281,10 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 	t.Given(strconv.Itoa(nodes) + " JobsD instances to form a cluster")
 	jdInstances := []*JobsD{}
 	for i := 0; i < nodes; i++ {
-		jdInstances = append(jdInstances, New(db).Logger(logger).WorkerNum(2))
+		jdInstances = append(jdInstances, New(db).Logger(logger).WorkerNum(2).RunTimeout(time.Second*30))
 	}
 
-	runTime := 200 * time.Millisecond
+	runTime := 500 * time.Millisecond
 	t.Given("a job that increments a counter and takes " + runTime.String())
 	wait := sync.WaitGroup{}
 	var runCounter uint32

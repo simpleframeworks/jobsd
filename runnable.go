@@ -61,6 +61,7 @@ func (j *Runnable) run() RunRes {
 		j.log.Debug("job run already locked")
 		return RunResLockLost
 	}
+	j.log.Debug("job run lock acquired")
 
 	err := j.exec()
 	if err == ErrRunTimeout {
