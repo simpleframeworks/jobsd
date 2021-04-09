@@ -399,12 +399,13 @@ func TestJobsDScheduledRunRecurrent(test *testing.T) {
 func TestJobsDScheduledRunMulti(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.WarnLevel)
+	logger := setupLogging(logrus.DebugLevel)
 	db := setupDB(logger)
 	jobName := "TestJobsDScheduledRunMulti" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger).WorkerNum(1)
+	workers := 1
+	jd := New(db).Logger(logger).WorkerNum(workers)
 
 	t.Given("a Job that increments a counter")
 	wait := sync.WaitGroup{}
@@ -430,21 +431,23 @@ func TestJobsDScheduledRunMulti(test *testing.T) {
 	t.When("we bring up the JobsD instance")
 	t.Assert.NoError(jd.Up())
 
-	t.When("we schedule the job to run 10 times with a limit of 2 runs")
+	runNum := 10
+	times := 2
+	t.Whenf("we schedule the job to run %d times with a limit of %d runs", runNum, times)
 	startTime := time.Now()
-	for i := 0; i < 10; i++ {
+	for i := 0; i < runNum; i++ {
 		wait.Add(2)
-		_, errR := jd.CreateRun(jobName).Schedule("theSchedule").Limit(2).Run()
+		_, errR := jd.CreateRun(jobName).Schedule("theSchedule").Limit(times).Run()
 		t.Assert.NoError(errR)
 	}
 
-	t.Then("the job should have run 20 times")
-	t.WaitTimeout(&wait, ciDuration(4*time.Second, 20*time.Second))
+	t.Thenf("the job should have run %d times", runNum*times)
+	t.WaitTimeout(&wait, ciDuration(5*time.Second, 20*time.Second))
 	finishTime := time.Now()
-	t.Assert.Equal(20, int(runCounter))
+	t.Assert.Equal(runNum*times, int(runCounter))
 
-	expectedRunTime := 2 * timer
-	tolerance := 1 * time.Second
+	expectedRunTime := timer * time.Duration(times+runNum/workers)
+	tolerance := 100 * time.Millisecond * time.Duration(times+runNum/workers)
 	t.Thenf("the jobs should have run within %s with a tolerance of %s", expectedRunTime.String(), tolerance.String())
 	t.Assert.WithinDuration(startTime.Add(expectedRunTime), finishTime, tolerance)
 

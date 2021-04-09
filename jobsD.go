@@ -134,9 +134,9 @@ func (j *JobsD) Up() error {
 	j.log = j.log.WithField("Instance.ID", j.instance.ID)
 
 	j.started = true
-	j.runNow = make(chan *Runnable, 1)
-	j.runQAdd = make(chan *Runnable, 1)
-	j.runQReset = make(chan struct{}, 1)
+	j.runNow = make(chan *Runnable)
+	j.runQAdd = make(chan *Runnable, j.instance.Workers)
+	j.runQReset = make(chan struct{}, j.instance.Workers)
 
 	j.createWorkers()
 	j.createProducers()
@@ -150,6 +150,7 @@ func (j *JobsD) createWorkers() {
 	j.workerCtx, j.workerCtxCancelFunc = context.WithCancel(context.Background())
 	j.workertCxCancelWait = sync.WaitGroup{}
 
+	j.log.WithField("workers", j.instance.Workers).Debug("creating workers")
 	for i := 0; i < j.instance.Workers; i++ {
 		j.workertCxCancelWait.Add(1)
 		go j.runner(j.workerCtx.Done())
@@ -182,7 +183,7 @@ func (j *JobsD) runnableAdder(done <-chan struct{}) {
 			j.addertCxCancelWait.Done()
 			return
 		case jr := <-j.runQAdd:
-			j.log.Debug("adding job runnable to run queue")
+			jr.log.Debug("adding job runnable to run queue")
 			j.runQ.Push(jr)
 			j.runQReset <- struct{}{}
 		}
@@ -234,22 +235,29 @@ func (j *JobsD) runnableLoader(done <-chan struct{}) {
 }
 
 func (j *JobsD) runnableDelegator(done <-chan struct{}) {
+	var runBatch int //counts the jobs running
+	var waitTime time.Duration
 	for {
-		waitTime := time.Second * 10
+		waitTime = time.Second * 10
 		now := time.Now()
 
 		if j.runQ.Len() > 0 {
 			nextRunAt := j.runQ.Peek().runAt()
-			if now.Equal(nextRunAt) || now.After(nextRunAt) {
+			if runBatch >= j.instance.Workers {
+				// introduce a pause because all workers are busy
+				waitTime = time.Millisecond * 100
+			} else if now.Equal(nextRunAt) || now.After(nextRunAt) {
 				runnable := j.runQ.Pop()
-				runnable.log.Trace("delegating run to worker")
+				runnable.log.Debug("delegating run to worker")
 				j.runNow <- runnable
+				runBatch++
 				continue
 			} else {
 				waitTime = nextRunAt.Sub(now)
 			}
 		}
-		j.log.WithField("WaitTime", waitTime).Trace("waiting for run")
+		runBatch = 0
+		j.log.WithField("WaitTime", waitTime).Debug("waiting for run")
 		timer := time.NewTimer(waitTime)
 
 		select {
@@ -280,7 +288,7 @@ func (j *JobsD) runner(done <-chan struct{}) {
 			return
 		case jr := <-j.runNow:
 
-			jr.log.Trace("running job - started")
+			jr.log.Debug("running job - started")
 
 			j.incRunsStarted()
 
@@ -291,7 +299,7 @@ func (j *JobsD) runner(done <-chan struct{}) {
 				j.incRunsTimedOut()
 			}
 
-			jr.log.Trace("running job - completed")
+			jr.log.Debug("running job - completed")
 		}
 	}
 }
