@@ -291,11 +291,16 @@ func (j *JobsD) runner(done <-chan struct{}) {
 			res := jr.run()
 			if res == RunResError {
 				j.incRunsErrors()
+				jr.log.Debug("running job - error out")
 			} else if res == RunResTO {
 				j.incRunsTimedOut()
+				jr.log.Debug("running job - timed out")
+			} else if res == RunResLockLost {
+				jr.log.Debug("running job - skipped")
+			} else {
+				jr.log.Debug("running job - completed")
 			}
 
-			jr.log.Debug("running job - completed")
 			atomic.AddInt32(&j.busyWorkers, -1)
 		}
 	}
