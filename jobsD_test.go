@@ -431,7 +431,7 @@ func TestJobsDScheduledRunMulti(test *testing.T) {
 	t.When("we bring up the JobsD instance")
 	t.Assert.NoError(jd.Up())
 
-	runNum := 10
+	runNum := 20
 	times := 2
 	t.Whenf("we schedule the job to run %d times with a limit of %d runs", runNum, times)
 	startTime := time.Now()
@@ -447,7 +447,7 @@ func TestJobsDScheduledRunMulti(test *testing.T) {
 	t.Assert.Equal(runNum*times, int(runCounter))
 
 	expectedRunTime := timer * time.Duration(times+runNum/workers)
-	tolerance := 100 * time.Millisecond * time.Duration(times+runNum/workers)
+	tolerance := 100 * time.Millisecond * time.Duration(times*runNum/workers)
 	t.Thenf("the jobs should have run within %s with a tolerance of %s", expectedRunTime.String(), tolerance.String())
 	t.Assert.WithinDuration(startTime.Add(expectedRunTime), finishTime, tolerance)
 
