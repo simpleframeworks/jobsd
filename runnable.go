@@ -56,10 +56,9 @@ var ErrRunTimeout = errors.New("job run timed out")
 var ErrRunKill = errors.New("job run killed")
 
 func (j *Runnable) run() RunRes {
-	log := j.log
 
 	if !j.lock() {
-		log.Debug("job run already locked")
+		j.log.Debug("job run already locked")
 		return RunResLockLost
 	}
 
@@ -68,7 +67,7 @@ func (j *Runnable) run() RunRes {
 		j.handleTO()
 		return RunResTO
 	} else if err != nil {
-		log.WithError(err).Warn("job run finished with an error")
+		j.log.WithError(err).Warn("job run finished with an error")
 		j.handleErr(err)
 		return RunResError
 	}
@@ -78,12 +77,11 @@ func (j *Runnable) run() RunRes {
 }
 
 func (j *Runnable) lock() bool {
-	log := j.log
 
-	log.Trace("locking job run")
+	j.log.Trace("locking job run")
 	locked, err := j.jobRun.lock(j.db, j.instanceID)
 	if err != nil {
-		log.WithError(err).Warn("failed to lock job run")
+		j.log.WithError(err).Warn("failed to lock job run")
 		return false
 	}
 
@@ -91,11 +89,11 @@ func (j *Runnable) lock() bool {
 }
 
 func (j *Runnable) exec() (rtn error) {
-	log := j.log
+
 	j.stop = make(chan struct{})
 	defer close(j.stop)
 
-	log.Debug("run exec")
+	j.log.Debug("run exec")
 	execRes := make(chan error)
 	go func() {
 		//TODO add the Runnabled to the first param if needed
@@ -112,13 +110,13 @@ func (j *Runnable) exec() (rtn error) {
 		}
 		select {
 		case rtn = <-execRes:
-			log.Debug("run exec completed")
+			j.log.Debug("run exec completed")
 			cleanTimer()
 		case <-timeOut.C:
-			log.Debug("run exec timed out")
+			j.log.Debug("run exec timed out")
 			rtn = ErrRunTimeout
 		case <-j.kill:
-			log.Debug("run exec killed")
+			j.log.Debug("run exec killed")
 			cleanTimer()
 			rtn = ErrRunKill
 		}
@@ -127,17 +125,17 @@ func (j *Runnable) exec() (rtn error) {
 
 	select {
 	case rtn = <-execRes:
-		log.Debug("run exec completed")
+		j.log.Debug("run exec completed")
 	case <-j.kill:
-		log.Debug("run exec killed")
+		j.log.Debug("run exec killed")
 		rtn = ErrRunKill
 	}
 	return rtn
 }
 
 func (j *Runnable) handleTO() {
-	log := j.log
-	log.Debug("handling job run time out")
+
+	j.log.Debug("handling job run time out")
 	txErr := j.db.Transaction(func(tx *gorm.DB) error {
 		if err := j.jobRun.markComplete(tx, j.instanceID, ErrRunTimeout); err != nil {
 			return err
@@ -159,8 +157,7 @@ func (j *Runnable) handleTO() {
 }
 
 func (j *Runnable) handleErr(err error) {
-	log := j.log
-	log.Debug("handling job run error")
+	j.log.Debug("handling job run error")
 	txErr := j.db.Transaction(func(tx *gorm.DB) error {
 		if err := j.jobRun.markComplete(tx, j.instanceID, err); err != nil {
 			return err
@@ -265,8 +262,9 @@ func newRunnable(
 	}
 	rtn.log = log.WithFields(logrus.Fields{
 		"Run.ID":   "",
-		"Run.Name": rtn.jobRun.Name,
 		"Run.Job":  rtn.jobRun.Job,
+		"Run.At":   rtn.jobRun.RunAt,
+		"Run.Name": rtn.jobRun.Name,
 	})
 	rtn.schedule()
 
