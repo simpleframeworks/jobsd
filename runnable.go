@@ -90,7 +90,7 @@ func (j *Runnable) lock() bool {
 	return locked
 }
 
-func (j *Runnable) exec() error {
+func (j *Runnable) exec() (rtn error) {
 	log := j.log
 	j.stop = make(chan struct{})
 	defer close(j.stop)
@@ -111,23 +111,28 @@ func (j *Runnable) exec() error {
 			}
 		}
 		select {
-		case err := <-execRes:
+		case rtn = <-execRes:
 			log.Debug("run exec completed")
 			cleanTimer()
-			return err
 		case <-timeOut.C:
 			log.Debug("run exec timed out")
-			return ErrRunTimeout
+			rtn = ErrRunTimeout
 		case <-j.kill:
 			log.Debug("run exec killed")
 			cleanTimer()
-			return ErrRunKill
+			rtn = ErrRunKill
 		}
+		return rtn
 	}
 
-	err := <-execRes
-	log.Debug("run exec completed")
-	return err
+	select {
+	case rtn = <-execRes:
+		log.Debug("run exec completed")
+	case <-j.kill:
+		log.Debug("run exec killed")
+		rtn = ErrRunKill
+	}
+	return rtn
 }
 
 func (j *Runnable) handleTO() {
