@@ -184,7 +184,7 @@ func (j *JobsD) runnableAdder(done <-chan struct{}) {
 		case jr := <-j.runQAdd:
 			j.log.Debug("adding job runnable to run queue")
 			j.runQ.Push(jr)
-			go func() { j.runQReset <- struct{}{} }()
+			j.runQReset <- struct{}{}
 		}
 	}
 }
