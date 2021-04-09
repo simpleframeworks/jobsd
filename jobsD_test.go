@@ -439,7 +439,7 @@ func TestJobsDScheduledRunMulti(test *testing.T) {
 	}
 
 	t.Then("the job should have run 20 times")
-	t.WaitTimeout(&wait, ciDuration(4*time.Second, 10*time.Second))
+	t.WaitTimeout(&wait, ciDuration(4*time.Second, 20*time.Second))
 	finishTime := time.Now()
 	t.Assert.Equal(20, int(runCounter))
 
