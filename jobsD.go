@@ -134,9 +134,9 @@ func (j *JobsD) Up() error {
 	j.log = j.log.WithField("Instance.ID", j.instance.ID)
 
 	j.started = true
-	j.runNow = make(chan *Runnable)
-	j.runQAdd = make(chan *Runnable)
-	j.runQReset = make(chan struct{})
+	j.runNow = make(chan *Runnable, 1)
+	j.runQAdd = make(chan *Runnable, 1)
+	j.runQReset = make(chan struct{}, 1)
 
 	j.createWorkers()
 	j.createProducers()
