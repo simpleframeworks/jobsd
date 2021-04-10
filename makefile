@@ -9,11 +9,13 @@ test-local:
 
 test-sqlite:
 	@echo "Running SQLite tests - Started"
+	@docker-compose down
 	@docker-compose run go116 go test -race -v ./...
 	@echo "Running SQLite tests - Completed"
 
 test-postgres:
 	@echo "Running PostgreSQL tests - Started"
+	@docker-compose down
 	@docker-compose up -d postgres
 	@docker-compose run -e JOBSD_DB=postgres go116 docker/test-postgres.sh
 	@docker-compose rm -svf postgres
@@ -21,6 +23,7 @@ test-postgres:
 
 test-mysql:
 	@echo "Running MySQL tests - Started"
+	@docker-compose down
 	@docker-compose up -d mysql
 	@docker-compose run -e JOBSD_DB=mysql go116 docker/test-mysql.sh
 	@docker-compose rm -svf mysql

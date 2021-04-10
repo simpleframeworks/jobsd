@@ -277,7 +277,7 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 	db := setupDB(logger)
 	jobName := "TestRunScheduleCreatorUnique" // Must be unique otherwise tests may collide
 
-	nodes := 10
+	nodes := 5
 	t.Given(strconv.Itoa(nodes) + " JobsD instances to form a cluster")
 	jdInstances := []*JobsD{}
 	for i := 0; i < nodes; i++ {
@@ -325,7 +325,7 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 	}
 
 	t.When("we wait until it finishes")
-	t.WaitTimeout(&wait, ciDuration(5*time.Second, 10*time.Second))
+	t.WaitTimeout(&wait, ciDuration(10*time.Second, 20*time.Second))
 
 	t.Then("the job should have run twice")
 	t.Assert.Equal(2, int(runCounter))
