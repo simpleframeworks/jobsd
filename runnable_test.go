@@ -75,3 +75,45 @@ func TestRunnableLock(test *testing.T) {
 	t.Assert.False(locked1)
 
 }
+
+func TestRunnableReschedule(test *testing.T) {
+	t := testc.New(test)
+
+	logger := setupLogging(logrus.ErrorLevel)
+	db := setupDB(logger)
+
+	t.Given("a JobsD instance")
+	jd := New(db).Logger(logger)
+	jd.Up()
+
+	t.Given("arguments needed to create a runnable")
+	jobRun := Run{Schedule: sql.NullString{Valid: true, String: ""}}
+	jobFunc := NewJobFunc(func() error { return nil })
+
+	timeToAdd := 200 * time.Minute
+	t.Givenf("a scheduler that schedules things %s in advanced", timeToAdd.String())
+	jobSchedule := ScheduleFunc(func(now time.Time) time.Time { return now.Add(timeToAdd) })
+
+	t.Given("a chan that sends new job runs to be queued and executed")
+	runQAdd := make(chan *Runnable)
+
+	t.Given("a runnable")
+	runnable, err := newRunnable(
+		1,
+		jobRun,
+		jobFunc,
+		&jobSchedule,
+		runQAdd,
+		db,
+		nil,
+		logger,
+	)
+	t.Assert.NoError(err)
+
+	t.When("we reschedule the runnable")
+	go runnable.reschedule(db)
+
+	t.Thenf("we should get a new runnable that is scheduled to run %s from now", timeToAdd)
+	nextRunnable := <-runQAdd
+	t.Assert.WithinDuration(time.Now().Add(timeToAdd), nextRunnable.runAt(), time.Millisecond*50)
+}
