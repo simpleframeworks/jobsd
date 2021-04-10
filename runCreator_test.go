@@ -76,6 +76,7 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
+	jobName := "TestRunOnceCreatorRunAfter" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
@@ -92,7 +93,7 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 	}
 
 	t.Given("we register the job to the JobsD instance")
-	jd.RegisterJob("theJob", jobFunc)
+	jd.RegisterJob(jobName, jobFunc)
 
 	t.When("we bring up the JobsD instance")
 	t.Assert.NoError(jd.Up())
@@ -101,15 +102,17 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 	t.Whenf("we run the job once after %s", delay.String())
 	wait.Add(1)
 	startTime := time.Now()
-	_, err := jd.CreateRun("theJob").RunAfter(delay)
+	_, err := jd.CreateRun(jobName).RunAfter(delay)
 	t.Assert.NoError(err)
 
 	t.Then("the job should have run once")
 	t.WaitTimeout(&wait, ciDuration(4*time.Second, 10*time.Second))
 	t.Assert.Equal(1, runNum)
 
-	t.Then("the job run should run after the specified delay of " + delay.String())
+	t.Thenf("the job run should run after the specified delay of %s", delay.String())
 	t.Assert.WithinDuration(startTime.Add(delay), runTime, 300*time.Millisecond)
+
+	t.Assert.NoError(jd.Down()) // Cleanup
 }
 
 func TestRunOnceCreatorRunTimeout(test *testing.T) {
