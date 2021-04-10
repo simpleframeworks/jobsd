@@ -24,14 +24,14 @@ type Runnable struct {
 	mu          sync.Mutex
 }
 
-func (j *Runnable) runAt() time.Time {
-	return j.jobRun.RunAt
+func (r *Runnable) runAt() time.Time {
+	return r.jobRun.RunAt
 }
 
-func (j *Runnable) schedule() {
-	j.jobRun.RunAt = time.Now().Add(j.jobRun.Delay)
-	if j.jobSchedule != nil && j.jobRun.needsScheduling() {
-		j.jobRun.RunAt = (*j.jobSchedule)(j.jobRun.RunAt)
+func (r *Runnable) schedule() {
+	r.jobRun.RunAt = time.Now().Add(r.jobRun.Delay)
+	if r.jobSchedule != nil && r.jobRun.needsScheduling() {
+		r.jobRun.RunAt = (*r.jobSchedule)(r.jobRun.RunAt)
 	}
 }
 
@@ -55,55 +55,55 @@ var ErrRunTimeout = errors.New("job run timed out")
 // ErrRunKill returns if a job was killed
 var ErrRunKill = errors.New("job run killed")
 
-func (j *Runnable) run() RunRes {
+func (r *Runnable) run() RunRes {
 
-	if !j.lock() {
-		j.log.Debug("job run already locked")
+	if !r.lock() {
+		r.log.Debug("job run already locked")
 		return RunResLockLost
 	}
-	j.log.Debug("job run lock acquired")
+	r.log.Debug("job run lock acquired")
 
-	err := j.exec()
+	err := r.exec()
 	if err == ErrRunTimeout {
-		j.handleTO()
+		r.handleTO()
 		return RunResTO
 	} else if err != nil {
-		j.log.WithError(err).Warn("job run finished with an error")
-		j.handleErr(err)
+		r.log.WithError(err).Warn("job run finished with an error")
+		r.handleErr(err)
 		return RunResError
 	}
 
-	j.handleSuccess()
+	r.handleSuccess()
 	return RunResSuccess
 }
 
-func (j *Runnable) lock() bool {
+func (r *Runnable) lock() bool {
 
-	j.log.Trace("locking job run")
-	locked, err := j.jobRun.lock(j.db, j.instanceID)
+	r.log.Trace("locking job run")
+	locked, err := r.jobRun.lock(r.db, r.instanceID)
 	if err != nil {
-		j.log.WithError(err).Warn("failed to lock job run")
+		r.log.WithError(err).Warn("failed to lock job run")
 		return false
 	}
 
 	return locked
 }
 
-func (j *Runnable) exec() (rtn error) {
+func (r *Runnable) exec() (rtn error) {
 
-	j.stop = make(chan struct{})
-	defer close(j.stop)
+	r.stop = make(chan struct{})
+	defer close(r.stop)
 
-	j.log.Debug("run exec")
+	r.log.Debug("run exec")
 	execRes := make(chan error)
 	go func() {
 		//TODO add the Runnabled to the first param if needed
-		execRes <- j.jobFunc.execute(j.jobRun.JobArgs)
+		execRes <- r.jobFunc.execute(r.jobRun.JobArgs)
 		close(execRes)
 	}()
 
-	if j.jobRun.RunTimeoutAt.Valid {
-		timeOut := time.NewTimer(j.jobRun.RunTimeoutAt.Time.Sub(time.Now()))
+	if r.jobRun.RunTimeoutAt.Valid {
+		timeOut := time.NewTimer(r.jobRun.RunTimeoutAt.Time.Sub(time.Now()))
 		cleanTimer := func() {
 			if !timeOut.Stop() { // clean up timer
 				<-timeOut.C
@@ -111,13 +111,13 @@ func (j *Runnable) exec() (rtn error) {
 		}
 		select {
 		case rtn = <-execRes:
-			j.log.Debug("run exec completed")
+			r.log.Debug("run exec completed")
 			cleanTimer()
 		case <-timeOut.C:
-			j.log.Debug("run exec timed out")
+			r.log.Debug("run exec timed out")
 			rtn = ErrRunTimeout
-		case <-j.kill:
-			j.log.Debug("run exec killed")
+		case <-r.kill:
+			r.log.Debug("run exec killed")
 			cleanTimer()
 			rtn = ErrRunKill
 		}
@@ -126,81 +126,81 @@ func (j *Runnable) exec() (rtn error) {
 
 	select {
 	case rtn = <-execRes:
-		j.log.Debug("run exec completed")
-	case <-j.kill:
-		j.log.Debug("run exec killed")
+		r.log.Debug("run exec completed")
+	case <-r.kill:
+		r.log.Debug("run exec killed")
 		rtn = ErrRunKill
 	}
 	return rtn
 }
 
-func (j *Runnable) handleTO() {
+func (r *Runnable) handleTO() {
 
-	j.log.Debug("handling job run time out")
-	txErr := j.db.Transaction(func(tx *gorm.DB) error {
-		if err := j.jobRun.markComplete(tx, j.instanceID, ErrRunTimeout); err != nil {
+	r.log.Debug("handling job run time out")
+	txErr := r.db.Transaction(func(tx *gorm.DB) error {
+		if err := r.jobRun.markComplete(tx, r.instanceID, ErrRunTimeout); err != nil {
 			return err
 		}
-		if !j.jobRun.hasReachedTimeoutLimit() {
-			next := j.cloneReset(false)
+		if !r.jobRun.hasReachedTimeoutLimit() {
+			next := r.cloneReset(false)
 			next.jobRun.RetriesOnTimeoutCount++
 			next.save(tx)
-			j.runQAdd <- next
+			r.runQAdd <- next
 		} else {
-			return j.reschedule(tx)
+			return r.reschedule(tx)
 		}
 		return nil
 	})
 
 	if txErr != nil {
-		j.log.WithError(txErr).Error("failed to complete and progress job run after time out")
+		r.log.WithError(txErr).Error("failed to complete and progress job run after time out")
 	}
 }
 
-func (j *Runnable) handleErr(err error) {
-	j.log.Debug("handling job run error")
-	txErr := j.db.Transaction(func(tx *gorm.DB) error {
-		if err := j.jobRun.markComplete(tx, j.instanceID, err); err != nil {
+func (r *Runnable) handleErr(err error) {
+	r.log.Debug("handling job run error")
+	txErr := r.db.Transaction(func(tx *gorm.DB) error {
+		if err := r.jobRun.markComplete(tx, r.instanceID, err); err != nil {
 			return err
 		}
-		if !j.jobRun.hasReachedErrorLimit() {
-			next := j.cloneReset(false)
+		if !r.jobRun.hasReachedErrorLimit() {
+			next := r.cloneReset(false)
 			next.jobRun.RetriesOnErrorCount++
 			next.save(tx)
-			j.runQAdd <- next
+			r.runQAdd <- next
 		} else {
-			return j.reschedule(tx)
+			return r.reschedule(tx)
 		}
 		return nil
 	})
 
 	if txErr != nil {
-		j.log.WithError(txErr).Error("failed to complete and progress job run after erroring out")
+		r.log.WithError(txErr).Error("failed to complete and progress job run after erroring out")
 	}
 }
 
-func (j *Runnable) handleSuccess() {
-	txErr := j.db.Transaction(func(tx *gorm.DB) error {
-		if err := j.jobRun.markComplete(tx, j.instanceID, nil); err != nil {
+func (r *Runnable) handleSuccess() {
+	txErr := r.db.Transaction(func(tx *gorm.DB) error {
+		if err := r.jobRun.markComplete(tx, r.instanceID, nil); err != nil {
 			return err
 		}
-		return j.reschedule(tx)
+		return r.reschedule(tx)
 	})
 
 	if txErr != nil {
-		j.log.WithError(txErr).Error("failed to complete and progress successful job run")
+		r.log.WithError(txErr).Error("failed to complete and progress successful job run")
 	}
 }
 
-func (j *Runnable) reschedule(tx *gorm.DB) error {
+func (r *Runnable) reschedule(tx *gorm.DB) error {
 
-	if j.jobSchedule != nil && j.jobRun.needsScheduling() {
-		j.log.Debug("rescheduling")
-		next := j.cloneReset(true)
+	if r.jobSchedule != nil && r.jobRun.needsScheduling() {
+		r.log.Debug("rescheduling")
+		next := r.cloneReset(true)
 		if err := next.save(tx); err != nil {
 			return err
 		}
-		j.runQAdd <- next
+		r.runQAdd <- next
 		next.log.WithFields(map[string]interface{}{
 			"Run.At": next.jobRun.RunAt,
 		}).Debug("rescheduled new job run")
@@ -208,33 +208,33 @@ func (j *Runnable) reschedule(tx *gorm.DB) error {
 	return nil
 }
 
-func (j *Runnable) save(tx *gorm.DB) error {
-	if err := j.jobRun.insertGet(tx); err != nil {
+func (r *Runnable) save(tx *gorm.DB) error {
+	if err := r.jobRun.insertGet(tx); err != nil {
 		return err
 	}
-	j.log = j.log.WithFields(logrus.Fields{
-		"Run.ID":   j.jobRun.ID,
-		"Run.Name": j.jobRun.Name,
-		"Run.Job":  j.jobRun.Job,
+	r.log = r.log.WithFields(logrus.Fields{
+		"Run.ID":   r.jobRun.ID,
+		"Run.Name": r.jobRun.Name,
+		"Run.Job":  r.jobRun.Job,
 	})
 	return nil
 }
 
-func (j *Runnable) cloneReset(failCounts bool) *Runnable {
-	nexRun := j.jobRun.cloneReset(j.instanceID)
+func (r *Runnable) cloneReset(failCounts bool) *Runnable {
+	nextRun := r.jobRun.cloneReset(r.instanceID)
 	if failCounts {
-		nexRun.resetErrorRetries()
-		nexRun.resetTimeoutRetries()
+		nextRun.resetErrorRetries()
+		nextRun.resetTimeoutRetries()
 	}
 	rtn, _ := newRunnable(
-		j.instanceID,
-		nexRun,
-		j.jobFunc,
-		j.jobSchedule,
-		j.runQAdd,
-		j.db,
-		j.kill,
-		j.log,
+		r.instanceID,
+		nextRun,
+		r.jobFunc,
+		r.jobSchedule,
+		r.runQAdd,
+		r.db,
+		r.kill,
+		r.log,
 	)
 	rtn.schedule()
 
