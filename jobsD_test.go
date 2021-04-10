@@ -431,7 +431,7 @@ func TestJobsDScheduledRunMulti(test *testing.T) {
 	t.When("we bring up the JobsD instance")
 	t.Assert.NoError(jd.Up())
 
-	runNum := 20
+	runNum := 8
 	times := 2
 	t.Whenf("we schedule the job to run %d times with a limit of %d runs", runNum, times)
 	startTime := time.Now()
