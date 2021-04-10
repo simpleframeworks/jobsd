@@ -461,7 +461,7 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 	db := setupDB(logger)
 	jobName := "TestJobsDClusterWorkSharing" // Must be unique otherwise tests may collide
 
-	nodes := 20
+	nodes := 10
 	t.Given("a " + strconv.Itoa(nodes) + " JobsD instance cluster with one worker each")
 	jdInstances := []*JobsD{}
 	for i := 0; i < nodes; i++ {
