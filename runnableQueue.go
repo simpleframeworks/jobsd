@@ -44,17 +44,18 @@ type RunnableQueue struct {
 }
 
 // Push .
-func (q *RunnableQueue) Push(j *Runnable) {
+func (q *RunnableQueue) Push(j *Runnable) bool {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 	if !j.jobRun.NameActive.Valid {
-		return
+		return false
 	}
 	if _, ok := q.dup[j.jobRun.NameActive.String]; ok {
-		return // this de-duplicates
+		return false // this de-duplicates
 	}
 	q.dup[j.jobRun.NameActive.String] = struct{}{}
 	heap.Push(q.queue, j)
+	return true
 }
 
 // Pop .
