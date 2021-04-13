@@ -13,6 +13,7 @@ func TestRunState(test *testing.T) {
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
+	jobName := "TestRunState" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
 	qd := New(db).Logger(logger)
@@ -27,14 +28,14 @@ func TestRunState(test *testing.T) {
 	}
 
 	t.Given("we register the job to the JobsD instance")
-	qd.RegisterJob("theJob", jobFunc)
+	qd.RegisterJob(jobName, jobFunc)
 
 	t.When("we bring up the JobsD instance")
 	t.Assert.NoError(qd.Up())
 
 	delay := 200 * time.Millisecond
 	t.When("we run the job after " + delay.String())
-	theID, err := qd.CreateRun("theJob").RunAfter(delay)
+	theID, err := qd.CreateRun(jobName).RunAfter(delay)
 	t.Assert.NoError(err)
 
 	t.When("we get the job run state")

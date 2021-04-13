@@ -525,8 +525,8 @@ func ExampleJobsD() {
 	wait := make(chan struct{})
 
 	job1Func := func(txt string) error {
-		defer func() { wait <- struct{}{} }()
 		fmt.Printf("Hello %s!", txt)
+		wait <- struct{}{}
 		return nil
 	}
 	schedule1Func := func(now time.Time) time.Time {
