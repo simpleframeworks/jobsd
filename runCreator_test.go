@@ -540,6 +540,7 @@ func TestRunScheduleCreatorRunAfter(test *testing.T) {
 
 	logger := setupLogging(logrus.ErrorLevel)
 	db := setupDB(logger)
+	jobName := "TestRunScheduleCreatorRunAfter" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
@@ -562,7 +563,7 @@ func TestRunScheduleCreatorRunAfter(test *testing.T) {
 	}
 
 	t.Given("we register the job to the JobsD instance")
-	jd.RegisterJob("theJob", jobFunc)
+	jd.RegisterJob(jobName, jobFunc)
 
 	t.Given("we register the schedule to the JobsD instance")
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
@@ -574,7 +575,7 @@ func TestRunScheduleCreatorRunAfter(test *testing.T) {
 	t.Whenf("we run the job once after %s", delay.String())
 	startTime := time.Now()
 	wait.Add(1)
-	_, err := jd.CreateRun("theJob").Schedule("theSchedule").Limit(1).RunAfter(delay)
+	_, err := jd.CreateRun(jobName).Schedule("theSchedule").Limit(1).RunAfter(delay)
 	t.Assert.NoError(err)
 
 	t.Then("the job should have run once")
