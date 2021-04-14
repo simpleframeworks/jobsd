@@ -135,10 +135,14 @@ func (j *JobsD) Up() error {
 
 	j.log = j.log.WithField("Instance.ID", j.instance.ID)
 
+	// The maximum in flight jobs possible (handled by workers, producers and the adder)
+	// Need this in order to shutdown without a circular deadlock
+	maxInflight := j.instance.Workers + (j.instance.PollLimit * 2)
+
 	j.started = true
 	j.runNow = make(chan *Runnable)
-	j.runQAdd = make(chan *Runnable, j.instance.Workers)
-	j.runQReset = make(chan struct{})
+	j.runQAdd = make(chan *Runnable, maxInflight)
+	j.runQReset = make(chan struct{}, maxInflight)
 
 	j.createWorkers()
 	j.createProducers()
@@ -208,7 +212,7 @@ func (j *JobsD) runnableLoader(done <-chan struct{}) {
 
 		jobRuns := []Run{}
 		tx := j.db.Where("run_started_at IS NULL").Order("run_at ASC").
-			Limit(int(j.instance.PollLimit)).Find(&jobRuns)
+			Limit(j.instance.PollLimit).Find(&jobRuns)
 		if tx.Error != nil {
 			j.log.WithError(tx.Error).Warn("failed to load job runs from DB")
 		}
@@ -323,7 +327,7 @@ func (j *JobsD) runnableResurrector(done <-chan struct{}) {
 		j.db.Where(
 			"run_started_at IS NOT NULL AND run_completed_at IS NULL AND run_timeout_at <= ?",
 			time.Now(),
-		).Limit(int(j.instance.PollLimit)).Find(&jobRuns)
+		).Limit(j.instance.PollLimit).Find(&jobRuns)
 
 		if len(jobRuns) > 0 {
 			j.log.WithField("count", len(jobRuns)).Debug("job runs for resurrection found")
