@@ -272,6 +272,10 @@ func (j *JobsD) runnableDelegator(done <-chan struct{}) {
 			if !timer.Stop() {
 				<-timer.C
 			}
+			// Flush j.runQReset so we don't constantly re-start the timer
+			for i := 0; i < len(j.runQReset); i++ {
+				<-j.runQReset
+			}
 			break
 		case <-timer.C:
 			break
