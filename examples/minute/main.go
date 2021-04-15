@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/simpleframeworks/jobsd"
+	"github.com/simpleframeworks/logc"
+	"github.com/sirupsen/logrus"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -28,7 +30,13 @@ func main() {
 
 	db := setupDB()
 
-	jd := jobsd.New(db) // Create a JobsD service instance
+	// Simple error logging
+	log := logrus.New()
+	log.SetLevel(logrus.ErrorLevel)
+	logger := logc.NewLogrus(log)
+
+	// Create JobsD service instance
+	jd := jobsd.New(db).Logger(logger)
 
 	// Register a Job that announces the time
 	jd.RegisterJob("Announce", func(name string) error {

@@ -96,7 +96,9 @@ func (r *RunOnceCreator) Schedule(schedule string) *RunScheduleCreator {
 		jobsd:  r.jobsd,
 		jobRun: r.jobRun,
 	}
+	rtn.jobRun.RunSuccessLimit = sql.NullInt64{}
 	rtn.jobRun.Schedule = sql.NullString{Valid: true, String: schedule}
+
 	return rtn
 }
 

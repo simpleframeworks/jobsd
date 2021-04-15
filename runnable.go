@@ -194,17 +194,24 @@ func (r *Runnable) handleSuccess() {
 
 func (r *Runnable) reschedule(tx *gorm.DB) error {
 
-	if r.jobSchedule != nil && r.jobRun.needsScheduling() {
-		r.log.Debug("rescheduling")
-		next := r.cloneReset(true)
-		if err := next.save(tx); err != nil {
-			return err
-		}
-		r.runQAdd <- next
-		next.log.WithFields(map[string]interface{}{
-			"Run.At": next.jobRun.RunAt,
-		}).Debug("rescheduled new job run")
+	if r.jobSchedule == nil || !r.jobRun.needsScheduling() {
+		r.log.WithFields(map[string]interface{}{
+			"Run.Schedule":        r.jobRun.Schedule,
+			"Run.RunSuccessLimit": r.jobRun.RunSuccessLimit,
+		}).Debug("rescheduling job not required")
+		return nil
 	}
+
+	r.log.Debug("rescheduling job")
+	next := r.cloneReset(true)
+	if err := next.save(tx); err != nil {
+		return err
+	}
+	r.runQAdd <- next
+	next.log.WithFields(map[string]interface{}{
+		"Run.At": next.jobRun.RunAt,
+	}).Debug("rescheduled new job run")
+
 	return nil
 }
 
