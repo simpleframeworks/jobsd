@@ -211,7 +211,7 @@ func (j *JobsD) runnableLoader(done <-chan struct{}) {
 		j.log.Trace("loading job runs from the DB - started")
 
 		jobRuns := []Run{}
-		tx := j.db.Where("run_started_at IS NULL").Order("run_at ASC").
+		tx := j.db.Where("run_started_at IS NULL AND created_by <> ?", j.instance.ID).Order("run_at ASC").
 			Limit(j.instance.PollLimit).Find(&jobRuns)
 		if tx.Error != nil {
 			j.log.WithError(tx.Error).Warn("failed to load job runs from DB")
