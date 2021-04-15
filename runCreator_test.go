@@ -587,3 +587,49 @@ func TestRunScheduleCreatorRunAfter(test *testing.T) {
 
 	t.Assert.NoError(jd.Down()) // Cleanup
 }
+
+func TestRunScheduleCreatorSimple(test *testing.T) {
+	t := testc.New(test)
+
+	logger := setupLogging(logrus.ErrorLevel)
+	db := setupDB(logger)
+	jobName := "TestRunScheduleCreatorSimple" // Must be unique otherwise tests may collide
+
+	t.Given("a JobsD instance")
+	jd := New(db).Logger(logger)
+
+	t.Given("a Job that counts the number of times it runs")
+	var runCounter uint32
+	jobFunc := func() error {
+		atomic.AddUint32(&runCounter, 1)
+		return nil
+	}
+
+	interval := 200 * time.Millisecond
+	t.Given("a Schedule that runs every " + interval.String())
+	scheduleFunc := func(now time.Time) time.Time {
+		return now.Add(interval)
+	}
+
+	t.Given("we register the job to the JobsD instance")
+	jd.RegisterJob(jobName, jobFunc)
+
+	t.Given("we register the schedule to the JobsD instance")
+	jd.RegisterSchedule("theSchedule", scheduleFunc)
+
+	t.When("we bring up the JobsD instance")
+	t.Assert.NoError(jd.Up())
+
+	t.When("we run the job with the schedule")
+	_, err := jd.CreateRun(jobName).Schedule("theSchedule").Run()
+	t.Assert.NoError(err)
+
+	t.When("we wait enough time for the job to have run twice")
+	<-time.After(interval * 3)
+
+	t.Then("the job should at least twice")
+	runNum := atomic.LoadUint32(&runCounter)
+	t.Assert.GreaterOrEqual(int(runNum), 2)
+
+	t.Assert.NoError(jd.Down()) // Cleanup
+}
