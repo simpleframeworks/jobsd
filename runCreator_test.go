@@ -209,7 +209,7 @@ func TestRunOnceCreatorRetriesTimeoutLimit(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, ciDuration(8*time.Second, 10*time.Second))
+	t.WaitTimeout(&wait, ciDuration(8*time.Second, 15*time.Second))
 
 	t.Then("the job should have run three times (1 + 2 retries)")
 	t.Assert.Equal(3, int(runCounter))
