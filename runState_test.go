@@ -76,8 +76,10 @@ func TestRunState(test *testing.T) {
 
 	RunStartedAt := *theState.RunStartedAt
 
-	t.When("we let the job run complete")
+	t.When("we let the job run complete and wait 200ms")
 	jobContinue <- struct{}{}
+
+	<-time.After(200 * time.Millisecond)
 
 	t.When("we shutdown the JobsD instance to let everything complete")
 	t.Assert.NoError(qd.Down())
