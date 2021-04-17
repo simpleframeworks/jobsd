@@ -78,6 +78,7 @@ func TestRunState(test *testing.T) {
 
 	t.When("we let the job run complete and wait 200ms")
 	jobContinue <- struct{}{}
+	continueTime := time.Now()
 
 	<-time.After(200 * time.Millisecond)
 
@@ -93,7 +94,7 @@ func TestRunState(test *testing.T) {
 	t.Assert.Equal(*theState.RunStartedAt, RunStartedAt)
 	t.Assert.Equal(qd.instance.ID, *theState.RunStartedBy)
 	t.Require.NotNil(theState.RunCompletedAt)
-	t.Assert.WithinDuration(*theState.RunCompletedAt, time.Now(), 100*time.Millisecond)
+	t.Assert.WithinDuration(*theState.RunCompletedAt, continueTime, 100*time.Millisecond)
 	t.Assert.Nil(theState.RunCompletedError)
 	t.Assert.Equal(0, int(theState.RetriesOnErrorCount))
 	t.Assert.Equal(0, int(theState.RetriesOnTimeoutCount))
