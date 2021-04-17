@@ -174,9 +174,9 @@ func TestRunOnceCreatorRetriesTimeoutLimit(test *testing.T) {
 	db := setupDB(logger)
 	jobName := "TestRunOnceCreatorRetriesTimeoutLimit" // Must be unique otherwise tests may collide
 
-	retryCheck := 50 * time.Millisecond
-	retryTimeout := 200 * time.Millisecond
-	jobRunTime := 500 * time.Millisecond
+	retryCheck := 20 * time.Millisecond
+	retryTimeout := 100 * time.Millisecond
+	jobRunTime := 300 * time.Millisecond
 
 	t.Given("a JobsD instance")
 	jd := New(db).Logger(logger)
