@@ -15,14 +15,14 @@ import (
 func TestRunOnceCreatorUnique(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
+	t.Given("a JobsD instance")
+	jd := testSetup(logrus.ErrorLevel)
 
 	nodes := 10
-	t.Given(strconv.Itoa(nodes) + " JobsD instances to form a cluster")
-	jdInstances := []*JobsD{}
-	for i := 0; i < nodes; i++ {
-		jdInstances = append(jdInstances, New(db).Logger(logger).WorkerNum(2))
+	t.Given("a " + strconv.Itoa(nodes) + " JobsD instance cluster with 5 workers each")
+	jdInstances := []*JobsD{jd}
+	for i := 0; i < nodes-1; i++ {
+		jdInstances = append(jdInstances, New(jd.GetDB()).Logger(jd.GetLogger()).WorkerNum(5))
 	}
 
 	runTime := 800 * time.Millisecond
@@ -54,7 +54,7 @@ func TestRunOnceCreatorUnique(test *testing.T) {
 	}
 
 	t.When("we wait until it finishes")
-	t.WaitTimeout(&wait, ciDuration(5*runTime, 10*time.Second))
+	wait.Wait()
 
 	t.Then("the job should have run only once")
 	t.Assert.Equal(1, int(runCounter))
@@ -69,17 +69,16 @@ func TestRunOnceCreatorUnique(test *testing.T) {
 	for _, qInst := range jdInstances {
 		t.Assert.NoError(qInst.Down())
 	}
+	testTeardown(jd)
 }
 
 func TestRunOnceCreatorRunAfter(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
-	jobName := "TestRunOnceCreatorRunAfter" // Must be unique otherwise tests may collide
+	jobName := "TestRunOnceCreatorRunAfter"
 
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger)
+	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that records the time it started running")
 	wait := sync.WaitGroup{}
@@ -106,31 +105,25 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("the job should have run once")
-	t.WaitTimeout(&wait, ciDuration(4*time.Second, 10*time.Second))
+	wait.Wait()
 	t.Assert.Equal(1, runNum)
 
 	t.Thenf("the job run should run after the specified delay of %s", delay.String())
 	t.Assert.WithinDuration(startTime.Add(delay), runTime, 300*time.Millisecond)
 
-	t.Assert.NoError(jd.Down()) // Cleanup
+	testTeardown(jd)
 }
 
 func TestRunOnceCreatorRunTimeout(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
-	jobName := "TestRunOnceCreatorRunTimeout" // Must be unique otherwise tests may collide
+	jobName := "TestRunOnceCreatorRunTimeout"
 
-	retryCheck := 50 * time.Millisecond
 	runTimeout := 200 * time.Millisecond
 	firstRunTime := 1000 * time.Millisecond
 
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger)
-
-	t.Given("the instance checks for jobs that timeout every " + retryCheck.String())
-	jd.TimeoutCheck(retryCheck)
+	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that times out on the first run")
 	wait := sync.WaitGroup{}
@@ -159,37 +152,31 @@ func TestRunOnceCreatorRunTimeout(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, ciDuration(500*time.Second, 10*time.Second))
+	wait.Wait()
 
 	t.Then("the job should have run twice")
 	t.Assert.Equal(2, int(runCounter))
 
-	t.Assert.NoError(jd.Down()) // Cleanup
+	testTeardown(jd)
 }
 
 func TestRunOnceCreatorRetriesTimeoutLimit(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
-	jobName := "TestRunOnceCreatorRetriesTimeoutLimit" // Must be unique otherwise tests may collide
+	jobName := "TestRunOnceCreatorRetriesTimeoutLimit"
 
-	retryCheck := 20 * time.Millisecond
 	retryTimeout := 100 * time.Millisecond
 	jobRunTime := 300 * time.Millisecond
 
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger)
-
-	t.Given("the instance checks for jobs that timeout every " + retryCheck.String())
-	jd.TimeoutCheck(retryCheck)
+	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that times out consistently (takes too long)")
 	wait := sync.WaitGroup{}
 	var runCounter uint32
 	jobFunc := func() error {
-		defer wait.Done()
 		atomic.AddUint32(&runCounter, 1)
+		wait.Done()
 		<-time.After(jobRunTime)
 		return nil
 	}
@@ -209,7 +196,7 @@ func TestRunOnceCreatorRetriesTimeoutLimit(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, ciDuration(8*time.Second, 15*time.Second))
+	wait.Wait()
 
 	t.Then("the job should have run three times (1 + 2 retries)")
 	t.Assert.Equal(3, int(runCounter))
@@ -217,30 +204,27 @@ func TestRunOnceCreatorRetriesTimeoutLimit(test *testing.T) {
 	t.When("we wait enough time for another job run to complete")
 	<-time.After(jobRunTime)
 	<-time.After(retryTimeout)
-	<-time.After(retryCheck)
 
 	t.Then("the job should have still only run three times (1 + 2 retries)")
 	t.Assert.Equal(3, int(runCounter))
 
-	t.Assert.NoError(jd.Down()) // Cleanup
+	testTeardown(jd)
 }
 
 func TestRunOnceCreatorRetryErrorLimit(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
-	jobName := "TestRunOnceCreatorRetryErrorLimit" // Must be unique otherwise tests may collide
+	jobName := "TestRunOnceCreatorRetryErrorLimit"
 
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger)
+	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that errors out consistently")
 	wait := sync.WaitGroup{}
 	var runCounter uint32
 	jobFunc := func() error {
-		defer wait.Done()
 		atomic.AddUint32(&runCounter, 1)
+		wait.Done()
 		return errors.New("some error")
 	}
 
@@ -259,7 +243,7 @@ func TestRunOnceCreatorRetryErrorLimit(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, ciDuration(7*time.Second, 15*time.Second))
+	wait.Wait()
 
 	t.Then("the job should have run three times (1 + 2 retries)")
 	t.Assert.Equal(3, int(runCounter))
@@ -270,21 +254,22 @@ func TestRunOnceCreatorRetryErrorLimit(test *testing.T) {
 	t.Then("the job should have still only run three times (1 + 2 retries)")
 	t.Assert.Equal(3, int(runCounter))
 
-	t.Assert.NoError(jd.Down()) // Cleanup
+	testTeardown(jd)
 }
 
 func TestRunScheduleCreatorUnique(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
-	jobName := "TestRunScheduleCreatorUnique" // Must be unique otherwise tests may collide
+	jobName := "TestRunScheduleCreatorUnique"
+
+	t.Given("a JobsD instance")
+	jd := testSetup(logrus.ErrorLevel)
 
 	nodes := 5
-	t.Given(strconv.Itoa(nodes) + " JobsD instances to form a cluster")
-	jdInstances := []*JobsD{}
-	for i := 0; i < nodes; i++ {
-		jdInstances = append(jdInstances, New(db).Logger(logger).WorkerNum(2).RunTimeout(time.Second*30))
+	t.Given("a " + strconv.Itoa(nodes) + " JobsD instance cluster with 2 workers each")
+	jdInstances := []*JobsD{jd}
+	for i := 0; i < nodes-1; i++ {
+		jdInstances = append(jdInstances, New(jd.GetDB()).Logger(jd.GetLogger()).WorkerNum(2).RunTimeout(time.Second*30))
 	}
 
 	runTime := 500 * time.Millisecond
@@ -328,7 +313,7 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 	}
 
 	t.When("we wait until it finishes")
-	t.WaitTimeout(&wait, ciDuration(10*time.Second, 20*time.Second))
+	wait.Wait()
 
 	t.Then("the job should have run twice")
 	t.Assert.Equal(2, int(runCounter))
@@ -348,19 +333,13 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 func TestRunScheduledCreatorRunTimeout(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
-	jobName := "TestRunScheduledCreatorRunTimeout" // Must be unique otherwise tests may collide
+	jobName := "TestRunScheduledCreatorRunTimeout"
 
-	retryCheck := 50 * time.Millisecond
 	retryTimeout := 200 * time.Millisecond
 	jobRunTimeTO := 1000 * time.Millisecond
 
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger)
-
-	t.Given("the instance checks for jobs that timeout every " + retryCheck.String())
-	jd.TimeoutCheck(retryCheck)
+	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that times out on the second run")
 	wait := sync.WaitGroup{}
@@ -398,30 +377,24 @@ func TestRunScheduledCreatorRunTimeout(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, ciDuration(5*time.Second, 10*time.Second))
+	wait.Wait()
 
 	t.Then("the job should have run three times (2 successful runs + 1 timed out run")
 	t.Assert.Equal(3, int(runCounter))
 
-	t.Assert.NoError(jd.Down()) // Cleanup
+	testTeardown(jd)
 }
 
 func TestRunScheduledCreatorRetriesTimeoutLimit(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
-	jobName := "TestRunScheduledCreatorRetriesTimeoutLimit" // Must be unique otherwise tests may collide
+	jobName := "TestRunScheduledCreatorRetriesTimeoutLimit"
 
-	retryCheck := 50 * time.Millisecond
 	runTimeout := 200 * time.Millisecond
 	jobRunTime := 500 * time.Millisecond
 
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger)
-
-	t.Given("the instance checks for jobs that timeout every " + retryCheck.String())
-	jd.TimeoutCheck(retryCheck)
+	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that times out consistently (takes too long) after a successful run")
 	wait := sync.WaitGroup{}
@@ -459,7 +432,7 @@ func TestRunScheduledCreatorRetriesTimeoutLimit(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, ciDuration(7*time.Second, 10*time.Second))
+	wait.Wait()
 
 	t.Then("the job should have run 5 times (1 successful + 2 unsuccessful (2 retries) + 1 successful)")
 	t.Assert.Equal(4, int(runCounter))
@@ -467,23 +440,20 @@ func TestRunScheduledCreatorRetriesTimeoutLimit(test *testing.T) {
 	t.When("we wait enough time for another job run to complete")
 	<-time.After(jobRunTime)
 	<-time.After(runTimeout)
-	<-time.After(retryCheck)
 
 	t.Then("the job should have still only run 5 times")
 	t.Assert.Equal(4, int(runCounter))
 
-	t.Assert.NoError(jd.Down()) // Cleanup
+	testTeardown(jd)
 }
 
 func TestRunScheduledCreatorRetryErrorLimit(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
-	jobName := "TestRunScheduledCreatorRetryErrorLimit" // Must be unique otherwise tests may collide
+	jobName := "TestRunScheduledCreatorRetryErrorLimit"
 
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger)
+	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that errors out consistently")
 	wait := sync.WaitGroup{}
@@ -491,7 +461,7 @@ func TestRunScheduledCreatorRetryErrorLimit(test *testing.T) {
 	jobFunc := func() error {
 		defer wait.Done()
 		currentCount := atomic.AddUint32(&runCounter, 1)
-		if currentCount >= 2 && currentCount <= 4 {
+		if currentCount >= 2 && currentCount <= 3 {
 			return errors.New("some error")
 		}
 		return nil
@@ -516,34 +486,32 @@ func TestRunScheduledCreatorRetryErrorLimit(test *testing.T) {
 	jr := jd.CreateRun(jobName).Schedule("theSchedule").Limit(2).RetryErrorLimit(2)
 
 	t.When("we run the job")
-	wait.Add(5)
+	wait.Add(4)
 	_, err := jr.Run()
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, ciDuration(5*time.Second, 10*time.Second))
+	wait.Wait()
 
-	t.Then("the job should have run 5 times (1 successful + 3 unsuccessful (2 retries) + 1 successful)")
-	t.Assert.Equal(5, int(runCounter))
+	t.Then("the job should have run 4 times (1 successful + 2 unsuccessful (2 retries) + 1 successful)")
+	t.Assert.Equal(4, int(runCounter))
 
 	t.When("we wait enough time for another job run to complete")
 	<-time.After(1 * time.Second)
 
-	t.Then("the job should have still only run 5 times")
-	t.Assert.Equal(5, int(runCounter))
+	t.Then("the job should have still only run 4 times")
+	t.Assert.Equal(4, int(runCounter))
 
-	t.Assert.NoError(jd.Down()) // Cleanup
+	testTeardown(jd)
 }
 
 func TestRunScheduleCreatorRunAfter(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
-	jobName := "TestRunScheduleCreatorRunAfter" // Must be unique otherwise tests may collide
+	jobName := "TestRunScheduleCreatorRunAfter"
 
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger)
+	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that records the time it started running")
 	wait := sync.WaitGroup{}
@@ -579,24 +547,22 @@ func TestRunScheduleCreatorRunAfter(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("the job should have run once")
-	t.WaitTimeout(&wait, ciDuration(3*time.Second, 10*time.Second))
+	wait.Wait()
 	t.Assert.Equal(1, runNum)
 
 	t.Then("the job run should run after the specified delay of " + delay.String())
 	t.Assert.WithinDuration(startTime.Add(delay).Add(interval), runTime, 250*time.Millisecond)
 
-	t.Assert.NoError(jd.Down()) // Cleanup
+	testTeardown(jd)
 }
 
 func TestRunScheduleCreatorSimple(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
-	jobName := "TestRunScheduleCreatorSimple" // Must be unique otherwise tests may collide
+	jobName := "TestRunScheduleCreatorSimple"
 
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger)
+	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that counts the number of times it runs")
 	var runCounter uint32
@@ -631,5 +597,5 @@ func TestRunScheduleCreatorSimple(test *testing.T) {
 	runNum := atomic.LoadUint32(&runCounter)
 	t.Assert.GreaterOrEqual(int(runNum), 2)
 
-	t.Assert.NoError(jd.Down()) // Cleanup
+	testTeardown(jd)
 }

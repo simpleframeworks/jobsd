@@ -99,7 +99,6 @@ func (r *Runnable) exec() (rtn error) {
 	go func() {
 		//TODO add the Runnabled to the first param if needed
 		execRes <- r.jobFunc.execute(r.jobRun.JobArgs)
-		close(execRes)
 	}()
 
 	if r.jobRun.RunTimeoutAt.Valid {
@@ -113,6 +112,7 @@ func (r *Runnable) exec() (rtn error) {
 		case rtn = <-execRes:
 			r.log.Debug("run exec completed")
 			cleanTimer()
+			close(execRes)
 		case <-timeOut.C:
 			r.log.Debug("run exec timed out")
 			rtn = ErrRunTimeout

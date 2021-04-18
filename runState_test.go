@@ -11,12 +11,10 @@ import (
 func TestRunState(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
-	jobName := "TestRunState" // Must be unique otherwise tests may collide
+	jobName := "TestRunState"
 
 	t.Given("a JobsD instance")
-	qd := New(db).Logger(logger)
+	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that starts and then pauses when called")
 	jobStarted := make(chan struct{})
@@ -28,18 +26,18 @@ func TestRunState(test *testing.T) {
 	}
 
 	t.Given("we register the job to the JobsD instance")
-	qd.RegisterJob(jobName, jobFunc)
+	jd.RegisterJob(jobName, jobFunc)
 
 	t.When("we bring up the JobsD instance")
-	t.Assert.NoError(qd.Up())
+	t.Assert.NoError(jd.Up())
 
 	delay := 200 * time.Millisecond
 	t.When("we run the job after " + delay.String())
-	theID, err := qd.CreateRun(jobName).RunAfter(delay)
+	theID, err := jd.CreateRun(jobName).RunAfter(delay)
 	t.Assert.NoError(err)
 
 	t.When("we get the job run state")
-	theState := qd.GetRunState(theID)
+	theState := jd.GetRunState(theID)
 
 	t.Then("the state should match a job run that has not run")
 	t.Assert.Equal(0, int(theState.RunSuccessCount))
@@ -51,7 +49,7 @@ func TestRunState(test *testing.T) {
 	t.Assert.Equal(0, int(theState.RetriesOnTimeoutCount))
 	t.Assert.Nil(theState.Schedule)
 	t.Assert.WithinDuration(theState.CreatedAt, time.Now(), 100*time.Millisecond)
-	t.Assert.Equal(qd.instance.ID, theState.CreatedBy)
+	t.Assert.Equal(jd.instance.ID, theState.CreatedBy)
 
 	createdAt := theState.CreatedAt
 
@@ -65,14 +63,14 @@ func TestRunState(test *testing.T) {
 	t.Then("the state should match a job run that is running")
 	t.Assert.Equal(0, int(theState.RunSuccessCount))
 	t.Assert.WithinDuration(*theState.RunStartedAt, time.Now(), 800*time.Millisecond)
-	t.Assert.Equal(qd.instance.ID, *theState.RunStartedBy)
+	t.Assert.Equal(jd.instance.ID, *theState.RunStartedBy)
 	t.Assert.Nil(theState.RunCompletedAt)
 	t.Assert.Nil(theState.RunCompletedError)
 	t.Assert.Equal(0, int(theState.RetriesOnErrorCount))
 	t.Assert.Equal(0, int(theState.RetriesOnTimeoutCount))
 	t.Assert.Nil(theState.Schedule)
 	t.Assert.Equal(theState.CreatedAt, createdAt)
-	t.Assert.Equal(qd.instance.ID, theState.CreatedBy)
+	t.Assert.Equal(jd.instance.ID, theState.CreatedBy)
 
 	RunStartedAt := *theState.RunStartedAt
 
@@ -83,7 +81,7 @@ func TestRunState(test *testing.T) {
 	<-time.After(200 * time.Millisecond)
 
 	t.When("we shutdown the JobsD instance to let everything complete")
-	t.Assert.NoError(qd.Down())
+	t.Assert.NoError(jd.Down())
 
 	t.When("we refresh the job run state")
 	err = theState.Refresh()
@@ -92,7 +90,7 @@ func TestRunState(test *testing.T) {
 	t.Then("the state should match a job run that has completed without error")
 	t.Assert.Equal(1, int(theState.RunSuccessCount))
 	t.Assert.Equal(*theState.RunStartedAt, RunStartedAt)
-	t.Assert.Equal(qd.instance.ID, *theState.RunStartedBy)
+	t.Assert.Equal(jd.instance.ID, *theState.RunStartedBy)
 	t.Require.NotNil(theState.RunCompletedAt)
 	t.Assert.WithinDuration(*theState.RunCompletedAt, continueTime, 100*time.Millisecond)
 	t.Assert.Nil(theState.RunCompletedError)
@@ -100,6 +98,7 @@ func TestRunState(test *testing.T) {
 	t.Assert.Equal(0, int(theState.RetriesOnTimeoutCount))
 	t.Assert.Nil(theState.Schedule)
 	t.Assert.Equal(theState.CreatedAt, createdAt)
-	t.Assert.Equal(qd.instance.ID, theState.CreatedBy)
+	t.Assert.Equal(jd.instance.ID, theState.CreatedBy)
 
+	testTeardown(jd)
 }
