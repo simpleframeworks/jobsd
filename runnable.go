@@ -1,6 +1,7 @@
 package jobsd
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -59,8 +60,10 @@ func (r *Runnable) run() RunRes {
 
 	if !r.lock() {
 		r.log.Debug("job run already locked")
+		fmt.Println("Cannot lock job!!!")
 		return RunResLockLost
 	}
+	fmt.Println("Job locked!!!")
 	r.log.Debug("job run lock acquired")
 
 	err := r.exec()
@@ -82,6 +85,7 @@ func (r *Runnable) lock() bool {
 	r.log.Trace("locking job run")
 	locked, err := r.jobRun.lock(r.db, r.instanceID)
 	if err != nil {
+		fmt.Println("Job lock Err!!! - " + err.Error())
 		r.log.WithError(err).Warn("failed to lock job run")
 		return false
 	}
@@ -95,7 +99,7 @@ func (r *Runnable) exec() (rtn error) {
 	defer close(r.stop)
 
 	r.log.Debug("run exec")
-	execRes := make(chan error)
+	execRes := make(chan error, 1)
 	go func() {
 		//TODO add the Runnabled to the first param if needed
 		execRes <- r.jobFunc.execute(r.jobRun.JobArgs)
@@ -135,84 +139,92 @@ func (r *Runnable) exec() (rtn error) {
 }
 
 func (r *Runnable) handleTO() {
-
 	r.log.Debug("handling job run time out")
-	txErr := r.db.Transaction(func(tx *gorm.DB) error {
-		if err := r.jobRun.markComplete(tx, r.instanceID, ErrRunTimeout); err != nil {
+	var next *Runnable
+	txErr := r.db.Transaction(func(tx *gorm.DB) (err error) {
+		if err = r.jobRun.markComplete(tx, r.instanceID, ErrRunTimeout); err != nil {
 			return err
 		}
 		if !r.jobRun.hasReachedTimeoutLimit() {
-			next := r.cloneReset(false)
+			next = r.cloneReset(false)
 			next.jobRun.RetriesOnTimeoutCount++
 			next.save(tx)
-			r.runQAdd <- next
 		} else {
-			return r.reschedule(tx)
+			next, err = r.reschedule(tx)
+			return err
 		}
 		return nil
 	})
 
 	if txErr != nil {
 		r.log.WithError(txErr).Error("failed to complete and progress job run after time out")
+	} else if next != nil {
+		r.runQAdd <- next
 	}
 }
 
 func (r *Runnable) handleErr(err error) {
 	r.log.Debug("handling job run error")
-	txErr := r.db.Transaction(func(tx *gorm.DB) error {
-		if err := r.jobRun.markComplete(tx, r.instanceID, err); err != nil {
+	var next *Runnable
+	txErr := r.db.Transaction(func(tx *gorm.DB) (err error) {
+		if err = r.jobRun.markComplete(tx, r.instanceID, err); err != nil {
 			return err
 		}
 		if !r.jobRun.hasReachedErrorLimit() {
-			next := r.cloneReset(false)
+			next = r.cloneReset(false)
 			next.jobRun.RetriesOnErrorCount++
 			next.save(tx)
-			r.runQAdd <- next
 		} else {
-			return r.reschedule(tx)
+			next, err = r.reschedule(tx)
+			return err
 		}
 		return nil
 	})
 
 	if txErr != nil {
 		r.log.WithError(txErr).Error("failed to complete and progress job run after erroring out")
+	} else if next != nil {
+		r.runQAdd <- next
 	}
 }
 
 func (r *Runnable) handleSuccess() {
-	txErr := r.db.Transaction(func(tx *gorm.DB) error {
-		if err := r.jobRun.markComplete(tx, r.instanceID, nil); err != nil {
+	var next *Runnable
+	txErr := r.db.Transaction(func(tx *gorm.DB) (err error) {
+		if err = r.jobRun.markComplete(tx, r.instanceID, nil); err != nil {
 			return err
 		}
-		return r.reschedule(tx)
+		next, err = r.reschedule(tx)
+		return err
 	})
 
 	if txErr != nil {
 		r.log.WithError(txErr).Error("failed to complete and progress successful job run")
+	} else if next != nil {
+		r.runQAdd <- next
 	}
 }
 
-func (r *Runnable) reschedule(tx *gorm.DB) error {
+func (r *Runnable) reschedule(tx *gorm.DB) (*Runnable, error) {
 
 	if r.jobSchedule == nil || !r.jobRun.needsScheduling() {
 		r.log.WithFields(map[string]interface{}{
 			"Run.Schedule":        r.jobRun.Schedule,
 			"Run.RunSuccessLimit": r.jobRun.RunSuccessLimit,
 		}).Debug("rescheduling job not required")
-		return nil
+		return nil, nil
 	}
 
 	r.log.Debug("rescheduling job")
 	next := r.cloneReset(true)
 	if err := next.save(tx); err != nil {
-		return err
+		return nil, err
 	}
-	r.runQAdd <- next
 	next.log.WithFields(map[string]interface{}{
 		"Run.At": next.jobRun.RunAt,
 	}).Debug("rescheduled new job run")
 
-	return nil
+	return next, nil
 }
 
 func (r *Runnable) save(tx *gorm.DB) error {
