@@ -27,6 +27,7 @@ services:
       POSTGRES_PASSWORD: jobsd
       POSTGRES_USER: jobsd
       POSTGRES_DB: jobsd
+    command: ["postgres", "-c", "log_statement=all"]
   mysql:
     image: 'mysql:latest'
     ports:

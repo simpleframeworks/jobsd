@@ -3,116 +3,23 @@ package jobsd
 import (
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/simpleframeworks/logc"
 	"github.com/simpleframeworks/testc"
 	"github.com/sirupsen/logrus"
-	"gorm.io/driver/mysql"
-	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
-func checkError(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
+func TestJobsDRun(testT *testing.T) {
+	t := testc.New(testT)
 
-func setupLogging(level logrus.Level) logc.Logger {
-	log := logrus.New()
-	log.SetLevel(level)
-	return logc.NewLogrus(log)
-}
-
-func setupDB(logger logc.Logger) *gorm.DB {
-	dbToUse := strings.ToLower(strings.TrimSpace(os.Getenv("JOBSD_DB")))
-
-	if dbToUse == "" || dbToUse == "sqllite" {
-		return setupSQLLite(logger)
-	}
-	if dbToUse == "postgres" {
-		return setupPostgreSQL(logger)
-	}
-	if dbToUse == "mysql" {
-		return setupMySQL(logger)
-	}
-
-	return nil
-}
-
-func setupSQLLite(logger logc.Logger) *gorm.DB {
-	db, err0 := gorm.Open(sqlite.Open("file::memory:"), &gorm.Config{
-		// Logger: logc.NewGormLogger(logger),
-	})
-
-	sqlDB, err := db.DB()
-	checkError(err)
-
-	// SQLLite does not work well with concurrent connections
-	sqlDB.SetMaxIdleConns(1)
-	sqlDB.SetMaxOpenConns(1)
-
-	checkError(err0)
-	return db
-}
-
-func setupPostgreSQL(logger logc.Logger) *gorm.DB {
-	host := os.Getenv("JOBSD_PG_HOST")
-	port := os.Getenv("JOBSD_PG_PORT")
-	dbname := os.Getenv("JOBSD_PG_DB")
-	user := os.Getenv("JOBSD_PG_USER")
-	password := os.Getenv("JOBSD_PG_PASSWORD")
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", host, user, password, dbname, port)
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logc.NewGormLogger(logger),
-	})
-	checkError(err)
-
-	return db
-}
-
-func setupMySQL(logger logc.Logger) *gorm.DB {
-	host := os.Getenv("JOBSD_MY_HOST")
-	port := os.Getenv("JOBSD_MY_PORT")
-	dbname := os.Getenv("JOBSD_MY_DB")
-	user := os.Getenv("JOBSD_MY_USER")
-	password := os.Getenv("JOBSD_MY_PASSWORD")
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", user, password, host, port, dbname)
-
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-		Logger: logc.NewGormLogger(logger),
-	})
-	checkError(err)
-
-	return db
-}
-
-func ciDuration(localVal, ciVal time.Duration) time.Duration {
-	ci := os.Getenv("JOBSD_CI_TEST") != ""
-	if ci {
-		return ciVal
-	}
-	return localVal
-}
-
-func TestJobsDRun(test *testing.T) {
-	t := testc.New(test)
-
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
 	jobName := "TestJobsDRun" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger)
+	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that increments a counter")
 	wait := sync.WaitGroup{}
@@ -136,26 +43,23 @@ func TestJobsDRun(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("the job should have run once")
-	t.WaitTimeout(&wait, ciDuration(500*time.Millisecond, 10*time.Second))
+	wait.Wait()
 	t.Assert.Equal(1, int(runCounter))
 
 	t.Then("the job run should have completed within 1 second")
 	t.Assert.WithinDuration(time.Now(), startTime, 1*time.Second)
 	// If it takes longer it means it ran after being recovered from the DB
 
-	// Cleanup
-	t.Assert.NoError(jd.Down()) // Cleanup
+	testTeardown(jd)
 }
 
 func TestJobsDRunMulti(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
 	jobName := "TestJobsDRunMulti" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger)
+	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that increments a counter")
 	wait := sync.WaitGroup{}
@@ -182,25 +86,23 @@ func TestJobsDRunMulti(test *testing.T) {
 	}
 
 	t.Thenf("the job should have run %d times", runNum)
-	t.WaitTimeout(&wait, ciDuration(5000*time.Millisecond, 10*time.Second))
+	wait.Wait()
 	t.Assert.Equal(runNum, int(runCounter))
 
 	t.Then("the all job runs should have completed within 3 second")
 	t.Assert.WithinDuration(time.Now(), startTime, 3*time.Second)
 	// If it takes longer it means it ran after being recovered from the DB
 
-	t.Assert.NoError(jd.Down()) // Cleanup
+	testTeardown(jd)
 }
 
 func TestQueuedRunErrRetry(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
 	jobName := "TestQueuedRunErrRetry" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger)
+	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that errors out on the first run")
 	wait := sync.WaitGroup{}
@@ -227,32 +129,26 @@ func TestQueuedRunErrRetry(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("the job should have run twice")
-	t.WaitTimeout(&wait, ciDuration(500*time.Millisecond, 10*time.Second))
+	wait.Wait()
 	t.Assert.Equal(2, int(runCounter))
 
 	t.Then("the job runs should have completed within 1 second")
 	t.Assert.WithinDuration(time.Now(), startTime, 1*time.Second)
 	// If it takes longer it means it ran after being recovered from the DB
 
-	t.Assert.NoError(jd.Down()) // Cleanup
+	testTeardown(jd)
 }
 
 func TestQueuedRunTimeoutRetry(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
 	jobName := "TestQueuedRunTimeoutRetry" // Must be unique otherwise tests may collide
 
-	retryCheck := 50 * time.Millisecond
 	retryTimeout := 200 * time.Millisecond
 	firstRunTime := 1000 * time.Millisecond
 
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger)
-
-	t.Given("the instance checks for jobs that timeout every " + retryCheck.String())
-	jd.TimeoutCheck(retryCheck)
+	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that times out on the first run")
 	wait := sync.WaitGroup{}
@@ -278,23 +174,21 @@ func TestQueuedRunTimeoutRetry(test *testing.T) {
 	t.Assert.NoError(err)
 
 	t.Then("we wait for the job to finish")
-	t.WaitTimeout(&wait, ciDuration(5*time.Second, 10*time.Second))
+	wait.Wait()
 
 	t.Then("the job should have run twice")
 	t.Assert.Equal(2, int(runCounter))
 
-	t.Assert.NoError(jd.Down()) // Cleanup
+	testTeardown(jd)
 }
 
 func TestJobsDScheduledRun(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
 	jobName := "TestJobsDScheduledRun" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger)
+	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that increments a counter")
 	wait := sync.WaitGroup{}
@@ -327,7 +221,7 @@ func TestJobsDScheduledRun(test *testing.T) {
 	t.Assert.NoError(errR)
 
 	t.Then("the job should have run")
-	t.WaitTimeout(&wait, ciDuration(500*timer, 10*time.Second))
+	wait.Wait()
 	finishTime := time.Now()
 
 	t.Then("the job should have run within " + timer.String() + " with a tolerance of 150ms")
@@ -337,18 +231,16 @@ func TestJobsDScheduledRun(test *testing.T) {
 	<-time.After(500 * time.Millisecond)
 	t.Assert.Equal(1, int(runCounter))
 
-	t.Assert.NoError(jd.Down()) // Cleanup
+	testTeardown(jd)
 }
 
 func TestJobsDScheduledRunRecurrent(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
 	jobName := "TestJobsDScheduledRunRecurrent" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger)
+	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that increments a counter")
 	wait := sync.WaitGroup{}
@@ -381,7 +273,7 @@ func TestJobsDScheduledRunRecurrent(test *testing.T) {
 	t.Assert.NoError(errR)
 
 	t.Then("the job should have run 3 times")
-	t.WaitTimeout(&wait, ciDuration(5000*time.Millisecond, 10*time.Second))
+	wait.Wait()
 	finishTime := time.Now()
 
 	t.Then("the job should only run three times even if we wait for another 500ms")
@@ -393,19 +285,17 @@ func TestJobsDScheduledRunRecurrent(test *testing.T) {
 	t.Thenf("3 jobs should have run within %s with a tolerance of %s", timerFor3.String(), tolerance.String())
 	t.Assert.WithinDuration(finishTime, startTime.Add(timerFor3), tolerance)
 
-	t.Assert.NoError(jd.Down()) // Cleanup
+	testTeardown(jd)
 }
 
 func TestJobsDScheduledRunMulti(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.WarnLevel)
-	db := setupDB(logger)
 	jobName := "TestJobsDScheduledRunMulti" // Must be unique otherwise tests may collide
 
 	t.Given("a JobsD instance")
 	workers := 1
-	jd := New(db).Logger(logger).WorkerNum(workers)
+	jd := testSetup(logrus.ErrorLevel).WorkerNum(workers)
 
 	t.Given("a Job that increments a counter")
 	wait := sync.WaitGroup{}
@@ -442,7 +332,7 @@ func TestJobsDScheduledRunMulti(test *testing.T) {
 	}
 
 	t.Thenf("the job should have run %d times", runNum*times)
-	t.WaitTimeout(&wait, ciDuration(5*time.Second, 20*time.Second))
+	wait.Wait()
 	finishTime := time.Now()
 	t.Assert.Equal(runNum*times, int(runCounter))
 
@@ -451,21 +341,22 @@ func TestJobsDScheduledRunMulti(test *testing.T) {
 	t.Thenf("the jobs should have run within %s with a tolerance of %s", expectedRunTime.String(), tolerance.String())
 	t.Assert.WithinDuration(startTime.Add(expectedRunTime), finishTime, tolerance)
 
-	t.Assert.NoError(jd.Down()) // Cleanup
+	testTeardown(jd)
 }
 
 func TestJobsDClusterWorkSharing(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
 	jobName := "TestJobsDClusterWorkSharing" // Must be unique otherwise tests may collide
+
+	t.Given("a JobsD instance")
+	jd := testSetup(logrus.ErrorLevel)
 
 	nodes := 10
 	t.Given("a " + strconv.Itoa(nodes) + " JobsD instance cluster with one worker each")
-	jdInstances := []*JobsD{}
-	for i := 0; i < nodes; i++ {
-		jdInstances = append(jdInstances, New(db).Logger(logger).WorkerNum(1).PollInterval(100*time.Millisecond))
+	jdInstances := []*JobsD{jd}
+	for i := 0; i < nodes-1; i++ {
+		jdInstances = append(jdInstances, New(jd.GetDB()).Logger(jd.GetLogger()).WorkerNum(1).PollInterval(100*time.Millisecond))
 	}
 
 	runTime := 150 * time.Millisecond
@@ -500,7 +391,7 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 	}
 
 	t.Then("the job should have run " + strconv.Itoa(runs) + " times")
-	t.WaitTimeout(&wait, ciDuration(10*runTime, 10*time.Second))
+	wait.Wait()
 	t.Assert.Equal(runs, int(runCounter))
 
 	t.Then("the job runs should have been distributed across the cluster and run")
@@ -516,74 +407,69 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 	for _, qInst := range jdInstances {
 		t.Assert.NoError(qInst.Down())
 	}
+	testTeardown(jd)
 }
 func ExampleJobsD() {
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
 	jobName := "ExampleJobsD" // Must be unique otherwise tests may collide
 
-	wait := make(chan struct{})
+	jd := testSetup(logrus.ErrorLevel)
 
+	wait := make(chan struct{})
 	job1Func := func(txt string) error {
 		fmt.Printf("Hello %s!", txt)
 		wait <- struct{}{}
 		return nil
 	}
+	jd.RegisterJob(jobName, job1Func)
+
 	schedule1Func := func(now time.Time) time.Time {
 		return now.Add(500 * time.Millisecond)
 	}
-
-	jd := New(db).Logger(logger)
-
-	jd.RegisterJob(jobName, job1Func)
 	jd.RegisterSchedule("schedule1", schedule1Func)
 
 	err0 := jd.Up()
-	checkError(err0)
+	testPanicErr(err0)
 
 	_, err1 := jd.CreateRun(jobName, "World").Schedule("schedule1").Limit(1).Run()
-	checkError(err1)
+	testPanicErr(err1)
 
 	<-wait
 	err2 := jd.Down()
-	checkError(err2)
+	testPanicErr(err2)
+
+	testTeardown(jd)
 
 	// Output: Hello World!
 }
 
 func BenchmarkQueueRun(b *testing.B) {
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
 	jobName := "BenchmarkQueueRun" // Must be unique otherwise tests may collide
+
+	jd := testSetup(logrus.ErrorLevel)
 
 	wait := sync.WaitGroup{}
 	out := []int{}
-
 	job1Func := func(i int) error {
 		defer wait.Done()
 		out = append(out, i)
 		return nil
 	}
-
-	jd := New(db).Logger(logger)
-
 	jd.RegisterJob(jobName, job1Func)
 
 	err0 := jd.Up()
-	checkError(err0)
+	testPanicErr(err0)
 
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
 		wait.Add(1)
 		_, err1 := jd.CreateRun(jobName, n).Run()
-		checkError(err1)
+		testPanicErr(err1)
 	}
 
 	wait.Wait()
 	b.StopTimer()
 
-	err2 := jd.Down()
-	checkError(err2)
+	testTeardown(jd)
 }

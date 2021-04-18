@@ -113,6 +113,16 @@ func (j *JobsD) RegisterSchedule(name string, scheduleFunc ScheduleFunc) {
 
 }
 
+// GetDB return the DB currently in use
+func (j *JobsD) GetDB() *gorm.DB {
+	return j.db
+}
+
+// GetLogger return the DB currently in use
+func (j *JobsD) GetLogger() logc.Logger {
+	return j.log
+}
+
 // Up starts up the JobsD service instance
 func (j *JobsD) Up() error {
 	if j.started {
@@ -402,6 +412,9 @@ func (j *JobsD) updateInstance() error {
 
 // Down shutsdown the JobsD service instance
 func (j *JobsD) Down() error {
+	if !j.started {
+		return nil
+	}
 
 	j.log.Debug("shuting down the JobsD service - started")
 
@@ -609,6 +622,11 @@ func (j *JobsD) Logger(logger logc.Logger) *JobsD {
 // New .
 func New(db *gorm.DB) *JobsD {
 
+	tx := db.Session(&gorm.Session{
+		AllowGlobalUpdate:      true,
+		SkipDefaultTransaction: true,
+	})
+
 	rtn := &JobsD{
 		instance: Instance{
 			Workers:               10,
@@ -623,7 +641,7 @@ func New(db *gorm.DB) *JobsD {
 		jobs:      map[string]*JobContainer{},
 		schedules: map[string]ScheduleFunc{},
 		runQ:      NewRunnableQueue(),
-		db:        db,
+		db:        tx,
 	}
 
 	rtn.Logger(logc.NewLogrus(logrus.New()))

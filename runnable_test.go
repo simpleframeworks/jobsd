@@ -13,12 +13,12 @@ import (
 func TestRunnableLock(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
-	jobName := "TestRunnableLock" // Must be unique otherwise tests may collide
+	jobName := "TestRunnableLock"
 
-	t.Given("a JobsD instance with a basic job")
-	jd := New(db).Logger(logger)
+	t.Given("a JobsD instance")
+	jd := testSetup(logrus.ErrorLevel)
+
+	t.Given("a basic job")
 	jd.RegisterJob(jobName, func(name string) error { return nil })
 
 	t.When("we bring up the JobsD instance")
@@ -79,11 +79,8 @@ func TestRunnableLock(test *testing.T) {
 func TestRunnableReschedule(test *testing.T) {
 	t := testc.New(test)
 
-	logger := setupLogging(logrus.ErrorLevel)
-	db := setupDB(logger)
-
 	t.Given("a JobsD instance")
-	jd := New(db).Logger(logger)
+	jd := testSetup(logrus.ErrorLevel)
 	jd.Up()
 
 	t.Given("arguments needed to create a runnable")
@@ -104,16 +101,18 @@ func TestRunnableReschedule(test *testing.T) {
 		jobFunc,
 		&jobSchedule,
 		runQAdd,
-		db,
+		jd.GetDB(),
 		nil,
-		logger,
+		jd.GetLogger(),
 	)
 	t.Assert.NoError(err)
 
 	t.When("we reschedule the runnable")
-	go runnable.reschedule(db)
+	nextRunnable, err := runnable.reschedule(jd.GetDB())
+	t.Assert.NoError(err)
 
 	t.Thenf("we should get a new runnable that is scheduled to run %s from now", timeToAdd)
-	nextRunnable := <-runQAdd
 	t.Assert.WithinDuration(time.Now().Add(timeToAdd), nextRunnable.runAt(), time.Millisecond*50)
+
+	testTeardown(jd)
 }
