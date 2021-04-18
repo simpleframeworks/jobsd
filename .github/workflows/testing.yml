@@ -95,6 +95,14 @@ jobs:
       run: go build -v ./...
 
     - name: Setup the DB
+      env:
+        JOBSD_DB: postgres
+        JOBSD_PG_HOST: localhost
+        JOBSD_PG_PORT: 25432
+        JOBSD_PG_PASSWORD: jobsd
+        JOBSD_PG_USER: jobsd
+        JOBSD_PG_DB: jobsd
+        JOBSD_CI_TEST: 1
       run: go run ./testing/main.go
 
     - name: Test
@@ -158,8 +166,16 @@ jobs:
       run: go build -v ./...
 
     - name: Setup the DB
+      env:
+        JOBSD_DB: mysql
+        JOBSD_MY_HOST: localhost
+        JOBSD_MY_PORT: 23306
+        JOBSD_MY_PASSWORD: jobsd
+        JOBSD_MY_USER: jobsd
+        JOBSD_MY_DB: jobsd
+        JOBSD_CI_TEST: 1
       run: go run ./testing/main.go
-      
+
     - name: Test
       env:
         JOBSD_DB: mysql
