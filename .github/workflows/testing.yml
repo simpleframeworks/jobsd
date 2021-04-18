@@ -94,6 +94,9 @@ jobs:
     - name: Build the code
       run: go build -v ./...
 
+    - name: Setup the DB
+      run: go run ./testing/main.go
+
     - name: Test
       env:
         JOBSD_DB: postgres
@@ -154,6 +157,9 @@ jobs:
     - name: Build the code
       run: go build -v ./...
 
+    - name: Setup the DB
+      run: go run ./testing/main.go
+      
     - name: Test
       env:
         JOBSD_DB: mysql
