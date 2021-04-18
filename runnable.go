@@ -1,7 +1,6 @@
 package jobsd
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -60,10 +59,8 @@ func (r *Runnable) run() RunRes {
 
 	if !r.lock() {
 		r.log.Debug("job run already locked")
-		fmt.Println("Cannot lock job!!!")
 		return RunResLockLost
 	}
-	fmt.Println("Job locked!!!")
 	r.log.Debug("job run lock acquired")
 
 	err := r.exec()
@@ -85,7 +82,6 @@ func (r *Runnable) lock() bool {
 	r.log.Trace("locking job run")
 	locked, err := r.jobRun.lock(r.db, r.instanceID)
 	if err != nil {
-		fmt.Println("Job lock Err!!! - " + err.Error())
 		r.log.WithError(err).Warn("failed to lock job run")
 		return false
 	}
