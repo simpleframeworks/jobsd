@@ -1,7 +1,6 @@
 package jobsd
 
 import (
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -11,66 +10,6 @@ import (
 	"github.com/simpleframeworks/testc"
 	"github.com/sirupsen/logrus"
 )
-
-func TestRunOnceCreatorUnique(test *testing.T) {
-	t := testc.New(test)
-
-	t.Given("a JobsD instance")
-	jd := testSetup(logrus.ErrorLevel)
-
-	nodes := 10
-	t.Given("a " + strconv.Itoa(nodes) + " JobsD instance cluster with 5 workers each")
-	jdInstances := []*JobsD{jd}
-	for i := 0; i < nodes-1; i++ {
-		jdInstances = append(jdInstances, New(jd.GetDB()).Logger(jd.GetLogger()).WorkerNum(5))
-	}
-
-	runTime := 800 * time.Millisecond
-	t.Given("a job that increments a counter and takes " + runTime.String())
-	wait := sync.WaitGroup{}
-	var runCounter uint32
-	jobFunc := func() error {
-		defer wait.Done()
-		atomic.AddUint32(&runCounter, 1)
-		<-time.After(runTime)
-		return nil
-	}
-
-	t.Given("the instances can run the job")
-	for _, qInst := range jdInstances {
-		qInst.RegisterJob("jobName", jobFunc)
-	}
-
-	t.When("we bring up the JobsD instances")
-	for _, qInst := range jdInstances {
-		t.Assert.NoError(qInst.Up())
-	}
-
-	t.When("we run the same unique job run on each of the instances in the cluster")
-	wait.Add(1) //we only expect it to run once
-	for _, qInst := range jdInstances {
-		_, err := qInst.CreateRun("jobName").Unique("UniqueJobName").Run()
-		t.Assert.NoError(err)
-	}
-
-	t.When("we wait until it finishes")
-	wait.Wait()
-
-	t.Then("the job should have run only once")
-	t.Assert.Equal(1, int(runCounter))
-
-	waitTime := 500 * time.Millisecond
-	t.When("we wait " + waitTime.String())
-	<-time.After(waitTime)
-
-	t.Then("the job should have still only run once")
-	t.Assert.Equal(1, int(runCounter))
-
-	for _, qInst := range jdInstances {
-		t.Assert.NoError(qInst.Down())
-	}
-	testTeardown(jd)
-}
 
 func TestRunOnceCreatorRunAfter(test *testing.T) {
 	t := testc.New(test)
@@ -255,79 +194,6 @@ func TestRunOnceCreatorRetryErrorLimit(test *testing.T) {
 	t.Assert.Equal(3, int(runCounter))
 
 	testTeardown(jd)
-}
-
-func TestRunScheduleCreatorUnique(test *testing.T) {
-	t := testc.New(test)
-
-	jobName := "TestRunScheduleCreatorUnique"
-
-	t.Given("a JobsD instance")
-	jd := testSetup(logrus.ErrorLevel)
-
-	nodes := 5
-	t.Given("a " + strconv.Itoa(nodes) + " JobsD instance cluster with 2 workers each")
-	jdInstances := []*JobsD{jd}
-	for i := 0; i < nodes-1; i++ {
-		jdInstances = append(jdInstances, New(jd.GetDB()).Logger(jd.GetLogger()).WorkerNum(2).RunTimeout(time.Second*30))
-	}
-
-	runTime := 500 * time.Millisecond
-	t.Given("a job that increments a counter and takes " + runTime.String())
-	wait := sync.WaitGroup{}
-	var runCounter uint32
-	jobFunc := func() error {
-		defer wait.Done()
-		atomic.AddUint32(&runCounter, 1)
-		<-time.After(runTime)
-		return nil
-	}
-
-	t.Given("the instances can run the job")
-	for _, qInst := range jdInstances {
-		qInst.RegisterJob(jobName, jobFunc)
-	}
-
-	interval := 200 * time.Millisecond
-	t.Given("a schedule that runs at set uniform interval of " + interval.String())
-	triggerTime := time.Now()
-	scheduleFunc := func(now time.Time) time.Time {
-		return triggerTime.Add(interval)
-	}
-
-	t.Given("the instances can use the schedule")
-	for _, qInst := range jdInstances {
-		qInst.RegisterSchedule("scheduleName", scheduleFunc)
-	}
-
-	t.When("we bring up the JobsD instances")
-	for _, qInst := range jdInstances {
-		t.Assert.NoError(qInst.Up())
-	}
-
-	t.When("we run the same unique job run on each of the instances in the cluster")
-	wait.Add(2) //we only expect it to run twice
-	for _, qInst := range jdInstances {
-		_, err := qInst.CreateRun(jobName).Schedule("scheduleName").Unique(jobName + "UniqueJobName").Limit(2).Run()
-		t.Assert.NoError(err)
-	}
-
-	t.When("we wait until it finishes")
-	wait.Wait()
-
-	t.Then("the job should have run twice")
-	t.Assert.Equal(2, int(runCounter))
-
-	waitTime := 500 * time.Millisecond
-	t.When("we wait " + waitTime.String())
-	<-time.After(waitTime)
-
-	t.Then("the job should have still only run twice")
-	t.Assert.Equal(2, int(runCounter))
-
-	for _, qInst := range jdInstances {
-		t.Assert.NoError(qInst.Down())
-	}
 }
 
 func TestRunScheduledCreatorRunTimeout(test *testing.T) {
