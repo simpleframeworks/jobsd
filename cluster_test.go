@@ -14,6 +14,8 @@ import (
 func TestRunOnceCreatorUnique(test *testing.T) {
 	t := testc.New(test)
 
+	jobName := "TestRunOnceCreatorUnique"
+
 	t.Given("a JobsD instance")
 	jd := testSetup(logrus.ErrorLevel)
 
@@ -37,7 +39,7 @@ func TestRunOnceCreatorUnique(test *testing.T) {
 
 	t.Given("the instances can run the job")
 	for _, qInst := range jdInstances {
-		qInst.RegisterJob("jobName", jobFunc)
+		qInst.RegisterJob(jobName, jobFunc)
 	}
 
 	t.When("we bring up the JobsD instances")
@@ -48,7 +50,7 @@ func TestRunOnceCreatorUnique(test *testing.T) {
 	t.When("we run the same unique job run on each of the instances in the cluster")
 	wait.Add(1) //we only expect it to run once
 	for _, qInst := range jdInstances {
-		_, err := qInst.CreateRun("jobName").Unique("UniqueJobName").Run()
+		_, err := qInst.CreateRun(jobName).Unique("UniqueJobName").Run()
 		t.Assert.NoError(err)
 	}
 
@@ -207,5 +209,72 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 	for _, qInst := range jdInstances {
 		t.Assert.NoError(qInst.Down())
 	}
+	testTeardown(jd)
+}
+
+func TestRunOnceClusterFailover(test *testing.T) {
+	t := testc.New(test)
+
+	jobName := "TestRunOnceClusterFailover"
+
+	t.Given("a JobsD instance")
+	jd := testSetup(logrus.ErrorLevel)
+
+	t.Givenf("a cluster with 2 JobsD instances with 1 worker each")
+	jdInstances := [2]*JobsD{}
+	jdInstances[0] = New(jd.GetDB()).Logger(jd.GetLogger()).WorkerNum(1)
+	jdInstances[1] = New(jd.GetDB()).Logger(jd.GetLogger()).WorkerNum(1).PollInterval(200 * time.Millisecond)
+
+	t.Given("we register a job that hangs on the first instance")
+	var startCounter uint32
+	started := make(chan struct{}, 1)
+	runTime := 5 * time.Minute
+	jobFunc0 := func() error {
+		atomic.AddUint32(&startCounter, 1)
+		started <- struct{}{}
+		<-time.After(runTime)
+		return nil
+	}
+	jdInstances[0].RegisterJob(jobName, jobFunc0)
+
+	t.Given("we register a job that does NOT hang on the second instance")
+	jobFunc1 := func() error {
+		atomic.AddUint32(&startCounter, 1)
+		return nil
+	}
+	jdInstances[1].RegisterJob(jobName, jobFunc1)
+
+	t.When("we bring up the JobsD instances")
+	t.Assert.NoError(jdInstances[0].Up())
+	t.Assert.NoError(jdInstances[1].Up())
+
+	timeout := 500 * time.Millisecond
+	t.When("we create 'job run 1' on the first instance in the cluster that times out")
+	runID, err0 := jdInstances[0].CreateRun(jobName).RunTimeout(timeout).Run()
+	t.Assert.NoError(err0)
+
+	t.When("we shutdown the first cluster instance to simulate a failure,  after the 'job run 1' started")
+	<-started
+	t.Assert.NoError(jdInstances[0].Down())
+
+	t.When("we wait enough time for the job run to timeout and retry again")
+	<-time.After(timeout * 10)
+
+	t.Then("'job run 1' should have timed out and tried to re-run on the second cluster instance")
+	t.Assert.Equal(2, int(startCounter))
+
+	t.Then("'job run 1' should been created on the first instance of the cluster")
+	runState := jdInstances[0].GetRunState(runID)
+	t.Assert.Equal(jdInstances[0].GetInstance().ID, runState.CreatedBy)
+
+	t.Then("'job run 1' should have run successfully on the second instance of the cluster")
+	t.Require.NotNil(runState.RunStartedBy)
+	t.Assert.Equal(jdInstances[1].GetInstance().ID, *runState.RunStartedBy)
+	t.Assert.NotNil(runState.RunStartedAt)
+	t.Assert.NotNil(runState.RunCompletedAt)
+	t.Assert.Nil(runState.RunCompletedError)
+
+	// Cleanup
+	t.Assert.NoError(jdInstances[1].Down())
 	testTeardown(jd)
 }
