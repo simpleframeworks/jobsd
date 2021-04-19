@@ -123,6 +123,11 @@ func (j *JobsD) GetLogger() logc.Logger {
 	return j.log
 }
 
+// GetInstance returns the instance record
+func (j *JobsD) GetInstance() Instance {
+	return j.instance
+}
+
 // Up starts up the JobsD service instance
 func (j *JobsD) Up() error {
 	if j.started {
