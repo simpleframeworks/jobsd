@@ -1,6 +1,7 @@
 package jobsd
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -98,6 +99,12 @@ func (r *Runnable) exec() (rtn error) {
 	runInfo := newRunInfo(*r.jobRun, r.stop)
 	execRes := make(chan error, 1)
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				r.log.WithField("error", err).Error("panic occurred on job run - recovered")
+				execRes <- fmt.Errorf("panic occurred: %s", fmt.Sprint(err))
+			}
+		}()
 		execRes <- r.jobFunc.execute(runInfo, r.jobRun.JobArgs)
 	}()
 
