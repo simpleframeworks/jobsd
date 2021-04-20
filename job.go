@@ -104,7 +104,12 @@ func (j *JobFunc) setRunInfoArg() {
 
 // execute the JobFunc
 // there is no param validation, use the check func
-func (j JobFunc) execute(params []interface{}) error {
+func (j JobFunc) execute(r Run, stop <-chan struct{}, params []interface{}) error {
+	if j.runInfoArg {
+		// Add run info as the first arg of the job func
+		info := newRunInfo(r, stop)
+		params = append([]interface{}{info}, params...)
+	}
 	in := make([]reflect.Value, len(params))
 	for k, param := range params {
 		in[k] = reflect.ValueOf(param)
