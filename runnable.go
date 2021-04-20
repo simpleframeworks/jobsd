@@ -95,9 +95,10 @@ func (r *Runnable) exec() (rtn error) {
 	defer close(r.stop)
 
 	r.log.Debug("run exec")
+	runInfo := newRunInfo(*r.jobRun, r.stop)
 	execRes := make(chan error, 1)
 	go func() {
-		execRes <- r.jobFunc.execute(*r.jobRun, r.stop, r.jobRun.JobArgs)
+		execRes <- r.jobFunc.execute(runInfo, r.jobRun.JobArgs)
 	}()
 
 	if r.jobRun.RunTimeoutAt.Valid {

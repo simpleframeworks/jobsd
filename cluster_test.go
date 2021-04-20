@@ -261,7 +261,7 @@ func TestRunOnceClusterFailover(test *testing.T) {
 	<-time.After(timeout * 10)
 
 	t.Then("'job run 1' should have timed out and tried to re-run on the second cluster instance")
-	t.Assert.Equal(2, int(startCounter))
+	t.Assert.Equal(2, int(atomic.LoadUint32(&startCounter)))
 
 	t.Then("'job run 1' should been created on the first instance of the cluster")
 	runState := jdInstances[0].GetRunState(runID)

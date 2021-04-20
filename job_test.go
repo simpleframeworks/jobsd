@@ -85,7 +85,7 @@ func TestJobFuncExecute(test *testing.T) {
 	args := []interface{}{1, 2, "3"}
 
 	t.When("we execute the JobFunc")
-	err := jf.execute(Run{}, make(chan struct{}), args)
+	err := jf.execute(RunInfo{}, args)
 	t.Assert.Nil(err)
 
 	t.Then("the results contain an expected string")
