@@ -97,8 +97,7 @@ func (r *Runnable) exec() (rtn error) {
 	r.log.Debug("run exec")
 	execRes := make(chan error, 1)
 	go func() {
-		//TODO add the Runnabled to the first param if needed
-		execRes <- r.jobFunc.execute(r.jobRun.JobArgs)
+		execRes <- r.jobFunc.execute(*r.jobRun, r.stop, r.jobRun.JobArgs)
 	}()
 
 	if r.jobRun.RunTimeoutAt.Valid {
