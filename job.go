@@ -51,7 +51,7 @@ func (j *JobFunc) check(args []interface{}) error {
 	// Make sure the number of jobFunc args matches
 	lenArgs := len(args)
 	if j.runInfoArg {
-		lenArgs--
+		lenArgs++
 	}
 	if theType.NumIn() != lenArgs {
 		return ErrJobFuncArgsMismatch
@@ -62,8 +62,8 @@ func (j *JobFunc) check(args []interface{}) error {
 	if j.runInfoArg {
 		start = 1
 	}
-	for i := start; i < theType.NumIn(); i++ {
-		if reflect.ValueOf(args[i]).Kind() != theType.In(i).Kind() {
+	for i := start; i < lenArgs; i++ {
+		if reflect.ValueOf(args[i-start]).Kind() != theType.In(i).Kind() {
 			return fmt.Errorf("%w, arg %d is not a %s", ErrJobFuncArgsMismatch, i, theType.In(i).Kind().String())
 		}
 	}

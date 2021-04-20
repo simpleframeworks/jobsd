@@ -70,6 +70,34 @@ func TestJobFuncArgsMismatch(test *testing.T) {
 	test.Run("Job Func wrong args type - 1", theTest([]interface{}{1, 2, "3"}))
 	test.Run("Job Func wrong args type - 2", theTest([]interface{}{1, "2", "3"}))
 }
+func TestJobFuncRunInfoExecute(test *testing.T) {
+	t := testc.New(test)
+
+	t.Given("we create a JobFunc with a func that takes a RunInfo as the first arg")
+	results := ""
+	jobFunc := func(info RunInfo, a, b int, c string) error {
+		results = fmt.Sprintf("%d, %d, %s, %d", a, b, c, info.ID)
+		return nil
+	}
+	jf := NewJobFunc(jobFunc)
+
+	t.Given("the correct arguments to execute the job func")
+	args := []interface{}{1, 2, "3"}
+
+	t.When("we check the args against the JobFunc")
+	err0 := jf.check(args)
+
+	t.Then("there should be no error")
+	t.Assert.NoError(err0)
+
+	t.When("we execute the JobFunc")
+	err1 := jf.execute(RunInfo{ID: 8}, args)
+	t.Assert.Nil(err1)
+
+	t.Then("the results contain an expected string")
+	t.Assert.Equal("1, 2, 3, 8", results)
+}
+
 func TestJobFuncExecute(test *testing.T) {
 	t := testc.New(test)
 
@@ -84,9 +112,15 @@ func TestJobFuncExecute(test *testing.T) {
 	t.Given("the correct arguments to execute the job func")
 	args := []interface{}{1, 2, "3"}
 
+	t.When("we check the args against the JobFunc")
+	err0 := jf.check(args)
+
+	t.Then("there should be no error")
+	t.Assert.NoError(err0)
+
 	t.When("we execute the JobFunc")
-	err := jf.execute(RunInfo{}, args)
-	t.Assert.Nil(err)
+	err1 := jf.execute(RunInfo{}, args)
+	t.Assert.Nil(err1)
 
 	t.Then("the results contain an expected string")
 	t.Assert.Equal("1, 2, 3", results)
