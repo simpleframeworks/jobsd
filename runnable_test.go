@@ -2,6 +2,8 @@ package jobsd
 
 import (
 	"database/sql"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -113,6 +115,48 @@ func TestRunnableReschedule(test *testing.T) {
 
 	t.Thenf("we should get a new runnable that is scheduled to run %s from now", timeToAdd)
 	t.Assert.WithinDuration(time.Now().Add(timeToAdd), nextRunnable.runAt(), time.Millisecond*50)
+
+	testTeardown(jd)
+}
+
+func TestRunnablePanic(test *testing.T) {
+	t := testc.New(test)
+
+	jobName := "TestRunnablePanic" // Must be unique otherwise tests may collide
+
+	t.Given("a JobsD instance")
+	jd := testSetup(logrus.ErrorLevel)
+
+	t.Given("a Job that panics on the first run")
+	wait := sync.WaitGroup{}
+	var runStart uint32
+	jobFunc := func() error {
+		count := atomic.AddUint32(&runStart, 1)
+		if count == 1 {
+			panic("ITS ON FIRE!")
+		}
+		wait.Done()
+		return nil
+	}
+
+	t.Given("we register the job to the JobsD instance")
+	jd.RegisterJob(jobName, jobFunc)
+
+	t.When("we bring up the JobsD instance")
+	t.Assert.NoError(jd.Up())
+
+	t.When("we run the job once")
+	startTime := time.Now()
+	wait.Add(1)
+	_, err := jd.CreateRun(jobName).Run()
+	t.Assert.NoError(err)
+
+	t.Then("the job should have run twice. 1 panic and 1 successful retry")
+	wait.Wait()
+	t.Assert.Equal(2, int(runStart))
+
+	t.Then("the job run should have completed within 1 second")
+	t.Assert.WithinDuration(time.Now(), startTime, 1*time.Second)
 
 	testTeardown(jd)
 }
