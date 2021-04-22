@@ -53,9 +53,9 @@ func (r *RunOnceCreator) RetriesTimeoutLimit(limit int) *RunOnceCreator {
 	return r
 }
 
-// RetryErrorLimit sets the RetryErrorLimit
+// RetriesErrorLimit sets the RetriesErrorLimit
 // Setting it to -1 removes the limit
-func (r *RunOnceCreator) RetryErrorLimit(limit int) *RunOnceCreator {
+func (r *RunOnceCreator) RetriesErrorLimit(limit int) *RunOnceCreator {
 	if r.done {
 		return r
 	}
@@ -148,9 +148,9 @@ func (r *RunScheduleCreator) RetriesTimeoutLimit(limit int) *RunScheduleCreator 
 	return r
 }
 
-// RetryErrorLimit sets the RetryErrorLimit
+// RetriesErrorLimit sets the RetriesErrorLimit
 // Setting it to -1 removes the limit
-func (r *RunScheduleCreator) RetryErrorLimit(limit int) *RunScheduleCreator {
+func (r *RunScheduleCreator) RetriesErrorLimit(limit int) *RunScheduleCreator {
 	if r.done {
 		return r
 	}

@@ -150,10 +150,10 @@ func TestRunOnceCreatorRetriesTimeoutLimit(test *testing.T) {
 	testTeardown(jd)
 }
 
-func TestRunOnceCreatorRetryErrorLimit(test *testing.T) {
+func TestRunOnceCreatorRetriesErrorLimit(test *testing.T) {
 	t := testc.New(test)
 
-	jobName := "TestRunOnceCreatorRetryErrorLimit"
+	jobName := "TestRunOnceCreatorRetriesErrorLimit"
 
 	t.Given("a JobsD instance")
 	jd := testSetup(logrus.ErrorLevel)
@@ -174,7 +174,7 @@ func TestRunOnceCreatorRetryErrorLimit(test *testing.T) {
 	t.Assert.NoError(jd.Up())
 
 	t.When("we create a job run with a retry error limit of 2")
-	jr := jd.CreateRun(jobName).RetryErrorLimit(2)
+	jr := jd.CreateRun(jobName).RetriesErrorLimit(2)
 
 	t.When("we run the job")
 	wait.Add(3)
@@ -313,10 +313,10 @@ func TestRunScheduledCreatorRetriesTimeoutLimit(test *testing.T) {
 	testTeardown(jd)
 }
 
-func TestRunScheduledCreatorRetryErrorLimit(test *testing.T) {
+func TestRunScheduledCreatorRetriesErrorLimit(test *testing.T) {
 	t := testc.New(test)
 
-	jobName := "TestRunScheduledCreatorRetryErrorLimit"
+	jobName := "TestRunScheduledCreatorRetriesErrorLimit"
 
 	t.Given("a JobsD instance")
 	jd := testSetup(logrus.ErrorLevel)
@@ -349,7 +349,7 @@ func TestRunScheduledCreatorRetryErrorLimit(test *testing.T) {
 	t.Assert.NoError(jd.Up())
 
 	t.When("we create a scheduled job run with a retry error limit of 2")
-	jr := jd.CreateRun(jobName).Schedule("theSchedule").Limit(2).RetryErrorLimit(2)
+	jr := jd.CreateRun(jobName).Schedule("theSchedule").Limit(2).RetriesErrorLimit(2)
 
 	t.When("we run the job")
 	wait.Add(4)

@@ -116,7 +116,7 @@ func TestQueuedRunErrRetry(test *testing.T) {
 	}
 
 	t.Given("we register the job and set it to retry on error once")
-	jd.RegisterJob(jobName, jobFunc).RetryErrorLimit(1)
+	jd.RegisterJob(jobName, jobFunc).RetriesErrorLimit(1)
 
 	t.When("we bring up the JobsD instance")
 	t.Assert.NoError(jd.Up())

@@ -42,13 +42,13 @@ jd.Up() // Bring up the JobsD service
 jd.CreateRun("Announce", "Simon").Schedule("OnTheMin").Run()
 
 
-// .... DO STUFF and wait for sig kill
+<-time.After(2*time.Minute) // Should really wait for OS kill signal here
 
 jb.Down() // Shutdown the JobsD service instance, wait for running jobs to complete and tidy up
 
 ```
 
-A runnable example can be found in the [examples](examples/minute) folder. Just run it `go run main.go`.
+A runnable example can be found in the [examples](examples/minute) folder. Just run it `go run main.go` from the directory.
 
 ## Basic Usage
 
@@ -62,6 +62,8 @@ The characteristics of a job is as follows:
 - Across a cluster all jobs should be named the same and have the same implementation.
   - Not all jobs need to implemented across the cluster (facilitates new code and new jobs)
 - All jobs need to be registered before the instance `Up()` func is called
+- The first argument can optional be of the type `jobsd.RunInfo`
+  - RunInfo contains a `Cancel` channel for graceful shutdown / timeout amongst other things
 
 
 ```go
@@ -129,7 +131,7 @@ jd.CreateRun("job1", "World A").Run() // Run job1 once immediately
 jd.CreateRun("job1", "World B").RunDelayed(time.Second) // Run job1 once after one second
 
 jd.CreateRun("job1", "World C").Schedule("schedule1").Limit(2).Run() // Run job1 every second twice
-jd.CreateRun("job1", "World D").Schedule("schedule1").Limit(2).RunDelayed(time.Second) // Schedule job1 to run after one second twice
+jd.CreateRun("job1", "World D").Schedule("schedule1").Limit(2).RunAfter(time.Second) // After one second schedule job1 to run twice
 
 // Runs only one "GlobalUniqueJob1" at a time, across a cluster of JobsD instances
 jd.CreateRun("job1", "World E").Unique("GlobalUniqueJob1").Run() 
@@ -141,7 +143,7 @@ jd.CreateRun("job1", "World F").Schedule("schedule1").Limit(2).Unique("GlobalUni
 jd.Down()
 ```
 
-Getting the job run state:
+#### Getting the job run state:
 
 ```go
 
@@ -152,16 +154,15 @@ runState := jd.GetRunState(id) // Get the run state of the job.
 
 spew.Dump(runState.OriginID)
 spew.Dump(runState.Name)
-spew.Dump(runState.RunCount)
+spew.Dump(runState.Job)
+spew.Dump(runState.Schedule)
+spew.Dump(runState.RunSuccessCount)
 spew.Dump(runState.RunStartedAt)
 spew.Dump(runState.RunStartedBy)
 spew.Dump(runState.RunCompletedAt)
 spew.Dump(runState.RunCompletedError)
 spew.Dump(runState.RetriesOnErrorCount)
 spew.Dump(runState.RetriesOnTimeoutCount)
-spew.Dump(runState.Schedule)
-spew.Dump(runState.ClosedAt)
-spew.Dump(runState.ClosedBy)
 spew.Dump(runState.CreatedAt)
 spew.Dump(runState.CreatedBy)
 
@@ -178,36 +179,72 @@ jd := New(db)
 
 jd.WorkerNum(10) // Set the number of workers to run the jobs
 
-jd.JobPollInterval(10*time.Second) // The time between checks for new jobs across the cluster
-jd.JobPollLimit(100) // The number of jobs to retrieve across the cluster
+jd.PollInterval(10*time.Second) // The time between checks for new jobs across the cluster
 
-jd.JobRetryErrorLimit(3) // How many times to retry a job when an error is returned
+jd.PollLimit(100) // The number of jobs to retrieve across the cluster at once
 
+```
+### Error handling
+
+A job func needs to return an `error` . If an error is returned a job can be retried. You can set how many times a retry is attempted
+
+**Error retries instance defaults**
+```go
+jd.RetriesErrorLimit(3) // How many times to retry a job when an error is returned (-1 = unlimited)
+```
+
+**Error retries can be set on the Job**
+```go
+jd.RegisterJob("job1", jobFunc).RetriesErrorLimit(2) // -1 = unlimited
+```
+
+**Error retries can be set on the Job Run**
+```go
+jd.CreateRun("job1", "World A").RetriesErrorLimit(2).Run() // -1 = unlimited
 ```
 
 ### Timeouts
 
-Timeouts are mainly used to resurrect jobs after an instance crashes. If an instance crashes or is killed in a cluster, another instance will pickup the job after the timeout and run it.
-
-NB Timeouts will not kill running jobs, so its important to set timeouts as long as possible, otherwise the same job may run twice.
+IMPORTANT: Timeouts will not kill running jobs, they will keep running. In order to cancel a running job on time out, add the `jobsd.RunInfo` as the first argument in your job and use the `jobsd.RunInfo.Cancel` channel (see example below).
 
 **Timeouts instance defaults**
 ```go
-jd.JobRetryTimeout(30*time.Minute) // How long before retrying a job
-jd.JobRetryTimeoutLimit(3) // How many retires to attempt before giving up
-jd.JobRetryTimeoutCheck(1*time.Minute) // Check for timeouts interval 
+jd.RunTimeout(30*time.Minute) // How long before retrying a job (0 disables time outs)
+
+jd.RetriesTimeoutLimit(3) // How many times to retry a job when it times out (-1 = unlimited)
+
+jd.TimeoutCheck(10*time.Second) // The time between checks for jobs that have timed out (or crashed) on other nodes in the cluster
 ```
 
 **Timeouts can be set on the Job**
 ```go
-jd.RegisterJob("job1", jobFunc).RetryTimeout(10*time.Minute).RetryTimeoutLimit(2)
-
+jd.RegisterJob("job1", jobFunc).RunTimeout(10*time.Minute).RetriesTimeoutLimit(2) 
+// RunTimeout set to 0 disables time outs
+// RetriesTimeoutLimit set to -1 = unlimited
 ```
 
-**TBA Timeouts can be set on a Job Run**
+**Timeouts can be set on a Job Run**
 ```go
-// TBA
-// jd.CreateRun("job1", "World A").RetryTimeout(1*time.Minute).RetryTimeoutLimit(5)
+jd.CreateRun("job1", "World A").RunTimeout(1*time.Minute).RetriesTimeoutLimit(5).Run() 
+// RunTimeout set to 0 disables time outs
+// RetriesTimeoutLimit set to -1 = unlimited
+```
+
+#### Canceling a job on timeout / shutdown
+
+Create a job like the following
+```go
+jobFunc := func(info RunInfo) error {
+			select {
+			case <-time.After(timeout + 10*time.Second):
+				fmt.Println("Did some work")
+			case <-info.Cancel:
+				fmt.Println("Job canceled")
+			}
+		return nil
+}
+
+jd.RegisterJob("CancelableJob", jobFunc)
 ```
 
 ### Database
