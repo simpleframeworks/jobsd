@@ -153,10 +153,61 @@ func TestRunnablePanic(test *testing.T) {
 
 	t.Then("the job should have run twice. 1 panic and 1 successful retry")
 	wait.Wait()
-	t.Assert.Equal(2, int(runStart))
+	t.Assert.Equal(2, int(atomic.LoadUint32(&runStart)))
 
 	t.Then("the job run should have completed within 1 second")
 	t.Assert.WithinDuration(time.Now(), startTime, 1*time.Second)
+
+	testTeardown(jd)
+}
+
+func TestRunnableCancel(test *testing.T) {
+	t := testc.New(test)
+
+	jobName := "TestRunnableCancel" // Must be unique otherwise tests may collide
+
+	t.Given("a JobsD instance")
+	jd := testSetup(logrus.ErrorLevel)
+
+	timeout := time.Millisecond * 300
+	t.Given("a Job that times out or stops on RunInfo.Cancel")
+	wait := sync.WaitGroup{}
+	var runCount uint32
+	var runTO uint32
+	var runCancel uint32
+	jobFunc := func(info RunInfo) error {
+		ct := atomic.AddUint32(&runCount, 1)
+
+		if ct == 1 {
+			select {
+			case <-time.After(timeout + 100*time.Millisecond):
+				atomic.AddUint32(&runTO, 1)
+			case <-info.Cancel:
+				atomic.AddUint32(&runCancel, 1)
+			}
+		}
+		wait.Done()
+		return nil
+	}
+
+	t.Given("we register the job to the JobsD instance")
+	jd.RegisterJob(jobName, jobFunc)
+
+	t.When("we bring up the JobsD instance")
+	t.Assert.NoError(jd.Up())
+
+	t.When("we run the job once with the timeout")
+	wait.Add(2)
+	_, err := jd.CreateRun(jobName).RunTimeout(timeout).Run()
+	t.Assert.NoError(err)
+
+	t.Then("the job should have run twice. 1 timeout and 1 successful retry")
+	wait.Wait()
+	t.Assert.Equal(2, int(atomic.LoadUint32(&runCount)))
+
+	t.Then("the job should have canceled because of the timeout")
+	t.Assert.Equal(1, int(atomic.LoadUint32(&runCancel)))
+	t.Assert.Equal(0, int(atomic.LoadUint32(&runTO)))
 
 	testTeardown(jd)
 }

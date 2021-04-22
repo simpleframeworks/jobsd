@@ -24,10 +24,10 @@ type RunInfo struct {
 	Schedule              *string
 	CreatedAt             time.Time
 	CreatedBy             int64
-	Stop                  <-chan struct{}
+	Cancel                <-chan struct{}
 }
 
-func newRunInfo(r Run, stop <-chan struct{}) RunInfo {
+func newRunInfo(r Run, cancel <-chan struct{}) RunInfo {
 
 	rtn := RunInfo{
 		ID:                    r.ID,
@@ -42,7 +42,7 @@ func newRunInfo(r Run, stop <-chan struct{}) RunInfo {
 		RetriesOnTimeoutCount: r.RetriesOnTimeoutCount,
 		CreatedAt:             r.CreatedAt,
 		CreatedBy:             r.CreatedBy,
-		Stop:                  stop,
+		Cancel:                cancel,
 	}
 
 	if r.RunSuccessLimit.Valid {
