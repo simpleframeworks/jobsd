@@ -19,7 +19,7 @@ type Runnable struct {
 	jobSchedule *ScheduleFunc
 	runQAdd     chan<- *Runnable
 	db          *gorm.DB
-	stop        chan struct{}
+	cancel      chan struct{}
 	kill        <-chan struct{}
 	log         logc.Logger
 	mu          sync.Mutex
@@ -92,11 +92,11 @@ func (r *Runnable) lock() bool {
 
 func (r *Runnable) exec() (rtn error) {
 
-	r.stop = make(chan struct{})
-	defer close(r.stop)
+	r.cancel = make(chan struct{})
+	defer close(r.cancel)
 
 	r.log.Debug("run exec")
-	runInfo := newRunInfo(*r.jobRun, r.stop)
+	runInfo := newRunInfo(*r.jobRun, r.cancel)
 	execRes := make(chan error, 1)
 	go func() {
 		defer func() {
