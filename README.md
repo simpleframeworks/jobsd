@@ -44,7 +44,7 @@ jd.CreateRun("Announce", "Simon").Schedule("OnTheMin").Run()
 
 <-time.After(2*time.Minute) // Should really wait for OS kill signal here
 
-jb.Down() // Shutdown the JobsD service instance, wait for running jobs to complete and tidy up
+jb.Down() // Shutdown the JobsD service instance, wait for running jobs to complete, record stats, and tidy up
 
 ```
 
@@ -133,14 +133,14 @@ jd.CreateRun("job1", "World B").RunDelayed(time.Second) // Run job1 once after o
 jd.CreateRun("job1", "World C").Schedule("schedule1").Limit(2).Run() // Run job1 every second twice
 jd.CreateRun("job1", "World D").Schedule("schedule1").Limit(2).RunAfter(time.Second) // After one second schedule job1 to run twice
 
-// Runs only one "GlobalUniqueJob1" at a time, across a cluster of JobsD instances
+// Runs only one "GlobalUniqueJob1" job at a time, across a cluster of JobsD instances
 jd.CreateRun("job1", "World E").Unique("GlobalUniqueJob1").Run() 
 
-// Runs and schedules only one "GlobalUniqueJob2" at a time, across a cluster of JobsD instances
+// Runs and schedules only one "GlobalUniqueJob2" job at a time, across a cluster of JobsD instances. Runs only twice.
 jd.CreateRun("job1", "World F").Schedule("schedule1").Limit(2).Unique("GlobalUniqueJob2").Run() 
 
-<-time.After(time.Duration(5) * time.Second)
-jd.Down()
+<-time.After(10 * time.Second)
+jd.Down() // Make sure to shutdown to cleanup and record stats
 ```
 
 #### Getting the job run state:
