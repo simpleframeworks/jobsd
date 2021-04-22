@@ -548,7 +548,7 @@ func (j *JobsD) AutoMigration(run bool) *JobsD {
 	return j
 }
 
-// PollInterval sets the time between getting Runs from the DB
+// PollInterval sets the time between getting new Runs from the DB and cluster
 func (j *JobsD) PollInterval(pollInt time.Duration) *JobsD {
 	if !j.started {
 		j.instance.PollInterval = pollInt
@@ -592,9 +592,9 @@ func (j *JobsD) RetriesTimeoutLimit(limit int) *JobsD {
 	return j
 }
 
-// RetryErrorLimit sets the RetryErrorLimit
+// RetriesErrorLimit sets the RetriesErrorLimit
 // Setting it to -1 removes the limit
-func (j *JobsD) RetryErrorLimit(limit int) *JobsD {
+func (j *JobsD) RetriesErrorLimit(limit int) *JobsD {
 	if j.started {
 		return j
 	}

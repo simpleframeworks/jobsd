@@ -164,9 +164,9 @@ func (j *JobContainer) RetriesTimeoutLimit(limit int) *JobContainer {
 	return j
 }
 
-// RetryErrorLimit sets the RetryErrorLimit
+// RetriesErrorLimit sets the RetriesErrorLimit
 // Setting it to -1 removes the limit
-func (j *JobContainer) RetryErrorLimit(limit int) *JobContainer {
+func (j *JobContainer) RetriesErrorLimit(limit int) *JobContainer {
 	if limit < 0 {
 		j.retriesErrorLimit = sql.NullInt64{}
 	} else {
