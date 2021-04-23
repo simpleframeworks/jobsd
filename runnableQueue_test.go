@@ -19,7 +19,7 @@ func TestRunQueue(test *testing.T) {
 	for i := 9; i >= 0; i-- {
 		chr := &Runnable{
 			jobRun: &Run{
-				Job:        fmt.Sprintf("%d", i),
+				Name:       fmt.Sprintf("%d", i),
 				NameActive: sql.NullString{Valid: true, String: fmt.Sprintf("%d", i)},
 				RunAt:      time.Now(),
 			},
@@ -32,8 +32,8 @@ func TestRunQueue(test *testing.T) {
 	for i := 0; i < 10; i++ {
 		topItem := q.Peek()
 		j := q.Pop()
-		t.Assert.Equal(topItem.jobRun.Job, j.jobRun.Job)
-		runOrder = append(runOrder, j.jobRun.Job)
+		t.Assert.Equal(topItem.jobRun.Name, j.jobRun.Name)
+		runOrder = append(runOrder, j.jobRun.Name)
 	}
 
 	t.Then("the order of job runs should be sorted in chronological order")
@@ -52,7 +52,7 @@ func TestRunQueueUnique(test *testing.T) {
 	for i := 0; i < 10; i++ {
 		chr := &Runnable{
 			jobRun: &Run{
-				Job:        fmt.Sprintf("%d", i),
+				Name:       fmt.Sprintf("%d", i),
 				NameActive: sql.NullString{Valid: true, String: fmt.Sprintf("%d", i)},
 				RunAt:      now.Add(time.Second * time.Duration(i)),
 			},
@@ -64,7 +64,7 @@ func TestRunQueueUnique(test *testing.T) {
 	for i := 0; i < 10; i++ {
 		chr := &Runnable{
 			jobRun: &Run{
-				Job:        fmt.Sprintf("%d", i),
+				Name:       fmt.Sprintf("%d", i),
 				NameActive: sql.NullString{Valid: true, String: fmt.Sprintf("%d", i)},
 				RunAt:      now.Add(time.Second * time.Duration(i)),
 			},
@@ -76,7 +76,7 @@ func TestRunQueueUnique(test *testing.T) {
 	items := []string{}
 	for q.Len() > 0 {
 		j := q.Pop()
-		items = append(items, j.jobRun.Job)
+		items = append(items, j.jobRun.Name)
 	}
 
 	t.Assert.ElementsMatch([]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}, items)
