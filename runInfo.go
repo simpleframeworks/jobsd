@@ -7,8 +7,10 @@ type RunInfo struct {
 	ID                    int64
 	OriginID              int64
 	Name                  string
-	Job                   string
+	Job                   *string
 	JobArgs               JobArgs
+	Schedule              *string
+	Package               *string
 	RunAt                 time.Time
 	RunTotalCount         int
 	RunSuccessCount       int
@@ -21,7 +23,6 @@ type RunInfo struct {
 	RetriesOnErrorLimit   *int
 	RetriesOnTimeoutCount int
 	RetriesOnTimeoutLimit *int
-	Schedule              *string
 	CreatedAt             time.Time
 	CreatedBy             int64
 	Cancel                <-chan struct{}
@@ -33,7 +34,6 @@ func newRunInfo(r Run, cancel <-chan struct{}) RunInfo {
 		ID:                    r.ID,
 		OriginID:              r.OriginID,
 		Name:                  r.Name,
-		Job:                   r.Job,
 		JobArgs:               r.JobArgs,
 		RunAt:                 r.RunAt,
 		RunTotalCount:         r.RunTotalCount,
@@ -43,6 +43,16 @@ func newRunInfo(r Run, cancel <-chan struct{}) RunInfo {
 		CreatedAt:             r.CreatedAt,
 		CreatedBy:             r.CreatedBy,
 		Cancel:                cancel,
+	}
+
+	if r.Job.Valid {
+		rtn.Job = &r.Job.String
+	}
+	if r.Schedule.Valid {
+		rtn.Schedule = &r.Schedule.String
+	}
+	if r.Package.Valid {
+		rtn.Package = &r.Package.String
 	}
 
 	if r.RunSuccessLimit.Valid {
@@ -59,9 +69,6 @@ func newRunInfo(r Run, cancel <-chan struct{}) RunInfo {
 	if r.RetriesOnTimeoutLimit.Valid {
 		rtl := int(r.RetriesOnTimeoutLimit.Int64)
 		rtn.RetriesOnTimeoutLimit = &rtl
-	}
-	if r.Schedule.Valid {
-		rtn.Schedule = &r.Schedule.String
 	}
 
 	return rtn

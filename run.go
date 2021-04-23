@@ -17,8 +17,10 @@ type Run struct {
 	OriginID              int64 `gorm:"index"`
 	Name                  string
 	NameActive            sql.NullString `gorm:"unique"`
-	Job                   string
+	Job                   sql.NullString
 	JobArgs               JobArgs
+	Schedule              sql.NullString
+	Package               sql.NullString
 	Delay                 time.Duration
 	RunAt                 time.Time
 	RunTotalCount         int
@@ -34,7 +36,6 @@ type Run struct {
 	RetriesOnErrorLimit   sql.NullInt64
 	RetriesOnTimeoutCount int
 	RetriesOnTimeoutLimit sql.NullInt64
-	Schedule              sql.NullString
 	CreatedAt             time.Time `gorm:"index"`
 	CreatedBy             int64
 }

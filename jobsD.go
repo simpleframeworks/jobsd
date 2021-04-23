@@ -447,9 +447,12 @@ func (j *JobsD) Down() error {
 
 func (j *JobsD) buildRunnable(jr Run) (rtn *Runnable, err error) {
 
-	jobC, exists := j.jobs[jr.Job]
+	if !jr.Job.Valid {
+		return rtn, errors.New("cannot run job. null job")
+	}
+	jobC, exists := j.jobs[jr.Job.String]
 	if !exists {
-		return rtn, errors.New("cannot run job. job '" + jr.Job + "' does not exist")
+		return rtn, errors.New("cannot run job. job '" + jr.Job.String + "' does not exist")
 	}
 	if err := jobC.jobFunc.check(jr.JobArgs); err != nil {
 		return rtn, err
@@ -504,7 +507,7 @@ func (j *JobsD) CreateRun(job string, jobParams ...interface{}) *RunOnceCreator 
 	jr := Run{
 		Name:            name,
 		NameActive:      sql.NullString{Valid: true, String: name},
-		Job:             job,
+		Job:             sql.NullString{Valid: true, String: job},
 		JobArgs:         jobParams,
 		RunAt:           now,
 		RunSuccessLimit: sql.NullInt64{Valid: true, Int64: 1},

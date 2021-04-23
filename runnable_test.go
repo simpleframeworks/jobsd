@@ -30,7 +30,7 @@ func TestRunnableLock(test *testing.T) {
 	params0 := []interface{}{"hello world!"}
 	j0r := Run{
 		NameActive: sql.NullString{Valid: true, String: faker.Name().String()},
-		Job:        jobName,
+		Job:        sql.NullString{Valid: true, String: jobName},
 		JobArgs:    params0,
 		RunAt:      time.Now(),
 		CreatedAt:  time.Now(),
