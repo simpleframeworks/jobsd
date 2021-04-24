@@ -1,13 +1,16 @@
-# JobsD
+# JobsS
 A distributed and reliable database backed, job execution framework
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/simpleframeworks/jobsd)](https://goreportcard.com/report/github.com/simpleframeworks/jobsd) [![Test Status](https://github.com/simpleframeworks/jobsd/actions/workflows/testing.yml/badge.svg?branch=main)](https://github.com/simpleframeworks/jobsd/actions/workflows/testing.yml) [![Go Reference](https://pkg.go.dev/badge/github.com/simpleframeworks/jobsd.svg)](https://pkg.go.dev/github.com/simpleframeworks/jobsd)
+[![Go Report Card](https://goreportcard.com/badge/github.com/simpleframeworks/jobss)](https://goreportcard.com/report/github.com/simpleframeworks/jobss) [![Test Status](https://github.com/simpleframeworks/jobss/actions/workflows/testing.yml/badge.svg?branch=main)](https://github.com/simpleframeworks/jobss/actions/workflows/testing.yml) [![Go Reference](https://pkg.go.dev/badge/github.com/simpleframeworks/jobss.svg)](https://pkg.go.dev/github.com/simpleframeworks/jobss)
 ### Download it
 
 ```
-go get -u github.com/simpleframeworks/jobsd
+go get -u github.com/simpleframeworks/jobss
 ```
 
+WORK IN PROGRESS
+
+<!-- 
 ## How does it work? (in short)
 
 - A db table is a queue.
@@ -23,7 +26,7 @@ Announce the time every minute on the minute.
 
 ```go
 
-jd := jobsd.New(db) // Create a JobsD service instance
+jd := jobss.New(db) // Create a JobsD service instance
 
 // Register a Job that announces the time
 jd.RegisterJob("Announce", func(name string) error {
@@ -62,7 +65,7 @@ The characteristics of a job is as follows:
 - Across a cluster all jobs should be named the same and have the same implementation.
   - Not all jobs need to implemented across the cluster (facilitates new code and new jobs)
 - All jobs need to be registered before the instance `Up()` func is called
-- The first argument can optional be of the type `jobsd.RunInfo`
+- The first argument can optional be of the type `jobss.RunInfo`
   - RunInfo contains a `Cancel` channel for graceful shutdown / timeout amongst other things
 
 
@@ -205,7 +208,7 @@ jd.CreateRun("job1", "World A").RetriesErrorLimit(2).Run() // -1 = unlimited
 
 ### Timeouts
 
-IMPORTANT: Timeouts will not kill running jobs, they will keep running. In order to cancel a running job on time out, add the `jobsd.RunInfo` as the first argument in your job and use the `jobsd.RunInfo.Cancel` channel (see example below).
+IMPORTANT: Timeouts will not kill running jobs, they will keep running. In order to cancel a running job on time out, add the `jobss.RunInfo` as the first argument in your job and use the `jobss.RunInfo.Cancel` channel (see example below).
 
 **Timeouts instance defaults**
 ```go
@@ -317,4 +320,4 @@ A logger can be supplied. The logger must implement the [logc interface](https:/
 ```go
 jd := New(db)
 jd.Logger(logger)
-```
+``` -->
