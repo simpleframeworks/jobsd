@@ -163,11 +163,17 @@ func (r *RunScheduleCreator) RetriesErrorLimit(limit int) *RunScheduleCreator {
 }
 
 // Limit sets how many times the job can successfully run
+// By default their is no limit, only call this if you need to set a limit
+// Setting it to 0 or -1 removes the limit
 func (r *RunScheduleCreator) Limit(limit int) *RunScheduleCreator {
 	if r.done {
 		return r
 	}
-	r.jobRun.RunSuccessLimit = sql.NullInt64{Valid: true, Int64: int64(limit)}
+	if limit <= 0 {
+		r.jobRun.RunSuccessLimit = sql.NullInt64{}
+	} else {
+		r.jobRun.RunSuccessLimit = sql.NullInt64{Valid: true, Int64: int64(limit)}
+	}
 	return r
 }
 
