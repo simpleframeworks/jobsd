@@ -10,7 +10,7 @@ import (
 // RunOnceCreator creates a job run that runs only once
 type RunOnceCreator struct {
 	done   bool
-	jobss  *JobsD
+	jobss  *JobsS
 	jobRun Run
 }
 
@@ -105,7 +105,7 @@ func (r *RunOnceCreator) Schedule(schedule string) *RunScheduleCreator {
 // RunScheduleCreator create a job run that runs according to a schedule
 type RunScheduleCreator struct {
 	done   bool
-	jobss  *JobsD
+	jobss  *JobsS
 	jobRun Run
 }
 

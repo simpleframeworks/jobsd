@@ -12,12 +12,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func TestJobsDRun(testT *testing.T) {
+func TestJobsSRun(testT *testing.T) {
 	t := testc.New(testT)
 
-	jobName := "TestJobsDRun" // Must be unique otherwise tests may collide
+	jobName := "TestJobsSRun" // Must be unique otherwise tests may collide
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that increments a counter")
@@ -29,10 +29,10 @@ func TestJobsDRun(testT *testing.T) {
 		return nil
 	}
 
-	t.Given("we register the job to the JobsD instance")
+	t.Given("we register the job to the JobsS instance")
 	jd.RegisterJob(jobName, jobFunc)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	t.When("we run the job once")
@@ -52,12 +52,12 @@ func TestJobsDRun(testT *testing.T) {
 	testTeardown(jd)
 }
 
-func TestJobsDRunMulti(test *testing.T) {
+func TestJobsSRunMulti(test *testing.T) {
 	t := testc.New(test)
 
-	jobName := "TestJobsDRunMulti" // Must be unique otherwise tests may collide
+	jobName := "TestJobsSRunMulti" // Must be unique otherwise tests may collide
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that increments a counter")
@@ -69,10 +69,10 @@ func TestJobsDRunMulti(test *testing.T) {
 		return nil
 	}
 
-	t.Given("we register the job to the JobsD instance")
+	t.Given("we register the job to the JobsS instance")
 	jd.RegisterJob(jobName, jobFunc)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	runNum := 20
@@ -100,7 +100,7 @@ func TestQueuedRunErrRetry(test *testing.T) {
 
 	jobName := "TestQueuedRunErrRetry" // Must be unique otherwise tests may collide
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that errors out on the first run")
@@ -118,7 +118,7 @@ func TestQueuedRunErrRetry(test *testing.T) {
 	t.Given("we register the job and set it to retry on error once")
 	jd.RegisterJob(jobName, jobFunc).RetriesErrorLimit(1)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	t.When("we run the job")
@@ -146,7 +146,7 @@ func TestQueuedRunTimeoutRetry(test *testing.T) {
 	retryTimeout := 200 * time.Millisecond
 	firstRunTime := 1000 * time.Millisecond
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that times out on the first run")
@@ -164,7 +164,7 @@ func TestQueuedRunTimeoutRetry(test *testing.T) {
 	t.Given("we register the job and set it to retry once on a " + retryTimeout.String() + " timeout")
 	jd.RegisterJob(jobName, jobFunc).RetriesTimeoutLimit(1).RunTimeout(retryTimeout)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	t.When("we run the job")
@@ -181,12 +181,12 @@ func TestQueuedRunTimeoutRetry(test *testing.T) {
 	testTeardown(jd)
 }
 
-func TestJobsDScheduledRun(test *testing.T) {
+func TestJobsSScheduledRun(test *testing.T) {
 	t := testc.New(test)
 
-	jobName := "TestJobsDScheduledRun" // Must be unique otherwise tests may collide
+	jobName := "TestJobsSScheduledRun" // Must be unique otherwise tests may collide
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that increments a counter")
@@ -204,13 +204,13 @@ func TestJobsDScheduledRun(test *testing.T) {
 		return now.Add(timer)
 	}
 
-	t.Given("we register the job to the JobsD instance")
+	t.Given("we register the job to the JobsS instance")
 	jd.RegisterJob(jobName, jobFunc)
 
-	t.Given("we register the schedule to the JobsD instance")
+	t.Given("we register the schedule to the JobsS instance")
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	t.When("we run the job with the schedule")
@@ -233,12 +233,12 @@ func TestJobsDScheduledRun(test *testing.T) {
 	testTeardown(jd)
 }
 
-func TestJobsDScheduledRunRecurrent(test *testing.T) {
+func TestJobsSScheduledRunRecurrent(test *testing.T) {
 	t := testc.New(test)
 
-	jobName := "TestJobsDScheduledRunRecurrent" // Must be unique otherwise tests may collide
+	jobName := "TestJobsSScheduledRunRecurrent" // Must be unique otherwise tests may collide
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that increments a counter")
@@ -256,13 +256,13 @@ func TestJobsDScheduledRunRecurrent(test *testing.T) {
 		return now.Add(timer)
 	}
 
-	t.Given("we register the job to the JobsD instance")
+	t.Given("we register the job to the JobsS instance")
 	jd.RegisterJob(jobName, jobFunc)
 
-	t.Given("we register the schedule to the JobsD instance")
+	t.Given("we register the schedule to the JobsS instance")
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	t.When("we run the job with the schedule")
@@ -287,12 +287,12 @@ func TestJobsDScheduledRunRecurrent(test *testing.T) {
 	testTeardown(jd)
 }
 
-func TestJobsDScheduledRunMulti(test *testing.T) {
+func TestJobsSScheduledRunMulti(test *testing.T) {
 	t := testc.New(test)
 
-	jobName := "TestJobsDScheduledRunMulti" // Must be unique otherwise tests may collide
+	jobName := "TestJobsSScheduledRunMulti" // Must be unique otherwise tests may collide
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	workers := 1
 	jd := testSetup(logrus.ErrorLevel).WorkerNum(workers)
 
@@ -311,13 +311,13 @@ func TestJobsDScheduledRunMulti(test *testing.T) {
 		return now.Add(timer)
 	}
 
-	t.Given("we register the job to the JobsD instance")
+	t.Given("we register the job to the JobsS instance")
 	jd.RegisterJob(jobName, jobFunc)
 
-	t.Given("we register the schedule to the JobsD instance")
+	t.Given("we register the schedule to the JobsS instance")
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	runNum := 8
@@ -343,8 +343,8 @@ func TestJobsDScheduledRunMulti(test *testing.T) {
 	testTeardown(jd)
 }
 
-func ExampleJobsD() {
-	jobName := "ExampleJobsD" // Must be unique otherwise tests may collide
+func ExampleJobsS() {
+	jobName := "ExampleJobsS" // Must be unique otherwise tests may collide
 
 	jd := testSetup(logrus.ErrorLevel)
 

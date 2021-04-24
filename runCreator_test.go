@@ -16,7 +16,7 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 
 	jobName := "TestRunOnceCreatorRunAfter"
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that records the time it started running")
@@ -30,10 +30,10 @@ func TestRunOnceCreatorRunAfter(test *testing.T) {
 		return nil
 	}
 
-	t.Given("we register the job to the JobsD instance")
+	t.Given("we register the job to the JobsS instance")
 	jd.RegisterJob(jobName, jobFunc)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	delay := 500 * time.Millisecond
@@ -61,7 +61,7 @@ func TestRunOnceCreatorRunTimeout(test *testing.T) {
 	runTimeout := 200 * time.Millisecond
 	firstRunTime := 1000 * time.Millisecond
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that times out on the first run")
@@ -79,7 +79,7 @@ func TestRunOnceCreatorRunTimeout(test *testing.T) {
 	t.Given("we register the job with a retry timeout limit of 1")
 	jd.RegisterJob(jobName, jobFunc).RetriesTimeoutLimit(1)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	t.Whenf("we create a job run with a retry timeout of %s", runTimeout.String())
@@ -107,7 +107,7 @@ func TestRunOnceCreatorRetriesTimeoutLimit(test *testing.T) {
 	retryTimeout := 100 * time.Millisecond
 	jobRunTime := 300 * time.Millisecond
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that times out consistently (takes too long)")
@@ -123,7 +123,7 @@ func TestRunOnceCreatorRetriesTimeoutLimit(test *testing.T) {
 	t.Givenf("we register the job with a retry timeout of %s", retryTimeout.String())
 	jd.RegisterJob(jobName, jobFunc).RunTimeout(retryTimeout)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	t.When("we create a job run with a retry timeout limit of 2")
@@ -155,7 +155,7 @@ func TestRunOnceCreatorRetriesErrorLimit(test *testing.T) {
 
 	jobName := "TestRunOnceCreatorRetriesErrorLimit"
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that errors out consistently")
@@ -170,7 +170,7 @@ func TestRunOnceCreatorRetriesErrorLimit(test *testing.T) {
 	t.Given("we register the job")
 	jd.RegisterJob(jobName, jobFunc)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	t.When("we create a job run with a retry error limit of 2")
@@ -204,7 +204,7 @@ func TestRunScheduledCreatorRunTimeout(test *testing.T) {
 	retryTimeout := 200 * time.Millisecond
 	jobRunTimeTO := 1000 * time.Millisecond
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that times out on the second run")
@@ -228,10 +228,10 @@ func TestRunScheduledCreatorRunTimeout(test *testing.T) {
 		return now.Add(interval)
 	}
 
-	t.Given("we register the schedule to the JobsD instance")
+	t.Given("we register the schedule to the JobsS instance")
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	t.Whenf("we create a job run with a retry timeout of %s and a limit of 2 successful runs", retryTimeout.String())
@@ -259,7 +259,7 @@ func TestRunScheduledCreatorRetriesTimeoutLimit(test *testing.T) {
 	runTimeout := 200 * time.Millisecond
 	jobRunTime := 500 * time.Millisecond
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that times out consistently (takes too long) after a successful run")
@@ -283,10 +283,10 @@ func TestRunScheduledCreatorRetriesTimeoutLimit(test *testing.T) {
 		return now.Add(interval)
 	}
 
-	t.Given("we register the schedule to the JobsD instance")
+	t.Given("we register the schedule to the JobsS instance")
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	t.When("we create a scheduled job run with a retry timeout limit of 2")
@@ -318,7 +318,7 @@ func TestRunScheduledCreatorRetriesErrorLimit(test *testing.T) {
 
 	jobName := "TestRunScheduledCreatorRetriesErrorLimit"
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that errors out consistently")
@@ -342,10 +342,10 @@ func TestRunScheduledCreatorRetriesErrorLimit(test *testing.T) {
 		return now.Add(interval)
 	}
 
-	t.Given("we register the schedule to the JobsD instance")
+	t.Given("we register the schedule to the JobsS instance")
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	t.When("we create a scheduled job run with a retry error limit of 2")
@@ -376,7 +376,7 @@ func TestRunScheduleCreatorRunAfter(test *testing.T) {
 
 	jobName := "TestRunScheduleCreatorRunAfter"
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that records the time it started running")
@@ -396,13 +396,13 @@ func TestRunScheduleCreatorRunAfter(test *testing.T) {
 		return now.Add(interval)
 	}
 
-	t.Given("we register the job to the JobsD instance")
+	t.Given("we register the job to the JobsS instance")
 	jd.RegisterJob(jobName, jobFunc)
 
-	t.Given("we register the schedule to the JobsD instance")
+	t.Given("we register the schedule to the JobsS instance")
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	delay := 500 * time.Millisecond
@@ -427,7 +427,7 @@ func TestRunScheduleCreatorSimple(test *testing.T) {
 
 	jobName := "TestRunScheduleCreatorSimple"
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that counts the number of times it runs")
@@ -443,13 +443,13 @@ func TestRunScheduleCreatorSimple(test *testing.T) {
 		return now.Add(interval)
 	}
 
-	t.Given("we register the job to the JobsD instance")
+	t.Given("we register the job to the JobsS instance")
 	jd.RegisterJob(jobName, jobFunc)
 
-	t.Given("we register the schedule to the JobsD instance")
+	t.Given("we register the schedule to the JobsS instance")
 	jd.RegisterSchedule("theSchedule", scheduleFunc)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	t.When("we run the job with the schedule")

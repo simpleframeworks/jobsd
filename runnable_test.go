@@ -17,13 +17,13 @@ func TestRunnableLock(test *testing.T) {
 
 	jobName := "TestRunnableLock"
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a basic job")
 	jd.RegisterJob(jobName, func(name string) error { return nil })
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	t.Given("a Runnable j0 has been created")
@@ -81,7 +81,7 @@ func TestRunnableLock(test *testing.T) {
 func TestRunnableReschedule(test *testing.T) {
 	t := testc.New(test)
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 	jd.Up()
 
@@ -124,7 +124,7 @@ func TestRunnablePanic(test *testing.T) {
 
 	jobName := "TestRunnablePanic" // Must be unique otherwise tests may collide
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that panics on the first run")
@@ -139,10 +139,10 @@ func TestRunnablePanic(test *testing.T) {
 		return nil
 	}
 
-	t.Given("we register the job to the JobsD instance")
+	t.Given("we register the job to the JobsS instance")
 	jd.RegisterJob(jobName, jobFunc)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	t.When("we run the job once")
@@ -166,7 +166,7 @@ func TestRunnableCancel(test *testing.T) {
 
 	jobName := "TestRunnableCancel" // Must be unique otherwise tests may collide
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	timeout := time.Millisecond * 300
@@ -190,10 +190,10 @@ func TestRunnableCancel(test *testing.T) {
 		return nil
 	}
 
-	t.Given("we register the job to the JobsD instance")
+	t.Given("we register the job to the JobsS instance")
 	jd.RegisterJob(jobName, jobFunc)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	t.When("we run the job once with the timeout")

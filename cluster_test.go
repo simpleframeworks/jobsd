@@ -16,12 +16,12 @@ func TestRunOnceCreatorUnique(test *testing.T) {
 
 	jobName := "TestRunOnceCreatorUnique"
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	nodes := 10
-	t.Given("a " + strconv.Itoa(nodes) + " JobsD instance cluster with 5 workers each")
-	jdInstances := []*JobsD{jd}
+	t.Given("a " + strconv.Itoa(nodes) + " JobsS instance cluster with 5 workers each")
+	jdInstances := []*JobsS{jd}
 	for i := 0; i < nodes-1; i++ {
 		jdInstances = append(jdInstances, New(jd.GetDB()).Logger(jd.GetLogger()).WorkerNum(5))
 	}
@@ -42,7 +42,7 @@ func TestRunOnceCreatorUnique(test *testing.T) {
 		qInst.RegisterJob(jobName, jobFunc)
 	}
 
-	t.When("we bring up the JobsD instances")
+	t.When("we bring up the JobsS instances")
 	for _, qInst := range jdInstances {
 		t.Assert.NoError(qInst.Up())
 	}
@@ -78,12 +78,12 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 
 	jobName := "TestRunScheduleCreatorUnique"
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	nodes := 5
-	t.Given("a " + strconv.Itoa(nodes) + " JobsD instance cluster with 2 workers each")
-	jdInstances := []*JobsD{jd}
+	t.Given("a " + strconv.Itoa(nodes) + " JobsS instance cluster with 2 workers each")
+	jdInstances := []*JobsS{jd}
 	for i := 0; i < nodes-1; i++ {
 		jdInstances = append(jdInstances, New(jd.GetDB()).Logger(jd.GetLogger()).WorkerNum(2).RunTimeout(time.Second*30))
 	}
@@ -116,7 +116,7 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 		qInst.RegisterSchedule("scheduleName", scheduleFunc)
 	}
 
-	t.When("we bring up the JobsD instances")
+	t.When("we bring up the JobsS instances")
 	for _, qInst := range jdInstances {
 		t.Assert.NoError(qInst.Up())
 	}
@@ -146,17 +146,17 @@ func TestRunScheduleCreatorUnique(test *testing.T) {
 	}
 }
 
-func TestJobsDClusterWorkSharing(test *testing.T) {
+func TestJobsSClusterWorkSharing(test *testing.T) {
 	t := testc.New(test)
 
-	jobName := "TestJobsDClusterWorkSharing" // Must be unique otherwise tests may collide
+	jobName := "TestJobsSClusterWorkSharing" // Must be unique otherwise tests may collide
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	nodes := 10
-	t.Given("a " + strconv.Itoa(nodes) + " JobsD instance cluster with one worker each")
-	jdInstances := []*JobsD{jd}
+	t.Given("a " + strconv.Itoa(nodes) + " JobsS instance cluster with one worker each")
+	jdInstances := []*JobsS{jd}
 	for i := 0; i < nodes-1; i++ {
 		jdInstances = append(jdInstances, New(jd.GetDB()).Logger(jd.GetLogger()).WorkerNum(1).PollInterval(100*time.Millisecond))
 	}
@@ -177,7 +177,7 @@ func TestJobsDClusterWorkSharing(test *testing.T) {
 		qInst.RegisterJob(jobName, jobFunc)
 	}
 
-	t.When("we bring up the JobsD instances")
+	t.When("we bring up the JobsS instances")
 	for _, qInst := range jdInstances {
 		t.Assert.NoError(qInst.Up())
 	}
@@ -217,11 +217,11 @@ func TestRunOnceClusterFailover(test *testing.T) {
 
 	jobName := "TestRunOnceClusterFailover"
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
-	t.Givenf("a cluster with 2 JobsD instances with 1 worker each")
-	jdInstances := [2]*JobsD{}
+	t.Givenf("a cluster with 2 JobsS instances with 1 worker each")
+	jdInstances := [2]*JobsS{}
 	jdInstances[0] = New(jd.GetDB()).Logger(jd.GetLogger()).WorkerNum(1)
 	jdInstances[1] = New(jd.GetDB()).Logger(jd.GetLogger()).WorkerNum(1).PollInterval(200 * time.Millisecond)
 
@@ -244,7 +244,7 @@ func TestRunOnceClusterFailover(test *testing.T) {
 	}
 	jdInstances[1].RegisterJob(jobName, jobFunc1)
 
-	t.When("we bring up the JobsD instances")
+	t.When("we bring up the JobsS instances")
 	t.Assert.NoError(jdInstances[0].Up())
 	t.Assert.NoError(jdInstances[1].Up())
 

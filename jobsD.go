@@ -46,8 +46,8 @@ func (Instance) TableName() string {
 	return "jobss_instances"
 }
 
-// JobsD .
-type JobsD struct {
+// JobsS .
+type JobsS struct {
 	log                   logc.Logger
 	instance              Instance
 	instanceMu            sync.Mutex
@@ -74,7 +74,7 @@ type JobsD struct {
 // RegisterJob registers a job to be run when required.
 // name parameter should not contain a comma.
 // jobFunc parameter should be any func that return an error. All jobFunc params must be gob serializable.
-func (j *JobsD) RegisterJob(name string, jobFunc interface{}) *JobContainer {
+func (j *JobsS) RegisterJob(name string, jobFunc interface{}) *JobContainer {
 	jobC := &JobContainer{
 		jobFunc:             NewJobFunc(jobFunc),
 		runTimeout:          j.instance.RunTimeout,
@@ -98,7 +98,7 @@ func (j *JobsD) RegisterJob(name string, jobFunc interface{}) *JobContainer {
 
 // RegisterSchedule adds a schedule
 // name parameter should not contain a comma.
-func (j *JobsD) RegisterSchedule(name string, scheduleFunc ScheduleFunc) {
+func (j *JobsS) RegisterSchedule(name string, scheduleFunc ScheduleFunc) {
 
 	name = strings.ReplaceAll(name, ",", "")
 	j.schedules[name] = scheduleFunc
@@ -114,22 +114,22 @@ func (j *JobsD) RegisterSchedule(name string, scheduleFunc ScheduleFunc) {
 }
 
 // GetDB return the DB currently in use
-func (j *JobsD) GetDB() *gorm.DB {
+func (j *JobsS) GetDB() *gorm.DB {
 	return j.db
 }
 
 // GetLogger return the DB currently in use
-func (j *JobsD) GetLogger() logc.Logger {
+func (j *JobsS) GetLogger() logc.Logger {
 	return j.log
 }
 
 // GetInstance returns the instance record
-func (j *JobsD) GetInstance() Instance {
+func (j *JobsS) GetInstance() Instance {
 	return j.instance
 }
 
-// Up starts up the JobsD service instance
-func (j *JobsD) Up() error {
+// Up starts up the JobsS service instance
+func (j *JobsS) Up() error {
 	if j.started {
 		j.log.Warn("the service is already up")
 		return nil
@@ -167,7 +167,7 @@ func (j *JobsD) Up() error {
 	return nil
 }
 
-func (j *JobsD) createWorkers() {
+func (j *JobsS) createWorkers() {
 	j.workerCtx, j.workerCtxCancelFunc = context.WithCancel(context.Background())
 	j.workertCxCancelWait = sync.WaitGroup{}
 
@@ -178,7 +178,7 @@ func (j *JobsD) createWorkers() {
 	}
 }
 
-func (j *JobsD) createProducers() {
+func (j *JobsS) createProducers() {
 	j.producerCtx, j.producerCtxCancelFunc = context.WithCancel(context.Background())
 	j.producerCancelWait = sync.WaitGroup{}
 
@@ -188,7 +188,7 @@ func (j *JobsD) createProducers() {
 	go j.runnableResurrector(j.producerCtx.Done())
 }
 
-func (j *JobsD) createAdder() {
+func (j *JobsS) createAdder() {
 	j.adderCtx, j.adderCtxCancelFunc = context.WithCancel(context.Background())
 	j.addertCxCancelWait = sync.WaitGroup{}
 
@@ -196,7 +196,7 @@ func (j *JobsD) createAdder() {
 	go j.runnableAdder(j.adderCtx.Done())
 }
 
-func (j *JobsD) runnableAdder(done <-chan struct{}) {
+func (j *JobsS) runnableAdder(done <-chan struct{}) {
 	for {
 		select {
 		case <-done:
@@ -212,7 +212,7 @@ func (j *JobsD) runnableAdder(done <-chan struct{}) {
 	}
 }
 
-func (j *JobsD) runnableLoader(done <-chan struct{}) {
+func (j *JobsS) runnableLoader(done <-chan struct{}) {
 	for {
 		select {
 		case <-done:
@@ -252,7 +252,7 @@ func (j *JobsD) runnableLoader(done <-chan struct{}) {
 	}
 }
 
-func (j *JobsD) runnableDelegator(done <-chan struct{}) {
+func (j *JobsS) runnableDelegator(done <-chan struct{}) {
 	var waitTime time.Duration
 	for {
 		waitTime = time.Second * 5
@@ -298,7 +298,7 @@ func (j *JobsD) runnableDelegator(done <-chan struct{}) {
 	}
 }
 
-func (j *JobsD) runner(done <-chan struct{}) {
+func (j *JobsS) runner(done <-chan struct{}) {
 	for {
 		select {
 		case <-done:
@@ -330,7 +330,7 @@ func (j *JobsD) runner(done <-chan struct{}) {
 	}
 }
 
-func (j *JobsD) runnableResurrector(done <-chan struct{}) {
+func (j *JobsS) runnableResurrector(done <-chan struct{}) {
 	for {
 		select {
 		case <-done:
@@ -373,37 +373,37 @@ func (j *JobsD) runnableResurrector(done <-chan struct{}) {
 	}
 }
 
-func (j *JobsD) incRunsStarted() {
+func (j *JobsS) incRunsStarted() {
 	j.instanceMu.Lock()
 	defer j.instanceMu.Unlock()
 	j.instance.RunsStarted++
 }
 
-func (j *JobsD) incRunsErrors() {
+func (j *JobsS) incRunsErrors() {
 	j.instanceMu.Lock()
 	defer j.instanceMu.Unlock()
 	j.instance.RunsErrors++
 }
 
-func (j *JobsD) incRunsTimedOut() {
+func (j *JobsS) incRunsTimedOut() {
 	j.instanceMu.Lock()
 	defer j.instanceMu.Unlock()
 	j.instance.RunsTimedOut++
 }
 
-func (j *JobsD) incRunsTimedOutRes() {
+func (j *JobsS) incRunsTimedOutRes() {
 	j.instanceMu.Lock()
 	defer j.instanceMu.Unlock()
 	j.instance.RunsTimedOutRes++
 }
 
-func (j *JobsD) incRunsRescheduled() {
+func (j *JobsS) incRunsRescheduled() {
 	j.instanceMu.Lock()
 	defer j.instanceMu.Unlock()
 	j.instance.RunsRescheduled++
 }
 
-func (j *JobsD) updateInstance() error {
+func (j *JobsS) updateInstance() error {
 	j.instanceMu.Lock()
 	defer j.instanceMu.Unlock()
 
@@ -415,13 +415,13 @@ func (j *JobsD) updateInstance() error {
 	return err
 }
 
-// Down shutsdown the JobsD service instance
-func (j *JobsD) Down() error {
+// Down shutsdown the JobsS service instance
+func (j *JobsS) Down() error {
 	if !j.started {
 		return nil
 	}
 
-	j.log.Debug("shuting down the JobsD service - started")
+	j.log.Debug("shuting down the JobsS service - started")
 
 	j.producerCtxCancelFunc()
 	j.producerCancelWait.Wait()
@@ -440,12 +440,12 @@ func (j *JobsD) Down() error {
 	j.instance.ShutdownAt = sql.NullTime{Valid: true, Time: time.Now()}
 	err := j.updateInstance()
 
-	j.log.Debug("shuting down the JobsD service - completed")
+	j.log.Debug("shuting down the JobsS service - completed")
 
 	return err
 }
 
-func (j *JobsD) buildRunnable(jr Run) (rtn *Runnable, err error) {
+func (j *JobsS) buildRunnable(jr Run) (rtn *Runnable, err error) {
 
 	if !jr.Job.Valid {
 		return rtn, errors.New("cannot run job. null job")
@@ -479,7 +479,7 @@ func (j *JobsD) buildRunnable(jr Run) (rtn *Runnable, err error) {
 	)
 }
 
-func (j *JobsD) createRunnable(jr Run) (rtn *Runnable, err error) {
+func (j *JobsS) createRunnable(jr Run) (rtn *Runnable, err error) {
 
 	rtn, err = j.buildRunnable(jr)
 	if err != nil {
@@ -501,7 +501,7 @@ func (j *JobsD) createRunnable(jr Run) (rtn *Runnable, err error) {
 }
 
 // CreateRun . Create a job run.
-func (j *JobsD) CreateRun(job string, jobParams ...interface{}) *RunOnceCreator {
+func (j *JobsS) CreateRun(job string, jobParams ...interface{}) *RunOnceCreator {
 	name := uuid.Must(uuid.NewUUID()).String() // We die here if time fails.
 	now := time.Now()
 	jr := Run{
@@ -526,7 +526,7 @@ func (j *JobsD) CreateRun(job string, jobParams ...interface{}) *RunOnceCreator 
 }
 
 // GetRunState retrieves the current state of the job run
-func (j *JobsD) GetRunState(id int64) *RunState {
+func (j *JobsS) GetRunState(id int64) *RunState {
 	rtn := &RunState{
 		db:       j.db,
 		OriginID: id,
@@ -536,7 +536,7 @@ func (j *JobsD) GetRunState(id int64) *RunState {
 }
 
 // WorkerNum sets the number of workers to process jobs
-func (j *JobsD) WorkerNum(workers int) *JobsD {
+func (j *JobsS) WorkerNum(workers int) *JobsS {
 	if !j.started {
 		j.instance.Workers = workers
 	}
@@ -544,7 +544,7 @@ func (j *JobsD) WorkerNum(workers int) *JobsD {
 }
 
 // AutoMigration turns on or off auto-migration
-func (j *JobsD) AutoMigration(run bool) *JobsD {
+func (j *JobsS) AutoMigration(run bool) *JobsS {
 	if !j.started {
 		j.instance.AutoMigrate = run
 	}
@@ -552,7 +552,7 @@ func (j *JobsD) AutoMigration(run bool) *JobsD {
 }
 
 // PollInterval sets the time between getting new Runs from the DB and cluster
-func (j *JobsD) PollInterval(pollInt time.Duration) *JobsD {
+func (j *JobsS) PollInterval(pollInt time.Duration) *JobsS {
 	if !j.started {
 		j.instance.PollInterval = pollInt
 	}
@@ -560,7 +560,7 @@ func (j *JobsD) PollInterval(pollInt time.Duration) *JobsD {
 }
 
 // PollLimit sets the number of upcoming Runs to retrieve from the DB at a time
-func (j *JobsD) PollLimit(limit int) *JobsD {
+func (j *JobsS) PollLimit(limit int) *JobsS {
 	if !j.started {
 		j.instance.PollLimit = limit
 	}
@@ -569,7 +569,7 @@ func (j *JobsD) PollLimit(limit int) *JobsD {
 
 // RunTimeout sets the RunTimeout
 // Setting it to 0 disables timeout
-func (j *JobsD) RunTimeout(timeout time.Duration) *JobsD {
+func (j *JobsS) RunTimeout(timeout time.Duration) *JobsS {
 	if j.started {
 		return j
 	}
@@ -583,7 +583,7 @@ func (j *JobsD) RunTimeout(timeout time.Duration) *JobsD {
 
 // RetriesTimeoutLimit sets how many times a job run can timeout
 // Setting it to -1 removes the limit
-func (j *JobsD) RetriesTimeoutLimit(limit int) *JobsD {
+func (j *JobsS) RetriesTimeoutLimit(limit int) *JobsS {
 	if j.started {
 		return j
 	}
@@ -597,7 +597,7 @@ func (j *JobsD) RetriesTimeoutLimit(limit int) *JobsD {
 
 // RetriesErrorLimit sets the RetriesErrorLimit
 // Setting it to -1 removes the limit
-func (j *JobsD) RetriesErrorLimit(limit int) *JobsD {
+func (j *JobsS) RetriesErrorLimit(limit int) *JobsS {
 	if j.started {
 		return j
 	}
@@ -610,7 +610,7 @@ func (j *JobsD) RetriesErrorLimit(limit int) *JobsD {
 }
 
 // TimeoutCheck sets the time between retry timeout checks
-func (j *JobsD) TimeoutCheck(interval time.Duration) *JobsD {
+func (j *JobsS) TimeoutCheck(interval time.Duration) *JobsS {
 	if !j.started {
 		j.instance.TimeoutCheck = interval
 	}
@@ -618,24 +618,24 @@ func (j *JobsD) TimeoutCheck(interval time.Duration) *JobsD {
 }
 
 // Logger sets logrus logger
-func (j *JobsD) Logger(logger logc.Logger) *JobsD {
+func (j *JobsS) Logger(logger logc.Logger) *JobsS {
 	if !j.started {
 		j.log = logger.WithFields(logrus.Fields{
-			"Service": "JobsD",
+			"Service": "JobsS",
 		})
 	}
 	return j
 }
 
 // New .
-func New(db *gorm.DB) *JobsD {
+func New(db *gorm.DB) *JobsS {
 
 	tx := db.Session(&gorm.Session{
 		AllowGlobalUpdate:      true,
 		SkipDefaultTransaction: true,
 	})
 
-	rtn := &JobsD{
+	rtn := &JobsS{
 		instance: Instance{
 			Workers:               10,
 			AutoMigrate:           true,

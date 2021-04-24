@@ -18,7 +18,7 @@ WORK IN PROGRESS
 - Instances in a cluster compete to acquire and run a job (without locking).
 - A worker pool runs jobs.
 - A new reoccurring scheduled "job run" is created after a "job run" is complete. 
-- The db queue and the local JobsD instance queue are periodically synchronized.
+- The db queue and the local JobsS instance queue are periodically synchronized.
 
 ## Quick Example
 
@@ -26,7 +26,7 @@ Announce the time every minute on the minute.
 
 ```go
 
-jd := jobss.New(db) // Create a JobsD service instance
+jd := jobss.New(db) // Create a JobsS service instance
 
 // Register a Job that announces the time
 jd.RegisterJob("Announce", func(name string) error {
@@ -34,12 +34,12 @@ jd.RegisterJob("Announce", func(name string) error {
   return nil
 })
 
-// Register a schedule that tells JobsD when to trigger next
+// Register a schedule that tells JobsS when to trigger next
 jd.RegisterSchedule("OnTheMin", func(now time.Time) time.Time {
   return time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute()+1, 0, 0, now.Location())
 })
 
-jd.Up() // Bring up the JobsD service
+jd.Up() // Bring up the JobsS service
 
 // Create and schedule the job "Announce" to run "OnTheMin"
 jd.CreateRun("Announce", "Simon").Schedule("OnTheMin").Run()
@@ -47,7 +47,7 @@ jd.CreateRun("Announce", "Simon").Schedule("OnTheMin").Run()
 
 <-time.After(2*time.Minute) // Should really wait for OS kill signal here
 
-jb.Down() // Shutdown the JobsD service instance, wait for running jobs to complete, record stats, and tidy up
+jb.Down() // Shutdown the JobsS service instance, wait for running jobs to complete, record stats, and tidy up
 
 ```
 
@@ -136,10 +136,10 @@ jd.CreateRun("job1", "World B").RunDelayed(time.Second) // Run job1 once after o
 jd.CreateRun("job1", "World C").Schedule("schedule1").Limit(2).Run() // Run job1 every second twice
 jd.CreateRun("job1", "World D").Schedule("schedule1").Limit(2).RunAfter(time.Second) // After one second schedule job1 to run twice
 
-// Runs only one "GlobalUniqueJob1" job at a time, across a cluster of JobsD instances
+// Runs only one "GlobalUniqueJob1" job at a time, across a cluster of JobsS instances
 jd.CreateRun("job1", "World E").Unique("GlobalUniqueJob1").Run() 
 
-// Runs and schedules only one "GlobalUniqueJob2" job at a time, across a cluster of JobsD instances. Runs only twice.
+// Runs and schedules only one "GlobalUniqueJob2" job at a time, across a cluster of JobsS instances. Runs only twice.
 jd.CreateRun("job1", "World F").Schedule("schedule1").Limit(2).Unique("GlobalUniqueJob2").Run() 
 
 <-time.After(10 * time.Second)
@@ -303,7 +303,7 @@ jd := New(db)
 
 ### Disable Auto Migrations
 
-Auto migrations create the DB tables and structure required for JobsD. It is run when starting JobsD `Up()`. Auto migrations are only required the first time JobsD runs so it can be disabled using the following method.
+Auto migrations create the DB tables and structure required for JobsS. It is run when starting JobsS `Up()`. Auto migrations are only required the first time JobsS runs so it can be disabled using the following method.
 
 ```go
 jd.AutoMigrate(false)

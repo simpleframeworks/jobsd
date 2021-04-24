@@ -13,7 +13,7 @@ func TestRunState(test *testing.T) {
 
 	jobName := "TestRunState"
 
-	t.Given("a JobsD instance")
+	t.Given("a JobsS instance")
 	jd := testSetup(logrus.ErrorLevel)
 
 	t.Given("a Job that starts and then pauses when called")
@@ -25,10 +25,10 @@ func TestRunState(test *testing.T) {
 		return nil
 	}
 
-	t.Given("we register the job to the JobsD instance")
+	t.Given("we register the job to the JobsS instance")
 	jd.RegisterJob(jobName, jobFunc)
 
-	t.When("we bring up the JobsD instance")
+	t.When("we bring up the JobsS instance")
 	t.Assert.NoError(jd.Up())
 
 	delay := 200 * time.Millisecond
@@ -80,7 +80,7 @@ func TestRunState(test *testing.T) {
 
 	<-time.After(200 * time.Millisecond)
 
-	t.When("we shutdown the JobsD instance to let everything complete")
+	t.When("we shutdown the JobsS instance to let everything complete")
 	t.Assert.NoError(jd.Down())
 
 	t.When("we refresh the job run state")

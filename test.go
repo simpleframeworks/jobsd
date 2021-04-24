@@ -14,7 +14,7 @@ import (
 )
 
 // testSetup for testing
-func testSetup(logLvl logrus.Level) *JobsD {
+func testSetup(logLvl logrus.Level) *JobsS {
 
 	logger := testSetupLogging(logLvl)
 
@@ -28,8 +28,8 @@ func testSetup(logLvl logrus.Level) *JobsD {
 	return New(db).AutoMigration(false).Logger(logger)
 }
 
-// testTeardown JobsD after testing
-func testTeardown(j *JobsD) {
+// testTeardown JobsS after testing
+func testTeardown(j *JobsS) {
 	err := j.Down()
 	testPanicErr(err)
 

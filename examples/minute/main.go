@@ -35,7 +35,7 @@ func main() {
 	log.SetLevel(logrus.ErrorLevel)
 	logger := logc.NewLogrus(log)
 
-	// Create JobsD service instance
+	// Create JobsS service instance
 	jd := jobss.New(db).Logger(logger)
 
 	// Register a Job that announces the time
@@ -44,12 +44,12 @@ func main() {
 		return nil
 	})
 
-	// Register a schedule that tells JobsD when to trigger next
+	// Register a schedule that tells JobsS when to trigger next
 	jd.RegisterSchedule("OnTheMin", func(now time.Time) time.Time {
 		return time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute()+1, 0, 0, now.Location())
 	})
 
-	jd.Up() // Bring up the JobsD service
+	jd.Up() // Bring up the JobsS service
 
 	// Create and schedule the job "Announce" to run "OnTheMin"
 	jd.CreateRun("Announce", "Simon").Schedule("OnTheMin").Run()
@@ -62,7 +62,7 @@ func main() {
 
 	<-sigs // Wait for an OS signal
 
-	jd.Down() // Shutdown the JobsD service
+	jd.Down() // Shutdown the JobsS service
 
 	fmt.Println("Completed")
 

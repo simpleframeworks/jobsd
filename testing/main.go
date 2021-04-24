@@ -35,7 +35,7 @@ func main() {
 }
 
 // testSetup for testing
-func testSetup(logLvl logrus.Level) *jobss.JobsD {
+func testSetup(logLvl logrus.Level) *jobss.JobsS {
 
 	logger := testSetupLogging(logLvl)
 	db := testSetupDB(logger)
@@ -48,8 +48,8 @@ func testSetup(logLvl logrus.Level) *jobss.JobsD {
 	return jobss.New(db.Begin()).AutoMigration(false).Logger(logger)
 }
 
-// testTeardown JobsD after testing
-func testTeardown(j *jobss.JobsD) {
+// testTeardown JobsS after testing
+func testTeardown(j *jobss.JobsS) {
 	err := j.Down()
 	testPanicErr(err)
 

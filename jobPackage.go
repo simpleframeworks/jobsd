@@ -42,7 +42,7 @@ type JobPackage interface {
 	// Delay adds a delay before scheduling or running the job the very first time
 	Delay() time.Duration
 
-	// AutoRun runs the job as soon as the JobsD instance starts up
+	// AutoRun runs the job as soon as the JobsS instance starts up
 	// A delay can be introduced using the Delay func
 	AutoRun() bool
 }
