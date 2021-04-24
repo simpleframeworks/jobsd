@@ -1,4 +1,4 @@
-package jobsd
+package jobss
 
 import (
 	"database/sql"
@@ -10,12 +10,12 @@ import (
 // RunOnceCreator creates a job run that runs only once
 type RunOnceCreator struct {
 	done   bool
-	jobsd  *JobsD
+	jobss  *JobsD
 	jobRun Run
 }
 
 // Unique gives the run a unique name across the cluster.
-// i.e only one job with a unique name can be running or jobsd at the same time.
+// i.e only one job with a unique name can be running or jobss at the same time.
 func (r *RunOnceCreator) Unique(name string) *RunOnceCreator {
 	if r.done {
 		return r
@@ -74,7 +74,7 @@ func (r *RunOnceCreator) Run() (int64, error) {
 		return 0, errors.New("run can only be called once")
 	}
 	r.done = true
-	jr, err := r.jobsd.createRunnable(r.jobRun)
+	jr, err := r.jobss.createRunnable(r.jobRun)
 	return jr.jobRun.ID, err
 }
 
@@ -86,14 +86,14 @@ func (r *RunOnceCreator) RunAfter(delay time.Duration) (int64, error) {
 	}
 	r.jobRun.Delay = delay
 	r.done = true
-	jr, err := r.jobsd.createRunnable(r.jobRun)
+	jr, err := r.jobss.createRunnable(r.jobRun)
 	return jr.jobRun.ID, err
 }
 
 // Schedule the job
 func (r *RunOnceCreator) Schedule(schedule string) *RunScheduleCreator {
 	rtn := &RunScheduleCreator{
-		jobsd:  r.jobsd,
+		jobss:  r.jobss,
 		jobRun: r.jobRun,
 	}
 	rtn.jobRun.RunSuccessLimit = sql.NullInt64{}
@@ -105,12 +105,12 @@ func (r *RunOnceCreator) Schedule(schedule string) *RunScheduleCreator {
 // RunScheduleCreator create a job run that runs according to a schedule
 type RunScheduleCreator struct {
 	done   bool
-	jobsd  *JobsD
+	jobss  *JobsD
 	jobRun Run
 }
 
 // Unique gives the run a unique name across the cluster.
-// i.e only one job with a unique name can be running or jobsd at the same time.
+// i.e only one job with a unique name can be running or jobss at the same time.
 func (r *RunScheduleCreator) Unique(name string) *RunScheduleCreator {
 	if r.done {
 		return r
@@ -184,7 +184,7 @@ func (r *RunScheduleCreator) Run() (int64, error) {
 		return 0, errors.New("run already called")
 	}
 	r.done = true
-	jr, err := r.jobsd.createRunnable(r.jobRun)
+	jr, err := r.jobss.createRunnable(r.jobRun)
 	return jr.jobRun.ID, err
 }
 
@@ -196,6 +196,6 @@ func (r *RunScheduleCreator) RunAfter(delay time.Duration) (int64, error) {
 	}
 	r.jobRun.Delay = delay
 	r.done = true
-	jr, err := r.jobsd.createRunnable(r.jobRun)
+	jr, err := r.jobss.createRunnable(r.jobRun)
 	return jr.jobRun.ID, err
 }

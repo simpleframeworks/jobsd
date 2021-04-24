@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/simpleframeworks/jobsd"
+	"github.com/simpleframeworks/jobss"
 	"github.com/simpleframeworks/logc"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
@@ -23,33 +23,33 @@ func main() {
 	db := testSetupDB(logger)
 
 	logger.Debug("Auto Migrate DB")
-	db.AutoMigrate(&jobsd.Run{}, &jobsd.Instance{})
+	db.AutoMigrate(&jobss.Run{}, &jobss.Instance{})
 
 	tx := db.Session(&gorm.Session{
 		AllowGlobalUpdate: true,
 	})
 
 	logger.Debug("Cleaning up")
-	tx.Delete(&jobsd.Run{})
-	tx.Delete(&jobsd.Instance{})
+	tx.Delete(&jobss.Run{})
+	tx.Delete(&jobss.Instance{})
 }
 
 // testSetup for testing
-func testSetup(logLvl logrus.Level) *jobsd.JobsD {
+func testSetup(logLvl logrus.Level) *jobss.JobsD {
 
 	logger := testSetupLogging(logLvl)
 	db := testSetupDB(logger)
 
 	if dbToUse() == "" || dbToUse() == "sqllite" {
-		return jobsd.New(db).Logger(logger)
+		return jobss.New(db).Logger(logger)
 	}
 
 	// Auto migrations are disabled for MySQL and PostgreSQL as structure should be
-	return jobsd.New(db.Begin()).AutoMigration(false).Logger(logger)
+	return jobss.New(db.Begin()).AutoMigration(false).Logger(logger)
 }
 
 // testTeardown JobsD after testing
-func testTeardown(j *jobsd.JobsD) {
+func testTeardown(j *jobss.JobsD) {
 	err := j.Down()
 	testPanicErr(err)
 

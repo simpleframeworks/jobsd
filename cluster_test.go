@@ -1,4 +1,4 @@
-package jobsd
+package jobss
 
 import (
 	"strconv"

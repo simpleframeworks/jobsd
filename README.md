@@ -1,5 +1,5 @@
 # JobsS
-A distributed and reliable database backed, job execution framework
+A shared distributed and reliable database backed, job execution framework
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/simpleframeworks/jobss)](https://goreportcard.com/report/github.com/simpleframeworks/jobss) [![Test Status](https://github.com/simpleframeworks/jobss/actions/workflows/testing.yml/badge.svg?branch=main)](https://github.com/simpleframeworks/jobss/actions/workflows/testing.yml) [![Go Reference](https://pkg.go.dev/badge/github.com/simpleframeworks/jobss.svg)](https://pkg.go.dev/github.com/simpleframeworks/jobss)
 ### Download it

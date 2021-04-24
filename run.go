@@ -1,4 +1,4 @@
-package jobsd
+package jobss
 
 import (
 	"database/sql"
@@ -42,7 +42,7 @@ type Run struct {
 
 // TableName specifies the db table name
 func (Run) TableName() string {
-	return "jobsd_runs"
+	return "jobss_runs"
 }
 
 // insertGet inserts the Job in the DB. If it already exists it retrieves it.

@@ -1,4 +1,4 @@
-package jobsd
+package jobss
 
 import (
 	"context"
@@ -43,7 +43,7 @@ type Instance struct {
 
 // TableName specifies the db table name
 func (Instance) TableName() string {
-	return "jobsd_instances"
+	return "jobss_instances"
 }
 
 // JobsD .
@@ -520,7 +520,7 @@ func (j *JobsD) CreateRun(job string, jobParams ...interface{}) *RunOnceCreator 
 		jr.RetriesOnErrorLimit = jobC.retriesErrorLimit
 	}
 	return &RunOnceCreator{
-		jobsd:  j,
+		jobss:  j,
 		jobRun: jr,
 	}
 }
