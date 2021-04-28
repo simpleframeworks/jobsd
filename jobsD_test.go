@@ -16,6 +16,7 @@ func TestJobBasic1(testT *testing.T) {
 
 	t.Given("a JobsD instance")
 	inst := testSetup(logrus.ErrorLevel)
+	defer testTeardown(inst)
 
 	t.Given("a job func that increments a counter")
 	var counter uint32
@@ -59,6 +60,7 @@ func TestJobBasic2(testT *testing.T) {
 
 	t.Given("a JobsD instance")
 	inst := testSetup(logrus.ErrorLevel)
+	defer testTeardown(inst)
 
 	t.Given("a job func that increments a counter")
 	var counter uint32
@@ -102,6 +104,7 @@ func TestJobSchedule(testT *testing.T) {
 
 	t.Given("a JobsD instance")
 	inst := testSetup(logrus.ErrorLevel)
+	defer testTeardown(inst)
 
 	t.Given("a job func that increments a counter")
 	var counter uint32
@@ -124,7 +127,7 @@ func TestJobSchedule(testT *testing.T) {
 	t.Given("we use the schedule func to create a job")
 	creator.Schedule(scheduleFunc)
 
-	runLimit := 2
+	runLimit := 3
 	t.Given("we limit the job to run %d time(s)", runLimit)
 	creator.Limit(runLimit)
 
@@ -142,16 +145,34 @@ func TestJobSchedule(testT *testing.T) {
 
 	wait.Add(runLimit)
 	t.When("run the job")
-	_, err2 := job.Run()
+	runState, err2 := job.Run()
 
 	t.Assert.NoError(err2)
 
 	t.When("we wait for it to run")
-	t.WaitTimeout(wait, time.Second*5)
+	t.WaitTimeout(wait, time.Second*10)
 
 	t.Then("the job should have run and incremented the counter")
 	count := int(atomic.LoadUint32(&counter))
 
 	t.Assert.Equal(runLimit, count)
 
+	t.When("we refresh the run state")
+	err3 := runState.Refresh()
+	t.Assert.NoError(err3)
+
+	t.Then("the RunState of the first job run should have completed")
+	t.Assert.True(runState.Completed())
+
+	t.When("we get the RunState history of the job")
+	history, err4 := job.History(runLimit * 2)
+	t.Assert.NoError(err4)
+
+	t.Thenf("we should get %d record(s)", runLimit)
+	t.Assert.Equal(runLimit, len(history))
+
+	t.Then("all RunState history records should show all job runs completed")
+	for _, runState := range history {
+		t.Assert.True(runState.Completed())
+	}
 }

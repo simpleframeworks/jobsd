@@ -37,7 +37,7 @@ func (j *JobsD) SetMigration(m bool) *JobsD {
 }
 
 // JobHistory .
-func (j *JobsD) JobHistory(name int64, limit int) ([]RunState, error) {
+func (j *JobsD) JobHistory(name string, limit int) ([]RunState, error) {
 	return []RunState{}, errors.New("not implemented")
 }
 
@@ -151,6 +151,11 @@ type RunState struct{}
 // Refresh the run state
 func (j *RunState) Refresh() error {
 	return errors.New("not implemented")
+}
+
+// Completed returns true if the job run is complete
+func (j *RunState) Completed() bool {
+	return false
 }
 
 // ScheduleFunc .
