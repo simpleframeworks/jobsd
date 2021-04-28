@@ -3,6 +3,7 @@ package jobspec
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/simpleframeworks/logc"
@@ -14,7 +15,7 @@ import (
 )
 
 // testSetup for testing
-func testSetup(logLvl logrus.Level) *JobSpec {
+func testSetup(logLvl logrus.Level) *JobsD {
 
 	logger := testSetupLogging(logLvl)
 
@@ -28,8 +29,8 @@ func testSetup(logLvl logrus.Level) *JobSpec {
 	return New(db).SetMigration(false).SetLogger(logger)
 }
 
-// testTeardown JobSpec after testing
-func testTeardown(j *JobSpec) {
+// testTeardown JobsD after testing
+func testTeardown(j *JobsD) {
 	err := j.Stop()
 	testPanicErr(err)
 
@@ -140,4 +141,12 @@ func testSetupMySQL(logger logc.Logger) *gorm.DB {
 	// sqlDB.SetMaxOpenConns(1)
 
 	return db
+}
+
+// testFuncName Get the name of the running function
+func testFuncName() string {
+	pc := make([]uintptr, 1)
+	runtime.Callers(2, pc)
+	f := runtime.FuncForPC(pc[0])
+	return f.Name()
 }
