@@ -40,7 +40,7 @@ func TestJobBasic1(testT *testing.T) {
 
 	wait.Add(1)
 	t.When("we get and run the job")
-	_, err2 := inst.GetJob(jobName).Run()
+	runState, err2 := inst.GetJob(jobName).Run()
 
 	t.Assert.NoError(err2)
 
@@ -52,6 +52,12 @@ func TestJobBasic1(testT *testing.T) {
 
 	t.Assert.Equal(1, count)
 
+	t.When("we refresh the run state that we got when we ran the job")
+	err3 := runState.Refresh()
+	t.Assert.NoError(err3)
+
+	t.Then("the RunState of the job run should have completed")
+	t.Assert.True(runState.Completed())
 }
 
 func TestJobBasic2(testT *testing.T) {
@@ -83,8 +89,8 @@ func TestJobBasic2(testT *testing.T) {
 	t.Assert.NoError(err1)
 
 	wait.Add(1)
-	t.When("run the job")
-	_, err2 := job.Run()
+	t.When("we run the job")
+	runState, err2 := job.Run()
 
 	t.Assert.NoError(err2)
 
@@ -95,6 +101,13 @@ func TestJobBasic2(testT *testing.T) {
 	count := int(atomic.LoadUint32(&counter))
 
 	t.Assert.Equal(1, count)
+
+	t.When("we refresh the run state that we got when we ran the job")
+	err3 := runState.Refresh()
+	t.Assert.NoError(err3)
+
+	t.Then("the RunState of the job run should have completed")
+	t.Assert.True(runState.Completed())
 
 }
 
