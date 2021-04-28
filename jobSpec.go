@@ -43,12 +43,12 @@ func (j *JobSpec) JobHistory(name int64, limit int) ([]RunInfo, error) {
 
 // Start .
 func (j *JobSpec) Start() error {
-	return nil
+	return errors.New("not implemented")
 }
 
 // Stop .
 func (j *JobSpec) Stop() error {
-	return nil
+	return errors.New("not implemented")
 }
 
 // New .
@@ -65,8 +65,8 @@ func (j *Job) ID() int64 {
 }
 
 // Run .
-func (j *Job) Run() error {
-	return errors.New("not implemented")
+func (j *Job) Run() (RunInfo, error) {
+	return RunInfo{}, errors.New("not implemented")
 }
 
 // History .

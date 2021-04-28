@@ -39,7 +39,7 @@ func TestJobSpecBasicJob1(testT *testing.T) {
 	t.Assert.NoError(err1)
 
 	t.When("we get and run the job")
-	err2 := inst.GetJob(jobName).Run()
+	_, err2 := inst.GetJob(jobName).Run()
 
 	t.Assert.NoError(err2)
 
@@ -82,7 +82,7 @@ func TestJobSpecBasicJob2(testT *testing.T) {
 	t.Assert.NoError(err1)
 
 	t.When("run the job")
-	err2 := job.Run()
+	_, err2 := job.Run()
 
 	t.Assert.NoError(err2)
 
