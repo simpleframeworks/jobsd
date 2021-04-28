@@ -177,7 +177,7 @@ func TestJobSchedule(testT *testing.T) {
 	t.Then("the RunState of the first job run should have completed")
 	t.Assert.True(runState.Completed())
 
-	t.When("we get the RunState history of the job")
+	t.When("we get the RunState history from the job")
 	history, err4 := job.History(runLimit * 2)
 	t.Assert.NoError(err4)
 
@@ -186,6 +186,18 @@ func TestJobSchedule(testT *testing.T) {
 
 	t.Then("all RunState history records should show all job runs completed")
 	for _, runState := range history {
+		t.Assert.True(runState.Completed())
+	}
+
+	t.When("we get the RunState history from the JobsD instance")
+	history1, err5 := inst.JobHistory(jobName, runLimit*2)
+	t.Assert.NoError(err5)
+
+	t.Thenf("we should get %d record(s)", runLimit)
+	t.Assert.Equal(runLimit, len(history1))
+
+	t.Then("all RunState history records should show all job runs completed")
+	for _, runState := range history1 {
 		t.Assert.True(runState.Completed())
 	}
 }
