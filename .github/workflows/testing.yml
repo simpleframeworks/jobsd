@@ -58,9 +58,9 @@ jobs:
       postgres:
         image: ${{ matrix.dbversion }}
         env:
-          POSTGRES_PASSWORD: jobss
-          POSTGRES_USER: jobss
-          POSTGRES_DB: jobss
+          POSTGRES_PASSWORD: jobspec
+          POSTGRES_USER: jobspec
+          POSTGRES_DB: jobspec
         ports:
           - 25432:5432
         # Set health checks to wait until postgres has started
@@ -99,9 +99,9 @@ jobs:
         JOBSD_DB: postgres
         JOBSD_PG_HOST: localhost
         JOBSD_PG_PORT: 25432
-        JOBSD_PG_PASSWORD: jobss
-        JOBSD_PG_USER: jobss
-        JOBSD_PG_DB: jobss
+        JOBSD_PG_PASSWORD: jobspec
+        JOBSD_PG_USER: jobspec
+        JOBSD_PG_DB: jobspec
         JOBSD_CI_TEST: 1
       run: go run ./testing/main.go
 
@@ -110,9 +110,9 @@ jobs:
         JOBSD_DB: postgres
         JOBSD_PG_HOST: localhost
         JOBSD_PG_PORT: 25432
-        JOBSD_PG_PASSWORD: jobss
-        JOBSD_PG_USER: jobss
-        JOBSD_PG_DB: jobss
+        JOBSD_PG_PASSWORD: jobspec
+        JOBSD_PG_USER: jobspec
+        JOBSD_PG_DB: jobspec
         JOBSD_CI_TEST: 1
       run: go test -v -race ./...
 
@@ -128,14 +128,14 @@ jobs:
       mysql:
         image: ${{ matrix.dbversion }}
         env:
-          MYSQL_DATABASE: jobss
-          MYSQL_USER: jobss
-          MYSQL_PASSWORD: jobss
+          MYSQL_DATABASE: jobspec
+          MYSQL_USER: jobspec
+          MYSQL_PASSWORD: jobspec
           MYSQL_RANDOM_ROOT_PASSWORD: "yes"
         ports:
           - 23306:3306
         options: >-
-          --health-cmd "mysqladmin ping -ujobss -pjobss"
+          --health-cmd "mysqladmin ping -ujobspec -pjobspec"
           --health-interval 10s
           --health-start-period 10s
           --health-timeout 5s
@@ -170,9 +170,9 @@ jobs:
         JOBSD_DB: mysql
         JOBSD_MY_HOST: localhost
         JOBSD_MY_PORT: 23306
-        JOBSD_MY_PASSWORD: jobss
-        JOBSD_MY_USER: jobss
-        JOBSD_MY_DB: jobss
+        JOBSD_MY_PASSWORD: jobspec
+        JOBSD_MY_USER: jobspec
+        JOBSD_MY_DB: jobspec
         JOBSD_CI_TEST: 1
       run: go run ./testing/main.go
 
@@ -181,8 +181,8 @@ jobs:
         JOBSD_DB: mysql
         JOBSD_MY_HOST: localhost
         JOBSD_MY_PORT: 23306
-        JOBSD_MY_PASSWORD: jobss
-        JOBSD_MY_USER: jobss
-        JOBSD_MY_DB: jobss
+        JOBSD_MY_PASSWORD: jobspec
+        JOBSD_MY_USER: jobspec
+        JOBSD_MY_DB: jobspec
         JOBSD_CI_TEST: 1
       run: go test -v -race ./...

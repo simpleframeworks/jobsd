@@ -10,30 +10,30 @@ services:
       # PostgreSQL settings
       JOBSD_PG_HOST: postgres
       JOBSD_PG_PORT: 5432
-      JOBSD_PG_DB: jobss
-      JOBSD_PG_PASSWORD: jobss
-      JOBSD_PG_USER: jobss
+      JOBSD_PG_DB: jobspec
+      JOBSD_PG_PASSWORD: jobspec
+      JOBSD_PG_USER: jobspec
       # MySQL settings
       JOBSD_MY_HOST: mysql
       JOBSD_MY_PORT: 3306
-      JOBSD_MY_DB: jobss
-      JOBSD_MY_USER: jobss
-      JOBSD_MY_PASSWORD: jobss
+      JOBSD_MY_DB: jobspec
+      JOBSD_MY_USER: jobspec
+      JOBSD_MY_PASSWORD: jobspec
   postgres:
     image: postgres:latest
     ports:
       - "25432:5432"
     environment: 
-      POSTGRES_PASSWORD: jobss
-      POSTGRES_USER: jobss
-      POSTGRES_DB: jobss
+      POSTGRES_PASSWORD: jobspec
+      POSTGRES_USER: jobspec
+      POSTGRES_DB: jobspec
     command: ["postgres", "-c", "log_statement=all"]
   mysql:
     image: 'mysql:latest'
     ports:
       - 13306:3306
     environment:
-      MYSQL_DATABASE: jobss
-      MYSQL_USER: jobss
-      MYSQL_PASSWORD: jobss
+      MYSQL_DATABASE: jobspec
+      MYSQL_USER: jobspec
+      MYSQL_PASSWORD: jobspec
       MYSQL_RANDOM_ROOT_PASSWORD: "yes"

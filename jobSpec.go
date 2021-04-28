@@ -1,4 +1,4 @@
-package jobss
+package jobspec
 
 import (
 	"time"

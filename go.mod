@@ -1,4 +1,4 @@
-module github.com/simpleframeworks/jobss
+module github.com/simpleframeworks/jobspec
 
 go 1.16
 
