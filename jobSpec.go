@@ -4,24 +4,56 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/simpleframeworks/logc"
+	"gorm.io/gorm"
 )
 
-// JobS .
-type JobS struct{}
+// JobSpec .
+type JobSpec struct{}
 
 // NewJob .
-func (j *JobS) NewJob(name string, jobFunc interface{}) JobSpecRunCreator {
+func (j *JobSpec) NewJob(name string, jobFunc interface{}) CreatorRunable {
 	return nil
 }
 
 // GetJob .
-func (j *JobS) GetJob(name string) *Job {
+func (j *JobSpec) GetJob(name string) *Job {
+	return nil
+}
+
+// GetDB .
+func (j *JobSpec) GetDB() *gorm.DB {
+	return nil
+}
+
+// SetLogger .
+func (j *JobSpec) SetLogger(l logc.Logger) *JobSpec {
+	return nil
+}
+
+// SetMigration .
+func (j *JobSpec) SetMigration(m bool) *JobSpec {
 	return nil
 }
 
 // JobHistory .
-func (j *JobS) JobHistory(name int64, limit int) ([]RunInfo, error) {
+func (j *JobSpec) JobHistory(name int64, limit int) ([]RunInfo, error) {
 	return []RunInfo{}, errors.New("not implemented")
+}
+
+// Start .
+func (j *JobSpec) Start() error {
+	return nil
+}
+
+// Stop .
+func (j *JobSpec) Stop() error {
+	return nil
+}
+
+// New .
+func New(db *gorm.DB) *JobSpec {
+	return &JobSpec{}
 }
 
 // Job .
@@ -42,9 +74,9 @@ func (j *Job) History(limit int) ([]RunInfo, error) {
 	return []RunInfo{}, errors.New("not implemented")
 }
 
-// JobSpec defines a complete implementation of a job that can run and optionally be scheduled
-type JobSpec interface {
-	// Name the package name
+// Spec defines a complete implementation of a job that can run and optionally be scheduled
+type Spec interface {
+	// Name of the job
 	Name() string
 
 	// Unique if true ensures only one package Job func is running at a time across the cluster.
@@ -83,33 +115,33 @@ type JobSpec interface {
 	Delay() time.Duration
 }
 
-// JobSpecRunCreator .
-type JobSpecRunCreator interface {
+// CreatorRunable .
+type CreatorRunable interface {
 	Register() (*Job, error)
-	Name(name string) JobSpecRunCreator
-	Schedule(schedule ScheduleFunc) JobSpecScheduleCreator
-	Unique(isUnique bool) JobSpecRunCreator
-	Delay(delay time.Duration) JobSpecRunCreator
-	Timeout(timeout time.Duration) JobSpecRunCreator
-	TimeoutLimit(limit int) JobSpecRunCreator
-	ErrorLimit(limit int) JobSpecRunCreator
+	Name(name string) CreatorRunable
+	Schedule(schedule ScheduleFunc) CreatorScheduleable
+	Unique(isUnique bool) CreatorRunable
+	Delay(delay time.Duration) CreatorRunable
+	Timeout(timeout time.Duration) CreatorRunable
+	TimeoutLimit(limit int) CreatorRunable
+	ErrorLimit(limit int) CreatorRunable
 }
 
-// JobSpecScheduleCreator .
-type JobSpecScheduleCreator interface {
+// CreatorScheduleable .
+type CreatorScheduleable interface {
 	Register() (*Job, error)
-	Name(name string) JobSpecScheduleCreator
-	Schedule(schedule ScheduleFunc) JobSpecScheduleCreator
-	Unique(isUnique bool) JobSpecScheduleCreator
-	Delay(delay time.Duration) JobSpecScheduleCreator
-	Timeout(timeout time.Duration) JobSpecScheduleCreator
-	TimeoutLimit(limit int) JobSpecScheduleCreator
-	ErrorLimit(limit int) JobSpecScheduleCreator
-	Limit(limit int) JobSpecScheduleCreator
+	Name(name string) CreatorScheduleable
+	Schedule(schedule ScheduleFunc) CreatorScheduleable
+	Unique(isUnique bool) CreatorScheduleable
+	Delay(delay time.Duration) CreatorScheduleable
+	Timeout(timeout time.Duration) CreatorScheduleable
+	TimeoutLimit(limit int) CreatorScheduleable
+	ErrorLimit(limit int) CreatorScheduleable
+	Limit(limit int) CreatorScheduleable
 }
 
-// jobSpecCreator .
-type jobSpecCreator struct{}
+// creator .
+type creator struct{}
 
 // RunInfo .
 type RunInfo struct{}
