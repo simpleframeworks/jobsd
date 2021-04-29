@@ -1,27 +1,23 @@
 package jobspec
 
 import (
-	"time"
-
 	"github.com/pkg/errors"
+	"github.com/simpleframeworks/jobspec/internal"
 )
 
 // Job .
 type Job struct {
-	model JobModel
+	model internal.Job
 	spec  Spec
-}
-
-// JobModel .
-type JobModel struct {
-	ID        int64 `gorm:"primaryKey"`
-	Name      string
-	CreatedAt time.Time
-	CreatedBy int64
 }
 
 // Run .
 func (j *Job) Run() (*RunState, error) {
+	return &RunState{}, errors.New("not implemented")
+}
+
+// Schedule .
+func (j *Job) Schedule() (*RunState, error) {
 	return &RunState{}, errors.New("not implemented")
 }
 
