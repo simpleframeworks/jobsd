@@ -1,13 +1,23 @@
 package jobspec
 
-import "github.com/pkg/errors"
+import (
+	"time"
+
+	"github.com/pkg/errors"
+)
 
 // Job .
-type Job struct{}
+type Job struct {
+	model JobModel
+	spec  Spec
+}
 
-// ID .
-func (j *Job) ID() int64 {
-	return 0
+// JobModel .
+type JobModel struct {
+	ID        int64 `gorm:"primaryKey"`
+	Name      string
+	CreatedAt time.Time
+	CreatedBy int64
 }
 
 // Run .
