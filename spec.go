@@ -44,7 +44,7 @@ func (c *SpecMaker) Job(jobFunc JobFunc) *SpecMaker {
 	return c
 }
 
-// Schedule set the scheduler that given a time returns the next time the job should run
+// Schedule sets the scheduler that given a time returns the next time the job should run
 func (c *SpecMaker) Schedule(schedule ScheduleFunc) *SpecMaker {
 	c.spec.schedule = true
 	c.spec.scheduleFunc = schedule

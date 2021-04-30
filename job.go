@@ -3,16 +3,14 @@ package jobspec
 import (
 	"github.com/pkg/errors"
 	"github.com/simpleframeworks/jobspec/models"
-	"gorm.io/gorm"
 )
 
 // Job .
 type Job struct {
-	db   *gorm.DB
 	job  *models.Job
 	spec spec
 
-	makeRun func(s spec, args ...interface{}) (RunState, error)
+	makeRun func(s spec, args []interface{}) (RunState, error)
 }
 
 // Name .
@@ -22,12 +20,19 @@ func (j *Job) Name() string {
 
 // Run .
 func (j *Job) Run(args ...interface{}) (*RunState, error) {
-	return &RunState{}, errors.New("not implemented")
+	spec := j.spec
+	spec.schedule = false
+	runState, err := j.makeRun(spec, args)
+	return &runState, err
 }
 
 // Schedule .
-func (j *Job) Schedule() (*RunState, error) {
-	return &RunState{}, errors.New("not implemented")
+func (j *Job) Schedule(args ...interface{}) (*RunState, error) {
+	if j.spec.schedule {
+		runState, err := j.makeRun(j.spec, args)
+		return &runState, err
+	}
+	return nil, errors.New("no schedule associated with this job")
 }
 
 // History .

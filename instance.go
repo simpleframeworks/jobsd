@@ -1,12 +1,15 @@
 package jobspec
 
 import (
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/simpleframeworks/jobspec/models"
 	"github.com/simpleframeworks/logc"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // Instance .
@@ -14,6 +17,7 @@ type Instance struct {
 	db           *gorm.DB
 	logger       logc.Logger
 	jobs         map[string]Job
+	jobsMu       sync.Mutex
 	migrate      bool
 	workers      int
 	pullInterval time.Duration
@@ -39,16 +43,47 @@ func (i *Instance) NewJob(name string, jobFunc interface{}) *SpecMaker {
 	}
 }
 
-func (i *Instance) makeJob(s spec) (Job, error) {
-	return Job{}, errors.New("not implemented")
+func (i *Instance) makeJob(s spec) (job Job, err error) {
+
+	i.jobsMu.Lock()
+	defer i.jobsMu.Unlock()
+
+	_, exists := i.jobs[s.name]
+	if exists {
+		return job, errors.New("job already exists")
+	}
+
+	job.job = &models.Job{
+		Name: s.name,
+	}
+	tx := i.db.Clauses(clause.OnConflict{DoNothing: true}).Create(job.job)
+	if tx.Error != nil {
+		return job, tx.Error
+	}
+	if job.job.ID == 0 {
+		tx = i.db.Where("name = ?", s.name).First(job.job)
+		if tx.Error != nil {
+			return job, tx.Error
+		}
+	}
+
+	job.spec = s
+	job.makeRun = i.makeRun
+
+	i.jobs[s.name] = job
+
+	return job, nil
 }
 
-func (i *Instance) makeRun(s spec) (RunState, error) {
+func (i *Instance) makeRun(s spec, args []interface{}) (RunState, error) {
 	return RunState{}, errors.New("not implemented")
 }
 
 // GetJob gets a job to run
 func (i *Instance) GetJob(name string) (Job, error) {
+	i.jobsMu.Lock()
+	defer i.jobsMu.Unlock()
+
 	job, exists := i.jobs[name]
 	if exists {
 		return job, nil

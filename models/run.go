@@ -20,7 +20,7 @@ type Run struct {
 	JobName           string
 	UniqueRun         sql.NullString `gorm:"unique"`
 	UniqueSchedule    sql.NullString `gorm:"unique"`
-	RunType           string
+	Scheduled         bool
 	Args              RunArgs
 	RunAt             time.Time
 	RunBy             sql.NullInt64
