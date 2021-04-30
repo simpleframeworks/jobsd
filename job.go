@@ -2,17 +2,26 @@ package jobspec
 
 import (
 	"github.com/pkg/errors"
-	"github.com/simpleframeworks/jobspec/internal"
+	"github.com/simpleframeworks/jobspec/models"
+	"gorm.io/gorm"
 )
 
 // Job .
 type Job struct {
-	model internal.Job
-	spec  Spec
+	db   *gorm.DB
+	job  *models.Job
+	spec spec
+
+	makeRun func(s spec, args ...interface{}) (RunState, error)
+}
+
+// Name .
+func (j *Job) Name() string {
+	return j.job.Name
 }
 
 // Run .
-func (j *Job) Run() (*RunState, error) {
+func (j *Job) Run(args ...interface{}) (*RunState, error) {
 	return &RunState{}, errors.New("not implemented")
 }
 

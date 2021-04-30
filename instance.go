@@ -11,100 +11,129 @@ import (
 
 // Instance .
 type Instance struct {
-	db                      *gorm.DB
-	stop                    chan struct{}
-	logger                  logc.Logger
-	jobs                    map[string]*Job
-	migrate                 bool
-	workers                 int
-	pullInterval            time.Duration
-	pullNum                 int
+	db           *gorm.DB
+	logger       logc.Logger
+	jobs         map[string]Job
+	migrate      bool
+	workers      int
+	pullInterval time.Duration
+	pullNum      int
+
 	defaultTimeout          time.Duration
 	defaultRetriesOnTimeout int
 	defaultRetriesOnError   int
+
+	stopped bool
+	stop    chan struct{}
 }
 
 // NewJob creates a configurable job that needs to be registered
-func (j *Instance) NewJob(name string, jobFunc interface{}) *Creator {
-	return nil
+func (i *Instance) NewJob(name string, jobFunc interface{}) *SpecMaker {
+	return &SpecMaker{
+		spec: spec{
+			timeout:          i.defaultTimeout,
+			retriesOnTimeout: i.defaultRetriesOnTimeout,
+			retriesOnError:   i.defaultRetriesOnError,
+		},
+		makeJob: i.makeJob,
+	}
+}
+
+func (i *Instance) makeJob(s spec) (Job, error) {
+	return Job{}, errors.New("not implemented")
+}
+
+func (i *Instance) makeRun(s spec) (RunState, error) {
+	return RunState{}, errors.New("not implemented")
 }
 
 // GetJob gets a job to run
-func (j *Instance) GetJob(name string) *Job {
-	return nil
+func (i *Instance) GetJob(name string) (Job, error) {
+	job, exists := i.jobs[name]
+	if exists {
+		return job, nil
+	}
+	return job, errors.New("job has not be registered")
 }
 
 // GetDB returns the db
-func (j *Instance) GetDB() *gorm.DB {
-	return j.db
+func (i *Instance) GetDB() *gorm.DB {
+	return i.db
 }
 
 // SetLogger sets the logger
-func (j *Instance) SetLogger(l logc.Logger) *Instance {
-	j.logger = l.WithFields(logrus.Fields{
+func (i *Instance) SetLogger(l logc.Logger) *Instance {
+	i.logger = l.WithFields(logrus.Fields{
 		"Service": "Instance",
 	})
-	return j
+	return i
 }
 
 // SetWorkers sets the number of workers to process jobs
-func (j *Instance) SetWorkers(workers int) *Instance {
-	j.workers = workers
-	return j
+// Must be called before start to have an effect
+func (i *Instance) SetWorkers(workers int) *Instance {
+	i.workers = workers
+	return i
 }
 
 // SetMigration turns on or off auto-migration
-func (j *Instance) SetMigration(m bool) *Instance {
-	j.migrate = m
-	return j
+// Must be called before start to have an effect
+func (i *Instance) SetMigration(m bool) *Instance {
+	i.migrate = m
+	return i
 }
 
 // PullInterval sets the time between getting new Runs from the DB and cluster
-func (j *Instance) PullInterval(pullInt time.Duration) *Instance {
-	j.pullInterval = pullInt
-	return j
+// Must be called before start to have an effect
+func (i *Instance) PullInterval(pullInt time.Duration) *Instance {
+	i.pullInterval = pullInt
+	return i
 }
 
 // PullNum sets the number of upcoming job runs to retrieve from the DB at a time
-func (j *Instance) PullNum(num int) *Instance {
-	j.pullNum = num
-	return j
+// Must be called before start to have an effect
+func (i *Instance) PullNum(num int) *Instance {
+	i.pullNum = num
+	return i
 }
 
 // DefaultTimeout sets the DefaultTimeout
 // Setting it to 0 disables timeout
-func (j *Instance) DefaultTimeout(timeout time.Duration) *Instance {
-	j.defaultTimeout = timeout
-	return j
+// Must be called before start to have an effect
+func (i *Instance) DefaultTimeout(timeout time.Duration) *Instance {
+	i.defaultTimeout = timeout
+	return i
 }
 
 // DefaultRetriesOnTimout sets how many times a job run can timeout
 // Setting it to -1 removes the limit
-func (j *Instance) DefaultRetriesOnTimout(num int) *Instance {
-	j.defaultRetriesOnTimeout = num
-	return j
+// Must be called before start to have an effect
+func (i *Instance) DefaultRetriesOnTimout(num int) *Instance {
+	i.defaultRetriesOnTimeout = num
+	return i
 }
 
 // DefaultRetriesOnError sets the DefaultRetriesOnError
 // Setting it to -1 removes the limit
-func (j *Instance) DefaultRetriesOnError(num int) *Instance {
-	j.defaultRetriesOnError = num
-	return j
+// Must be called before start to have an effect
+func (i *Instance) DefaultRetriesOnError(num int) *Instance {
+	i.defaultRetriesOnError = num
+	return i
 }
 
 // JobHistory .
-func (j *Instance) JobHistory(name string, limit int) ([]RunState, error) {
+func (i *Instance) JobHistory(name string, limit int) ([]RunState, error) {
 	return []RunState{}, errors.New("not implemented")
 }
 
 // Start .
-func (j *Instance) Start() error {
+func (i *Instance) Start() error {
 	return errors.New("not implemented")
 }
 
 // Stop .
-func (j *Instance) Stop() error {
-	close(j.stop)
+func (i *Instance) Stop() error {
+	close(i.stop)
 	return errors.New("not implemented")
 }
 
@@ -123,7 +152,7 @@ func New(db *gorm.DB) *Instance {
 		db:                      tx,
 		stop:                    stop,
 		logger:                  logger,
-		jobs:                    map[string]*Job{},
+		jobs:                    map[string]Job{},
 		migrate:                 true,
 		workers:                 10,
 		pullInterval:            time.Second * 10,
@@ -134,5 +163,8 @@ func New(db *gorm.DB) *Instance {
 	}
 }
 
-// ScheduleFunc .
+// ScheduleFunc is used to schedule when a job will run
 type ScheduleFunc func(now time.Time) time.Time
+
+// JobFunc is used to define the work a job needs to do
+type JobFunc func(helper RunHelper) error

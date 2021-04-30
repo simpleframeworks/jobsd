@@ -2,79 +2,88 @@ package jobspec
 
 import (
 	"time"
-
-	"github.com/pkg/errors"
 )
 
-// Spec defines a complete implementation of a job that can run and optionally be scheduled
-type Spec interface {
-	// Name of the job
-	Name() string
-
-	// Unique if true ensures only one package Job func is running at a time across the cluster.
-	// The Name is used to deduplicate running Job funcs
-	Unique() bool
-
-	// Job is any work that needs to be done
-	Job(info RunState) error
-
-	// Timeout determines how long to wait till we cleanup a running Job and then send a RunState.Cancel message
-	// A timeout of 0 will disable this and let a job run indefinitely
-	Timeout() time.Duration
-
-	// RetriesOnError determines how many times to retry a Job if it returns an error
-	//  0 will disable retries
-	// -1 will retry a Job on error indefinitely
-	RetriesOnError() int
-
-	// RetriesOnTimeout determines how many times to retry a Job if it times out
-	//  0 will disable retries
-	// -1 will retry a Job on timeout indefinitely
-	RetriesOnTimeout() int
-
-	// Schedule if true schedules the Job
-	// if false the job is run immediately and only runs once
-	Schedule() bool
-
-	// Scheduler given a time return the next time the job should run
-	Scheduler(now time.Time) time.Time
-
-	// Limit sets the number of times a Job will run (ignoring errors and timeouts)
-	// 0 or -1 will ensure the Job is scheduled to run indefinitely
-	Limit() int
-
-	// Delay adds a delay before scheduling or running the job the very first time
-	Delay() time.Duration
+// spec defines a complete implementation of a job that can run and optionally be scheduled
+type spec struct {
+	name             string
+	jobFunc          JobFunc
+	unique           bool
+	timeout          time.Duration
+	retriesOnError   int
+	retriesOnTimeout int
+	schedule         bool
+	scheduleFunc     ScheduleFunc
+	limit            int
 }
 
-type specGeneric struct{}
+func (s *spec) run(helper RunHelper) error {
+	return s.jobFunc(helper)
+}
 
-// Creator .
-type Creator struct{}
+// SpecMaker .
+type SpecMaker struct {
+	spec    spec
+	makeJob func(spec) (Job, error)
+}
 
-// Register .
-func (c *Creator) Register() (*Job, error) { return nil, errors.New("not implemented") }
+// Register , registers the job against the JobsD instance. This needs to be done to return a job that can be run.
+func (c *SpecMaker) Register() (Job, error) {
+	return c.makeJob(c.spec)
+}
 
-// Name .
-func (c *Creator) Name(name string) *Creator { return c }
+// Name of the job
+func (c *SpecMaker) Name(name string) *SpecMaker {
+	c.spec.name = name
+	return c
+}
 
-// Schedule .
-func (c *Creator) Schedule(schedule ScheduleFunc) *Creator { return c }
+// Job , sets the job func. It should already be set
+func (c *SpecMaker) Job(jobFunc JobFunc) *SpecMaker {
+	c.spec.jobFunc = jobFunc
+	return c
+}
 
-// Unique .
-func (c *Creator) Unique(isUnique bool) *Creator { return c }
+// Schedule set the scheduler that given a time returns the next time the job should run
+func (c *SpecMaker) Schedule(schedule ScheduleFunc) *SpecMaker {
+	c.spec.schedule = true
+	c.spec.scheduleFunc = schedule
+	return c
+}
 
-// Delay .
-func (c *Creator) Delay(delay time.Duration) *Creator { return c }
+// Unique if true ensures only one Job func or Scheduled Job func is running at a time across the cluster.
+// The Name is used to deduplicate running Job funcs
+func (c *SpecMaker) Unique(isUnique bool) *SpecMaker {
+	c.spec.unique = isUnique
+	return c
+}
 
-// Timeout .
-func (c *Creator) Timeout(timeout time.Duration) *Creator { return c }
+// Timeout determines how long to wait till we cleanup a running Job and then send a RunHelper.Cancel message
+// A timeout of 0 will disable this and let a job run indefinitely
+func (c *SpecMaker) Timeout(timeout time.Duration) *SpecMaker {
+	c.spec.timeout = timeout
+	return c
+}
 
-// TimeoutLimit .
-func (c *Creator) TimeoutLimit(limit int) *Creator { return c }
+// TimeoutRetries determines how many times to retry a Job if it times out
+//  0 will disable retries
+// -1 will retry a Job on timeout indefinitely
+func (c *SpecMaker) TimeoutRetries(retries int) *SpecMaker {
+	c.spec.retriesOnTimeout = retries
+	return c
+}
 
-// ErrorLimit .
-func (c *Creator) ErrorLimit(limit int) *Creator { return c }
+// ErrorRetries determines how many times to retry a Job if it returns an error
+//  0 will disable retries
+// -1 will retry a Job on error indefinitely
+func (c *SpecMaker) ErrorRetries(retries int) *SpecMaker {
+	c.spec.retriesOnError = retries
+	return c
+}
 
-// Limit .
-func (c *Creator) Limit(limit int) *Creator { return c }
+// Limit sets the number of times a Job will run (ignoring errors and timeouts)
+// 0 or -1 will ensure the Job is scheduled to run indefinitely
+func (c *SpecMaker) Limit(limit int) *SpecMaker {
+	c.spec.limit = limit
+	return c
+}
