@@ -40,9 +40,11 @@ func TestJobBasic1(testT *testing.T) {
 
 	wait.Add(1)
 	t.When("we get and run the job")
-	runState, err2 := inst.GetJob(jobName).Run()
-
+	job, err2 := inst.GetJob(jobName)
 	t.Assert.NoError(err2)
+
+	runState, err3 := job.Run()
+	t.Assert.NoError(err3)
 
 	t.When("we wait for it to run")
 	t.WaitTimeout(wait, time.Second*5)
@@ -53,8 +55,8 @@ func TestJobBasic1(testT *testing.T) {
 	t.Assert.Equal(1, count)
 
 	t.When("we refresh the run state that we got when we ran the job")
-	err3 := runState.Refresh()
-	t.Assert.NoError(err3)
+	err4 := runState.Refresh()
+	t.Assert.NoError(err4)
 
 	t.Then("the RunState of the job run should have completed")
 	t.Assert.True(runState.Completed())

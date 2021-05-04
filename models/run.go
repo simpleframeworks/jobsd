@@ -16,7 +16,7 @@ import (
 type Run struct {
 	ID                int64 `gorm:"primaryKey"`
 	Job               Job
-	JobID             string
+	JobID             int64
 	JobName           string
 	UniqueRun         sql.NullString `gorm:"unique"`
 	UniqueSchedule    sql.NullString `gorm:"unique"`
