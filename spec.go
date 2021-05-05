@@ -2,11 +2,13 @@ package jobspec
 
 import (
 	"time"
+
+	"github.com/simpleframeworks/jobspec/models"
 )
 
 // spec defines a complete implementation of a job that can run and optionally be scheduled
 type spec struct {
-	name             string
+	jobName          string
 	jobFunc          JobFunc
 	unique           bool
 	timeout          time.Duration
@@ -15,6 +17,11 @@ type spec struct {
 	schedule         bool
 	scheduleFunc     ScheduleFunc
 	limit            int
+}
+
+func (s *spec) toModel(jobID int64) *models.Run {
+	// TODO
+	return nil
 }
 
 func (s *spec) run(helper RunHelper) error {
@@ -33,8 +40,8 @@ func (c *SpecMaker) Register() (Job, error) {
 }
 
 // Name of the job
-func (c *SpecMaker) Name(name string) *SpecMaker {
-	c.spec.name = name
+func (c *SpecMaker) Name(jobName string) *SpecMaker {
+	c.spec.jobName = jobName
 	return c
 }
 

@@ -27,8 +27,9 @@ type Instance struct {
 	defaultRetriesOnTimeout int
 	defaultRetriesOnError   int
 
-	stopped bool
-	stop    chan struct{}
+	runQueue *runQueue
+	stopped  bool
+	stop     chan struct{}
 }
 
 // NewJob creates a configurable job that needs to be registered
@@ -48,20 +49,20 @@ func (i *Instance) makeJob(s spec) (job Job, err error) {
 	i.jobsMu.Lock()
 	defer i.jobsMu.Unlock()
 
-	_, exists := i.jobs[s.name]
+	_, exists := i.jobs[s.jobName]
 	if exists {
 		return job, errors.New("job already exists")
 	}
 
 	job.job = &models.Job{
-		Name: s.name,
+		Name: s.jobName,
 	}
 	tx := i.db.Clauses(clause.OnConflict{DoNothing: true}).Create(job.job)
 	if tx.Error != nil {
 		return job, tx.Error
 	}
 	if job.job.ID == 0 {
-		tx = i.db.Where("name = ?", s.name).First(job.job)
+		tx = i.db.Where("name = ?", s.jobName).First(job.job)
 		if tx.Error != nil {
 			return job, tx.Error
 		}
@@ -70,12 +71,20 @@ func (i *Instance) makeJob(s spec) (job Job, err error) {
 	job.spec = s
 	job.makeRun = i.makeRun
 
-	i.jobs[s.name] = job
+	i.jobs[s.jobName] = job
 
 	return job, nil
 }
 
-func (i *Instance) makeRun(s spec, args []interface{}) (RunState, error) {
+func (i *Instance) makeRun(jobID int64, s spec, args []interface{}) (RunState, error) {
+
+	theRun := &run{
+		db:   i.db,
+		run:  s.toModel(jobID),
+		spec: &s,
+		stop: i.stop,
+	}
+	i.runQueue.push(theRun)
 	return RunState{}, errors.New("not implemented")
 }
 
@@ -176,7 +185,6 @@ func (i *Instance) Stop() error {
 func New(db *gorm.DB) *Instance {
 
 	logger := logc.NewLogrus(logrus.New())
-	stop := make(chan struct{})
 
 	tx := db.Session(&gorm.Session{
 		AllowGlobalUpdate:      true,
@@ -184,17 +192,21 @@ func New(db *gorm.DB) *Instance {
 	})
 
 	return &Instance{
-		db:                      tx,
-		stop:                    stop,
-		logger:                  logger,
-		jobs:                    map[string]Job{},
-		migrate:                 true,
-		workers:                 10,
-		pullInterval:            time.Second * 10,
-		pullNum:                 1000,
+		db:           tx,
+		logger:       logger,
+		jobs:         map[string]Job{},
+		migrate:      true,
+		workers:      10,
+		pullInterval: time.Second * 10,
+		pullNum:      1000,
+
 		defaultTimeout:          time.Minute * 30,
 		defaultRetriesOnTimeout: 3,
 		defaultRetriesOnError:   3,
+
+		runQueue: newRunQueue(),
+		stopped:  false,
+		stop:     make(chan struct{}),
 	}
 }
 

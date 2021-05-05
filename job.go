@@ -10,7 +10,7 @@ type Job struct {
 	job  *models.Job
 	spec spec
 
-	makeRun func(s spec, args []interface{}) (RunState, error)
+	makeRun func(jobID int64, s spec, args []interface{}) (RunState, error)
 }
 
 // Name .
@@ -22,14 +22,14 @@ func (j *Job) Name() string {
 func (j *Job) Run(args ...interface{}) (*RunState, error) {
 	spec := j.spec
 	spec.schedule = false
-	runState, err := j.makeRun(spec, args)
+	runState, err := j.makeRun(j.job.ID, spec, args)
 	return &runState, err
 }
 
 // Schedule .
 func (j *Job) Schedule(args ...interface{}) (*RunState, error) {
 	if j.spec.schedule {
-		runState, err := j.makeRun(j.spec, args)
+		runState, err := j.makeRun(j.job.ID, j.spec, args)
 		return &runState, err
 	}
 	return nil, errors.New("no schedule associated with this job")

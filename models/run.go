@@ -15,7 +15,6 @@ import (
 // Run .
 type Run struct {
 	ID                int64 `gorm:"primaryKey"`
-	Job               Job
 	JobID             int64
 	JobName           string
 	UniqueRun         sql.NullString `gorm:"unique"`

@@ -58,6 +58,7 @@ func (q *runQueue) push(r *run) bool {
 func (q *runQueue) pop() *run {
 	q.mx.Lock()
 	defer q.mx.Unlock()
+
 	if q.queue.Len() <= 0 {
 		return &run{}
 	}
@@ -69,6 +70,7 @@ func (q *runQueue) pop() *run {
 func (q *runQueue) peek() *run {
 	q.mx.Lock()
 	defer q.mx.Unlock()
+
 	if q.queue.Len() <= 0 {
 		return &run{}
 	}
@@ -78,6 +80,7 @@ func (q *runQueue) peek() *run {
 func (q *runQueue) len() int {
 	q.mx.Lock()
 	defer q.mx.Unlock()
+
 	return q.queue.Len()
 }
 

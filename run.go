@@ -13,11 +13,23 @@ type run struct {
 	stop chan struct{}
 }
 
-func (r *run) exec()       {}
-func (r *run) finish()     {}
-func (r *run) reschedule() {}
-func (r *run) timeout()    {}
-func (r *run) errorout()   {}
+func (r *run) lock() bool {
+	return false
+}
+
+func (r *run) exec() {
+	helper := RunHelper{}
+	if err := r.spec.run(helper); err != nil {
+		r.errorOut(err)
+	} else {
+		r.finish()
+	}
+
+}
+func (r *run) finish()            {}
+func (r *run) reschedule()        {}
+func (r *run) timeOut()           {}
+func (r *run) errorOut(err error) {}
 
 // RunHelper .
 type RunHelper struct {
