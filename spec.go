@@ -24,13 +24,13 @@ func (s *spec) run(helper RunHelper) error {
 
 // SpecMaker .
 type SpecMaker struct {
-	spec    spec
-	makeJob func(spec) (Job, error)
+	spec        spec
+	registerJob func(spec) (Job, error)
 }
 
 // Register , registers the job against the JobsD instance. This needs to be done to return a job that can be run.
 func (c *SpecMaker) Register() (Job, error) {
-	return c.makeJob(c.spec)
+	return c.registerJob(c.spec)
 }
 
 // Name of the job

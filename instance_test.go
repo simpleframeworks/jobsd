@@ -15,7 +15,7 @@ func TestJobBasic1(testT *testing.T) {
 	jobName := testFuncName()
 
 	t.Given("a JobsD instance")
-	inst := testSetup(logrus.ErrorLevel)
+	inst := testSetup(logrus.DebugLevel)
 	err1 := inst.Start()
 	t.Require.NoError(err1)
 

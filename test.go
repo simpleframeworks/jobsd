@@ -148,5 +148,6 @@ func testFuncName() string {
 	pc := make([]uintptr, 1)
 	runtime.Callers(2, pc)
 	f := runtime.FuncForPC(pc[0])
-	return f.Name()
+	sl := strings.Split(f.Name(), "/")
+	return sl[len(sl)-1]
 }

@@ -34,18 +34,23 @@ type Instance struct {
 func (i *Instance) NewJob(name string, jobFunc interface{}) *SpecMaker {
 	return &SpecMaker{
 		spec: spec{
+			jobName:          name,
 			timeout:          i.defaultTimeout,
 			retriesOnTimeout: i.defaultRetriesOnTimeout,
 			retriesOnError:   i.defaultRetriesOnError,
 		},
-		makeJob: i.makeJob,
+		registerJob: i.registerJob,
 	}
 }
 
-func (i *Instance) makeJob(s spec) (job Job, err error) {
-
+func (i *Instance) registerJob(s spec) (job Job, err error) {
 	i.jobsMu.Lock()
 	defer i.jobsMu.Unlock()
+
+	log := i.logger.WithFields(map[string]interface{}{
+		"job.name": s.jobName,
+	})
+	log.Debug("registering job - start")
 
 	_, exists := i.jobs[s.jobName]
 	if exists {
@@ -73,6 +78,7 @@ func (i *Instance) makeJob(s spec) (job Job, err error) {
 
 	i.jobs[s.jobName] = job
 
+	log.Debug("registering job - end")
 	return job, nil
 }
 
@@ -158,7 +164,7 @@ func (i *Instance) GetDB() *gorm.DB {
 // SetLogger sets the logger
 func (i *Instance) SetLogger(l logc.Logger) *Instance {
 	i.logger = l.WithFields(logrus.Fields{
-		"Service": "Instance",
+		"service": "JobsD",
 	})
 	return i
 }
@@ -226,7 +232,7 @@ func (i *Instance) Start() error {
 		return errors.New("instance already started")
 	}
 
-	i.logger.Debug("bringing up the instance - started")
+	i.logger.Debug("starting up instance - start")
 	if i.model.Migrate {
 		txErr := i.db.AutoMigrate(&models.Instance{}, &models.Job{}, &models.Run{})
 		if txErr != nil {
@@ -244,6 +250,7 @@ func (i *Instance) Start() error {
 
 	i.stopped = false
 
+	i.logger.Debug("starting up instance - end")
 	return nil
 }
 
