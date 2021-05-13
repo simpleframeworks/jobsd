@@ -17,7 +17,7 @@ func TestRunQueue(test *testing.T) {
 	t.Given("the queue has job runs")
 	for i := 9; i >= 0; i-- {
 		chr := &run{
-			run: &models.Run{
+			model: &models.Run{
 				ID:    int64(i),
 				RunAt: time.Now(),
 			},
@@ -30,8 +30,8 @@ func TestRunQueue(test *testing.T) {
 	for i := 0; i < 10; i++ {
 		topItem := q.peek()
 		j := q.pop()
-		t.Assert.Equal(topItem.run.ID, j.run.ID)
-		runOrder = append(runOrder, j.run.ID)
+		t.Assert.Equal(topItem.model.ID, j.model.ID)
+		runOrder = append(runOrder, j.model.ID)
 	}
 
 	t.Then("the order of job runs should be sorted in chronological order")
@@ -49,7 +49,7 @@ func TestRunQueueUnique(test *testing.T) {
 	t.Given("the queue has unique job runs")
 	for i := 0; i < 10; i++ {
 		chr := &run{
-			run: &models.Run{
+			model: &models.Run{
 				ID:    int64(i),
 				RunAt: time.Now(),
 			},
@@ -60,7 +60,7 @@ func TestRunQueueUnique(test *testing.T) {
 	t.When("we add the same unique job runs to the queue")
 	for i := 0; i < 10; i++ {
 		chr := &run{
-			run: &models.Run{
+			model: &models.Run{
 				ID:    int64(i),
 				RunAt: now.Add(time.Second * time.Duration(i)),
 			},
@@ -72,7 +72,7 @@ func TestRunQueueUnique(test *testing.T) {
 	items := []int64{}
 	for q.len() > 0 {
 		j := q.pop()
-		items = append(items, j.run.ID)
+		items = append(items, j.model.ID)
 	}
 
 	t.Assert.ElementsMatch([]int64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, items)

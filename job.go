@@ -26,10 +26,31 @@ func (j *Job) Run(args ...interface{}) (*RunState, error) {
 	return &runState, err
 }
 
+// RunDistinct .
+func (j *Job) RunDistinct(args ...interface{}) (*RunState, error) {
+	spec := j.spec
+	spec.schedule = false
+	spec.unique = true
+	runState, err := j.makeRun(j.job.ID, spec, args)
+	return &runState, err
+}
+
 // Schedule .
 func (j *Job) Schedule(args ...interface{}) (*RunState, error) {
 	if j.spec.schedule {
-		runState, err := j.makeRun(j.job.ID, j.spec, args)
+		spec := j.spec
+		runState, err := j.makeRun(j.job.ID, spec, args)
+		return &runState, err
+	}
+	return nil, errors.New("no schedule associated with this job")
+}
+
+// ScheduleDistinct .
+func (j *Job) ScheduleDistinct(args ...interface{}) (*RunState, error) {
+	if j.spec.schedule {
+		spec := j.spec
+		spec.unique = true
+		runState, err := j.makeRun(j.job.ID, spec, args)
 		return &runState, err
 	}
 	return nil, errors.New("no schedule associated with this job")

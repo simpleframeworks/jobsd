@@ -15,20 +15,16 @@ import (
 
 // Instance .
 type Instance struct {
-	db           *gorm.DB
-	logger       logc.Logger
-	jobs         map[string]Job
-	jobsMu       sync.Mutex
-	migrate      bool
-	workers      int
-	pullInterval time.Duration
-	pullNum      int
+	db     *gorm.DB
+	logger logc.Logger
+	jobs   map[string]Job
+	jobsMu sync.Mutex
 
 	defaultTimeout          time.Duration
 	defaultRetriesOnTimeout int
 	defaultRetriesOnError   int
 
-	instance *models.Instance
+	model    *models.Instance
 	runQueue *runQueue
 	stopped  bool
 	stop     chan struct{}
@@ -101,13 +97,14 @@ func (i *Instance) specToRun(s spec, args []interface{}) *models.Run {
 	rtn := &models.Run{
 		JobID:          s.jobID,
 		JobName:        s.jobName,
+		Unique:         s.unique,
 		UniqueRun:      uniqueRun,
 		UniqueSchedule: uniqueSchedule,
 		Scheduled:      s.schedule,
 		Args:           args,
 		RunAt:          runAt,
 		CreatedAt:      now,
-		CreatedBy:      i.instance.ID,
+		CreatedBy:      i.model.ID,
 	}
 
 	return rtn
@@ -115,17 +112,22 @@ func (i *Instance) specToRun(s spec, args []interface{}) *models.Run {
 
 func (i *Instance) makeRun(jobID int64, s spec, args []interface{}) (rtn RunState, err error) {
 
-	theModel := i.specToRun(s, args)
-	tx := i.db.Save(theModel)
+	model := i.specToRun(s, args)
+	tx := i.db.Save(model)
 	if tx.Error != nil {
 		return rtn, tx.Error
 	}
-
+	logger := i.logger.WithFields(map[string]interface{}{
+		"run.id":       model.ID,
+		"run.job_id":   model.JobID,
+		"run.job_name": model.JobName,
+	})
 	theRun := &run{
-		db:   i.db,
-		run:  theModel,
-		spec: &s,
-		stop: i.stop,
+		db:     i.db,
+		logger: logger,
+		model:  model,
+		spec:   &s,
+		stop:   i.stop,
 	}
 	if i.runQueue.push(theRun) {
 		rtn = theRun.runState()
@@ -164,28 +166,28 @@ func (i *Instance) SetLogger(l logc.Logger) *Instance {
 // SetWorkers sets the number of workers to process jobs
 // Must be called before start to have an effect
 func (i *Instance) SetWorkers(workers int) *Instance {
-	i.workers = workers
+	i.model.Workers = workers
 	return i
 }
 
 // SetMigration turns on or off auto-migration
 // Must be called before start to have an effect
 func (i *Instance) SetMigration(m bool) *Instance {
-	i.migrate = m
+	i.model.Migrate = m
 	return i
 }
 
 // PullInterval sets the time between getting new Runs from the DB and cluster
 // Must be called before start to have an effect
 func (i *Instance) PullInterval(pullInt time.Duration) *Instance {
-	i.pullInterval = pullInt
+	i.model.PullInterval = pullInt
 	return i
 }
 
-// PullNum sets the number of upcoming job runs to retrieve from the DB at a time
+// PullLimit sets the number of upcoming job runs to retrieve from the DB at a time
 // Must be called before start to have an effect
-func (i *Instance) PullNum(num int) *Instance {
-	i.pullNum = num
+func (i *Instance) PullLimit(num int) *Instance {
+	i.model.PullLimit = num
 	return i
 }
 
@@ -220,7 +222,29 @@ func (i *Instance) JobHistory(name string, limit int) ([]RunState, error) {
 
 // Start .
 func (i *Instance) Start() error {
-	return errors.New("not implemented")
+	if !i.stopped {
+		return errors.New("instance already started")
+	}
+
+	i.logger.Debug("bringing up the instance - started")
+	if i.model.Migrate {
+		txErr := i.db.AutoMigrate(&models.Instance{}, &models.Job{}, &models.Run{})
+		if txErr != nil {
+			return txErr
+		}
+	}
+
+	now := time.Now()
+	i.model.LastSeenAt = now
+	i.model.StartedAt = now
+
+	if err := i.db.Save(i.model).Error; err != nil {
+		return err
+	}
+
+	i.stopped = false
+
+	return nil
 }
 
 // Stop .
@@ -239,21 +263,25 @@ func New(db *gorm.DB) *Instance {
 		SkipDefaultTransaction: true,
 	})
 
+	model := &models.Instance{
+		Workers:      10,
+		Migrate:      true,
+		PullInterval: time.Second * 10,
+		PullLimit:    1000,
+	}
+
 	return &Instance{
-		db:           tx,
-		logger:       logger,
-		jobs:         map[string]Job{},
-		migrate:      true,
-		workers:      10,
-		pullInterval: time.Second * 10,
-		pullNum:      1000,
+		db:     tx,
+		logger: logger,
+		jobs:   map[string]Job{},
 
 		defaultTimeout:          time.Minute * 30,
 		defaultRetriesOnTimeout: 3,
 		defaultRetriesOnError:   3,
 
+		model:    model,
 		runQueue: newRunQueue(),
-		stopped:  false,
+		stopped:  true,
 		stop:     make(chan struct{}),
 	}
 }

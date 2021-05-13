@@ -52,13 +52,6 @@ func (c *SpecMaker) Schedule(schedule ScheduleFunc) *SpecMaker {
 	return c
 }
 
-// Unique if true ensures only one Job func or Scheduled Job func is running at a time across the cluster.
-// The Name is used to deduplicate running Job funcs
-func (c *SpecMaker) Unique(isUnique bool) *SpecMaker {
-	c.spec.unique = isUnique
-	return c
-}
-
 // Timeout determines how long to wait till we cleanup a running Job and then send a RunHelper.Cancel message
 // A timeout of 0 will disable this and let a job run indefinitely
 func (c *SpecMaker) Timeout(timeout time.Duration) *SpecMaker {

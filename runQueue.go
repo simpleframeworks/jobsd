@@ -10,7 +10,7 @@ type runQueueInternal []*run
 func (pq *runQueueInternal) Len() int { return len(*pq) }
 
 func (pq *runQueueInternal) Less(i, j int) bool {
-	return (*pq)[i].run.RunAt.Before((*pq)[j].run.RunAt)
+	return (*pq)[i].model.RunAt.Before((*pq)[j].model.RunAt)
 }
 
 func (pq *runQueueInternal) Swap(i, j int) {
@@ -47,10 +47,10 @@ func (q *runQueue) push(r *run) bool {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
-	if _, ok := q.dup[r.run.ID]; ok {
+	if _, ok := q.dup[r.model.ID]; ok {
 		return false // this de-duplicates
 	}
-	q.dup[r.run.ID] = struct{}{}
+	q.dup[r.model.ID] = struct{}{}
 	heap.Push(q.queue, r)
 	return true
 }
@@ -63,7 +63,7 @@ func (q *runQueue) pop() *run {
 		return &run{}
 	}
 	rtn := heap.Pop(q.queue).(*run)
-	delete(q.dup, rtn.run.ID)
+	delete(q.dup, rtn.model.ID)
 	return rtn
 }
 

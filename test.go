@@ -25,7 +25,7 @@ func testSetup(logLvl logrus.Level) *Instance {
 		return New(db).SetLogger(logger)
 	}
 
-	// DB migrations / setup are disabled for MySQL and PostgreSQL as structure should be
+	// DB migrations / setup are disabled for MySQL and PostgreSQL as structure should be there
 	return New(db).SetMigration(false).SetLogger(logger)
 }
 

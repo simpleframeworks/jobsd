@@ -17,6 +17,7 @@ type Run struct {
 	ID                int64 `gorm:"primaryKey"`
 	JobID             int64
 	JobName           string
+	Unique            bool
 	UniqueRun         sql.NullString `gorm:"unique"`
 	UniqueSchedule    sql.NullString `gorm:"unique"`
 	Scheduled         bool
@@ -25,10 +26,12 @@ type Run struct {
 	RunBy             sql.NullInt64
 	RunStartedAt      sql.NullTime `gorm:"index"`
 	RunCompletedAt    sql.NullTime `gorm:"index"`
-	RunCompletedError sql.NullString
-	RunTimeout        sql.NullInt64
+	RunCompletedError string
+	RunTimeout        time.Duration
 	RunTimeoutAt      sql.NullTime `gorm:"index"`
-	CreatedAt         time.Time    `gorm:"index"`
+	CountRetry        int
+	CountReschedule   int
+	CreatedAt         time.Time
 	CreatedBy         int64
 }
 
