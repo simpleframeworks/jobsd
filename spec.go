@@ -2,12 +2,11 @@ package jobspec
 
 import (
 	"time"
-
-	"github.com/simpleframeworks/jobspec/models"
 )
 
 // spec defines a complete implementation of a job that can run and optionally be scheduled
 type spec struct {
+	jobID            int64
 	jobName          string
 	jobFunc          JobFunc
 	unique           bool
@@ -17,11 +16,6 @@ type spec struct {
 	schedule         bool
 	scheduleFunc     ScheduleFunc
 	limit            int
-}
-
-func (s *spec) toModel(jobID int64) *models.Run {
-	// TODO
-	return nil
 }
 
 func (s *spec) run(helper RunHelper) error {

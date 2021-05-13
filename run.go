@@ -31,6 +31,10 @@ func (r *run) reschedule()        {}
 func (r *run) timeOut()           {}
 func (r *run) errorOut(err error) {}
 
+func (r *run) runState() RunState {
+	return RunState{}
+}
+
 // RunHelper .
 type RunHelper struct {
 	args   models.RunArgs
@@ -44,7 +48,8 @@ func (r *RunHelper) Args() models.RunArgs { return r.args }
 func (r *RunHelper) Cancel() chan struct{} { return r.cancel }
 
 // RunState .
-type RunState struct{}
+type RunState struct {
+}
 
 // Refresh the run state
 func (j *RunState) Refresh() error {

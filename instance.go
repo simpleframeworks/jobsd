@@ -1,6 +1,7 @@
 package jobspec
 
 import (
+	"database/sql"
 	"sync"
 	"time"
 
@@ -27,6 +28,7 @@ type Instance struct {
 	defaultRetriesOnTimeout int
 	defaultRetriesOnError   int
 
+	instance *models.Instance
 	runQueue *runQueue
 	stopped  bool
 	stop     chan struct{}
@@ -68,6 +70,8 @@ func (i *Instance) makeJob(s spec) (job Job, err error) {
 		}
 	}
 
+	s.jobID = job.job.ID
+
 	job.spec = s
 	job.makeRun = i.makeRun
 
@@ -76,16 +80,60 @@ func (i *Instance) makeJob(s spec) (job Job, err error) {
 	return job, nil
 }
 
-func (i *Instance) makeRun(jobID int64, s spec, args []interface{}) (RunState, error) {
+func (i *Instance) specToRun(s spec, args []interface{}) *models.Run {
+	uniqueRun := sql.NullString{}
+	uniqueSchedule := sql.NullString{}
+	if s.unique {
+		if s.schedule {
+			uniqueSchedule.Valid = true
+			uniqueSchedule.String = s.jobName
+		} else {
+			uniqueRun.Valid = true
+			uniqueRun.String = s.jobName
+		}
+	}
+	now := time.Now()
+	runAt := now
+	if s.schedule {
+		runAt = s.scheduleFunc(runAt)
+	}
+
+	rtn := &models.Run{
+		JobID:          s.jobID,
+		JobName:        s.jobName,
+		UniqueRun:      uniqueRun,
+		UniqueSchedule: uniqueSchedule,
+		Scheduled:      s.schedule,
+		Args:           args,
+		RunAt:          runAt,
+		CreatedAt:      now,
+		CreatedBy:      i.instance.ID,
+	}
+
+	return rtn
+}
+
+func (i *Instance) makeRun(jobID int64, s spec, args []interface{}) (rtn RunState, err error) {
+
+	theModel := i.specToRun(s, args)
+	tx := i.db.Save(theModel)
+	if tx.Error != nil {
+		return rtn, tx.Error
+	}
 
 	theRun := &run{
 		db:   i.db,
-		run:  s.toModel(jobID),
+		run:  theModel,
 		spec: &s,
 		stop: i.stop,
 	}
-	i.runQueue.push(theRun)
-	return RunState{}, errors.New("not implemented")
+	if i.runQueue.push(theRun) {
+		rtn = theRun.runState()
+	} else {
+		err = errors.New("job run already queued")
+	}
+
+	return rtn, err
 }
 
 // GetJob gets a job to run
