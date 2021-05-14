@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/simpleframeworks/jobspec/models"
 	"github.com/simpleframeworks/logc"
 	"gorm.io/gorm"
@@ -113,6 +112,7 @@ func (r *RunHelper) Cancel() chan struct{} { return r.cancel }
 // RunState .
 type RunState struct {
 	db                *gorm.DB
+	model             *models.Run
 	ID                int64
 	JobID             int64
 	JobName           string
@@ -135,8 +135,31 @@ type RunState struct {
 
 // Refresh the run state
 func (r *RunState) Refresh() error {
-	// TODO
-	return errors.New("not implemented")
+	tx := r.db.First(&r.model)
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	r.ID = r.model.ID
+	r.JobID = r.model.JobID
+	r.JobName = r.model.JobName
+	r.UniqueRun = models.NullToNilString(r.model.UniqueRun)
+	r.UniqueSchedule = models.NullToNilString(r.model.UniqueSchedule)
+	r.Scheduled = r.model.Scheduled
+	r.Args = r.model.Args
+	r.RunAt = r.model.RunAt
+	r.RunBy = models.NullToNilInt64(r.model.RunBy)
+	r.RunStartedAt = models.NullToNilTime(r.model.RunStartedAt)
+	r.RunCompletedAt = models.NullToNilTime(r.model.RunCompletedAt)
+	r.RunCompletedError = r.model.RunCompletedError
+	r.RunTimeout = r.model.RunTimeout
+	r.RunTimeoutAt = models.NullToNilTime(r.model.RunTimeoutAt)
+	r.CountRetry = r.model.CountRetry
+	r.CountReschedule = r.model.CountReschedule
+	r.CreatedAt = r.model.CreatedAt
+	r.CreatedBy = r.model.CreatedBy
+
+	return nil
 }
 
 // Started returns true if the job run has started
@@ -149,26 +172,27 @@ func (r *RunState) Completed() bool {
 	return r.RunCompletedAt != nil
 }
 
-func modelRunToRunState(run models.Run, db *gorm.DB) RunState {
+func modelRunToRunState(model models.Run, db *gorm.DB) RunState {
 	return RunState{
 		db:                db,
-		ID:                run.ID,
-		JobID:             run.JobID,
-		JobName:           run.JobName,
-		UniqueRun:         models.NullToNilString(run.UniqueRun),
-		UniqueSchedule:    models.NullToNilString(run.UniqueSchedule),
-		Scheduled:         run.Scheduled,
-		Args:              run.Args,
-		RunAt:             run.RunAt,
-		RunBy:             models.NullToNilInt64(run.RunBy),
-		RunStartedAt:      models.NullToNilTime(run.RunStartedAt),
-		RunCompletedAt:    models.NullToNilTime(run.RunCompletedAt),
-		RunCompletedError: run.RunCompletedError,
-		RunTimeout:        run.RunTimeout,
-		RunTimeoutAt:      models.NullToNilTime(run.RunTimeoutAt),
-		CountRetry:        run.CountRetry,
-		CountReschedule:   run.CountReschedule,
-		CreatedAt:         run.CreatedAt,
-		CreatedBy:         run.CreatedBy,
+		model:             &model,
+		ID:                model.ID,
+		JobID:             model.JobID,
+		JobName:           model.JobName,
+		UniqueRun:         models.NullToNilString(model.UniqueRun),
+		UniqueSchedule:    models.NullToNilString(model.UniqueSchedule),
+		Scheduled:         model.Scheduled,
+		Args:              model.Args,
+		RunAt:             model.RunAt,
+		RunBy:             models.NullToNilInt64(model.RunBy),
+		RunStartedAt:      models.NullToNilTime(model.RunStartedAt),
+		RunCompletedAt:    models.NullToNilTime(model.RunCompletedAt),
+		RunCompletedError: model.RunCompletedError,
+		RunTimeout:        model.RunTimeout,
+		RunTimeoutAt:      models.NullToNilTime(model.RunTimeoutAt),
+		CountRetry:        model.CountRetry,
+		CountReschedule:   model.CountReschedule,
+		CreatedAt:         model.CreatedAt,
+		CreatedBy:         model.CreatedBy,
 	}
 }

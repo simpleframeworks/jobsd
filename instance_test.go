@@ -39,15 +39,13 @@ func TestJobBasic1(testT *testing.T) {
 	job, err2 := inst.GetJob(jobName)
 	t.Assert.NoError(err2)
 
-	spew.Dump(job.spec)
-
 	runState, err3 := job.Run()
 	t.Assert.NoError(err3)
 
 	t.When("we wait for the run to complete")
 	for i := 0; i < 5; i++ {
 		time.Sleep(time.Second)
-		runState.Refresh()
+		t.Require.NoError(runState.Refresh())
 		if runState.Completed() {
 			break
 		}
