@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/simpleframeworks/testc"
 	"github.com/sirupsen/logrus"
 )
@@ -15,7 +16,7 @@ func TestJobBasic1(testT *testing.T) {
 	jobName := testFuncName()
 
 	t.Given("a JobsD instance")
-	inst := testSetup(logrus.DebugLevel)
+	inst := testSetup(logrus.TraceLevel)
 	err1 := inst.Start()
 	t.Require.NoError(err1)
 
@@ -23,8 +24,9 @@ func TestJobBasic1(testT *testing.T) {
 
 	t.Given("a job func that increments a counter")
 	var counter uint32
-	jobFunc := func() error {
+	jobFunc := func(helper RunHelper) error {
 		atomic.AddUint32(&counter, 1)
+		spew.Dump("HELLO WORLD!")
 		return nil
 	}
 
@@ -36,6 +38,8 @@ func TestJobBasic1(testT *testing.T) {
 	t.When("we get and run the job")
 	job, err2 := inst.GetJob(jobName)
 	t.Assert.NoError(err2)
+
+	spew.Dump(job.spec)
 
 	runState, err3 := job.Run()
 	t.Assert.NoError(err3)
@@ -67,7 +71,7 @@ func TestJobBasic2(testT *testing.T) {
 	t.Given("a job func that increments a counter")
 	var counter uint32
 	wait := &sync.WaitGroup{}
-	jobFunc := func() error {
+	jobFunc := func(helper RunHelper) error {
 		atomic.AddUint32(&counter, 1)
 		defer wait.Done()
 		return nil
@@ -118,7 +122,7 @@ func TestJobSchedule(testT *testing.T) {
 	t.Given("a job func that increments a counter")
 	var counter uint32
 	wait := &sync.WaitGroup{}
-	jobFunc := func() error {
+	jobFunc := func(helper RunHelper) error {
 		atomic.AddUint32(&counter, 1)
 		defer wait.Done()
 		return nil

@@ -10,7 +10,7 @@ type Job struct {
 	job  *models.Job
 	spec spec
 
-	makeRun func(jobID int64, s spec, args []interface{}) (RunState, error)
+	makeRun func(s spec, args []interface{}) (RunState, error)
 }
 
 // Name .
@@ -22,7 +22,7 @@ func (j *Job) Name() string {
 func (j *Job) Run(args ...interface{}) (*RunState, error) {
 	spec := j.spec
 	spec.schedule = false
-	runState, err := j.makeRun(j.job.ID, spec, args)
+	runState, err := j.makeRun(spec, args)
 	return &runState, err
 }
 
@@ -31,7 +31,7 @@ func (j *Job) RunDistinct(args ...interface{}) (*RunState, error) {
 	spec := j.spec
 	spec.schedule = false
 	spec.unique = true
-	runState, err := j.makeRun(j.job.ID, spec, args)
+	runState, err := j.makeRun(spec, args)
 	return &runState, err
 }
 
@@ -39,7 +39,7 @@ func (j *Job) RunDistinct(args ...interface{}) (*RunState, error) {
 func (j *Job) Schedule(args ...interface{}) (*RunState, error) {
 	if j.spec.schedule {
 		spec := j.spec
-		runState, err := j.makeRun(j.job.ID, spec, args)
+		runState, err := j.makeRun(spec, args)
 		return &runState, err
 	}
 	return nil, errors.New("no schedule associated with this job")
@@ -50,7 +50,7 @@ func (j *Job) ScheduleDistinct(args ...interface{}) (*RunState, error) {
 	if j.spec.schedule {
 		spec := j.spec
 		spec.unique = true
-		runState, err := j.makeRun(j.job.ID, spec, args)
+		runState, err := j.makeRun(spec, args)
 		return &runState, err
 	}
 	return nil, errors.New("no schedule associated with this job")

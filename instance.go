@@ -32,10 +32,11 @@ type Instance struct {
 }
 
 // NewJob creates a configurable job that needs to be registered
-func (i *Instance) NewJob(name string, jobFunc interface{}) *SpecMaker {
+func (i *Instance) NewJob(name string, jobFunc JobFunc) *SpecMaker {
 	return &SpecMaker{
 		spec: spec{
 			jobName:          name,
+			jobFunc:          jobFunc,
 			timeout:          i.defaultTimeout,
 			retriesOnTimeout: i.defaultRetriesOnTimeout,
 			retriesOnError:   i.defaultRetriesOnError,
@@ -117,7 +118,7 @@ func (i *Instance) specToRun(s spec, args []interface{}) *models.Run {
 	return rtn
 }
 
-func (i *Instance) makeRun(jobID int64, s spec, args []interface{}) (rtn RunState, err error) {
+func (i *Instance) makeRun(s spec, args []interface{}) (rtn RunState, err error) {
 
 	model := i.specToRun(s, args)
 	tx := i.db.Save(model)
@@ -272,11 +273,14 @@ func (i *Instance) startWorkers() {
 }
 
 func (i *Instance) worker() {
+	i.logger.Trace("starting worker")
+	defer i.logger.Trace("worker stopped")
 	for {
 		select {
 		case <-i.stop:
 			return
 		case run := <-i.runNow:
+			run.logger.Trace("worker received run. executing.")
 			run.exec()
 		}
 	}
@@ -292,12 +296,13 @@ func (i *Instance) runDelegator() {
 		now := time.Now()
 
 		if len(i.runNow) >= i.model.Workers {
+			i.logger.Trace("all workers are busy and runs are waiting")
 			waitTime = time.Millisecond * 100
 		} else if i.runQueue.len() > 0 {
 			nextRunAt := i.runQueue.peek().model.RunAt
 			if now.Equal(nextRunAt) || now.After(nextRunAt) {
 				run := i.runQueue.pop()
-				run.logger.Debug("delegating run to workers")
+				run.logger.Debug("run ready. delegating to a worker")
 				i.runNow <- run
 			} else {
 				waitTime = nextRunAt.Sub(now)
@@ -315,6 +320,7 @@ func (i *Instance) runDelegator() {
 			}
 			return
 		case <-i.runQueue.pushed():
+			i.logger.Trace("run pushed to queue. resetting and checking for run.")
 			break
 		case <-timer.C:
 			break
@@ -324,7 +330,9 @@ func (i *Instance) runDelegator() {
 
 // Stop .
 func (i *Instance) Stop() error {
+	i.logger.Debug("stopping instance")
 	close(i.stop)
+	i.stopped = true
 	return nil
 }
 

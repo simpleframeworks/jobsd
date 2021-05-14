@@ -3,7 +3,7 @@ module github.com/simpleframeworks/jobspec
 go 1.16
 
 require (
-	github.com/google/uuid v1.2.0
+	github.com/davecgh/go-spew v1.1.1
 	github.com/jackc/pgproto3/v2 v2.0.7 // indirect
 	github.com/lib/pq v1.6.0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.6 // indirect
@@ -19,5 +19,4 @@ require (
 	gorm.io/driver/postgres v1.0.8
 	gorm.io/driver/sqlite v1.1.4
 	gorm.io/gorm v1.21.6
-	syreclabs.com/go/faker v1.2.3
 )
