@@ -26,6 +26,7 @@ type Instance struct {
 
 	model    *models.Instance
 	runQueue *runQueue
+	runNow   chan *run
 	stopped  bool
 	stop     chan struct{}
 }
@@ -249,15 +250,82 @@ func (i *Instance) Start() error {
 	}
 
 	i.stopped = false
+	i.logger.Debug("starting workers")
+	i.startWorkers()
+	i.logger.Debug("starting producer")
+	i.startProducers()
 
 	i.logger.Debug("starting up instance - end")
 	return nil
 }
 
+func (i *Instance) startWorkers() {
+
+	// This is the work that workers consume
+	// It needs to be buffered to avoid a deadlock
+	// because work can be generated from a worker
+	i.runNow = make(chan *run, i.model.Workers)
+
+	for j := 0; j < i.model.Workers; j++ {
+		go i.worker()
+	}
+}
+
+func (i *Instance) worker() {
+	for {
+		select {
+		case <-i.stop:
+			return
+		case run := <-i.runNow:
+			run.exec()
+		}
+	}
+}
+
+func (i *Instance) startProducers() {
+	go i.runDelegator()
+}
+
+func (i *Instance) runDelegator() {
+	for {
+		waitTime := time.Second * 5
+		now := time.Now()
+
+		if len(i.runNow) >= i.model.Workers {
+			waitTime = time.Millisecond * 100
+		} else if i.runQueue.len() > 0 {
+			nextRunAt := i.runQueue.peek().model.RunAt
+			if now.Equal(nextRunAt) || now.After(nextRunAt) {
+				run := i.runQueue.pop()
+				run.logger.Debug("delegating run to workers")
+				i.runNow <- run
+			} else {
+				waitTime = nextRunAt.Sub(now)
+			}
+		}
+
+		i.logger.WithField("wait_time", waitTime).Debug("waiting for run")
+		timer := time.NewTimer(waitTime)
+
+		select {
+		case <-i.stop:
+			i.logger.Debug("stopping run delegator")
+			if !timer.Stop() {
+				<-timer.C
+			}
+			return
+		case <-i.runQueue.pushed():
+			break
+		case <-timer.C:
+			break
+		}
+	}
+}
+
 // Stop .
 func (i *Instance) Stop() error {
 	close(i.stop)
-	return errors.New("not implemented")
+	return nil
 }
 
 // New .

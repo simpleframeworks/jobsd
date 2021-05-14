@@ -38,9 +38,10 @@ func (pq *runQueueInternal) Peek() *run {
 
 // runQueue is a priority queue of jobs to run
 type runQueue struct {
-	mx    sync.Mutex
-	queue *runQueueInternal
-	dup   map[int64]struct{}
+	mx       sync.Mutex
+	queue    *runQueueInternal
+	dup      map[int64]struct{}
+	pushChan chan struct{}
 }
 
 func (q *runQueue) push(r *run) bool {
@@ -52,7 +53,22 @@ func (q *runQueue) push(r *run) bool {
 	}
 	q.dup[r.model.ID] = struct{}{}
 	heap.Push(q.queue, r)
+	// Notify pushed chan of a push
+	if q.pushChan != nil {
+		close(q.pushChan)
+		q.pushChan = nil
+	}
 	return true
+}
+
+func (q *runQueue) pushed() chan struct{} {
+	q.mx.Lock()
+	defer q.mx.Unlock()
+
+	if q.pushChan == nil {
+		q.pushChan = make(chan struct{})
+	}
+	return q.pushChan
 }
 
 func (q *runQueue) pop() *run {
