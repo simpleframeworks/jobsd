@@ -1,7 +1,7 @@
 package jobspec
 
 import (
-	"sync"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func TestJobBasic1(testT *testing.T) {
+func TestJobBasic(testT *testing.T) {
 	t := testc.New(testT)
 	jobName := testFuncName()
 
@@ -30,83 +30,36 @@ func TestJobBasic1(testT *testing.T) {
 		return nil
 	}
 
-	t.Given("we register a new job that runs the func")
-	job, err0 := inst.NewJob(jobName, jobFunc).Register()
-	t.Assert.NoError(err0)
-	t.Assert.NotNil(job)
-
-	t.When("we get and run the job")
-	job, err2 := inst.GetJob(jobName)
-	t.Assert.NoError(err2)
-
-	runState, err3 := job.Run()
-	t.Assert.NoError(err3)
-
-	t.When("we wait for the run to complete")
 	for i := 0; i < 5; i++ {
-		time.Sleep(time.Second)
-		t.Require.NoError(runState.Refresh())
-		if runState.Completed() {
-			break
+		jobName1 := jobName + strconv.Itoa(i)
+
+		t.Given("we register a new job that runs the func")
+		job, err0 := inst.NewJob(jobName1, jobFunc).Register()
+		t.Assert.NoError(err0)
+		t.Assert.NotNil(job)
+
+		t.When("we get and run the job")
+		job, err2 := inst.GetJob(jobName1)
+		t.Assert.NoError(err2)
+
+		runState, err3 := job.Run()
+		t.Assert.NoError(err3)
+
+		t.When("we wait for the run to complete")
+		for i := 0; i < 100; i++ {
+			time.Sleep(100 * time.Millisecond)
+			t.Require.NoError(runState.Refresh())
+			if runState.Completed() {
+				break
+			}
 		}
+		t.Require.True(runState.Completed())
+
+		t.Then("the job should have run and incremented the counter")
+		count := int(atomic.LoadUint32(&counter))
+		t.Assert.Equal(i+1, count)
+
 	}
-	t.Require.True(runState.Completed())
-
-	t.Then("the job should have run and incremented the counter")
-	count := int(atomic.LoadUint32(&counter))
-	t.Assert.Equal(1, count)
-
-}
-
-func TestJobBasic2(testT *testing.T) {
-	t := testc.New(testT)
-	jobName := testFuncName()
-
-	t.Given("a JobsD instance")
-	inst := testSetup(logrus.ErrorLevel)
-	defer testTeardown(inst)
-
-	t.Given("a job func that increments a counter")
-	var counter uint32
-	wait := &sync.WaitGroup{}
-	jobFunc := func(helper RunHelper) error {
-		atomic.AddUint32(&counter, 1)
-		defer wait.Done()
-		return nil
-	}
-
-	t.Given("a new job that runs the func")
-	job, err0 := inst.NewJob(jobName, jobFunc).Register()
-
-	t.Assert.NoError(err0)
-	t.Assert.NotNil(job)
-
-	t.When("we start the JobsD instance")
-	err1 := inst.Start()
-
-	t.Assert.NoError(err1)
-
-	wait.Add(1)
-	t.When("we run the job")
-	runState, err2 := job.Run()
-
-	t.Assert.NoError(err2)
-
-	t.When("we wait for it to run")
-	t.WaitTimeout(wait, time.Second*5)
-
-	t.Then("the job should have run and incremented the counter")
-	count := int(atomic.LoadUint32(&counter))
-
-	t.Assert.Equal(1, count)
-
-	t.When("we refresh the run state that we got when we ran the job")
-	err3 := runState.Refresh()
-	t.Assert.NoError(err3)
-
-	t.Then("the RunState of the job run should have completed")
-	t.Assert.True(runState.Completed())
-
 }
 
 func TestJobSchedule(testT *testing.T) {
@@ -114,15 +67,17 @@ func TestJobSchedule(testT *testing.T) {
 	jobName := testFuncName()
 
 	t.Given("a JobsD instance")
-	inst := testSetup(logrus.ErrorLevel)
+	inst := testSetup(logrus.TraceLevel)
+	err1 := inst.Start()
+	t.Require.NoError(err1)
+
 	defer testTeardown(inst)
 
 	t.Given("a job func that increments a counter")
 	var counter uint32
-	wait := &sync.WaitGroup{}
 	jobFunc := func(helper RunHelper) error {
 		atomic.AddUint32(&counter, 1)
-		defer wait.Done()
+		spew.Dump("HELLO WORLD!")
 		return nil
 	}
 
@@ -132,48 +87,45 @@ func TestJobSchedule(testT *testing.T) {
 		return now.Add(scheduleDur)
 	}
 
-	t.Given("we use the job func to create a job")
+	t.Given("we create a new job that runs the func")
 	creator := inst.NewJob(jobName, jobFunc)
 
 	t.Given("we use the schedule func to create a job")
 	creator.Schedule(scheduleFunc)
 
 	runLimit := 3
-	t.Given("we limit the job to run %d time(s)", runLimit)
+	t.Given("we limit the job to run %d time(s) on the schedule", runLimit)
 	creator.Limit(runLimit)
 
 	t.When("we register the job")
 	job, err0 := creator.Register()
-
-	t.Then("we should get job and no errors")
 	t.Assert.NoError(err0)
 	t.Assert.NotNil(job)
 
-	t.When("we start the JobsD instance")
-	err1 := inst.Start()
-
-	t.Assert.NoError(err1)
-
-	wait.Add(runLimit)
-	t.When("run the job")
-	runState, err2 := job.Run()
-
+	t.When("we schedule the job")
+	scheduleState, err2 := job.Schedule()
 	t.Assert.NoError(err2)
 
-	t.When("we wait for it to run")
-	t.WaitTimeout(wait, time.Second*10)
+	t.When("we wait for the run to complete")
+	for i := 0; i < 100; i++ {
+		time.Sleep(100 * time.Millisecond)
+		t.Require.NoError(scheduleState.Refresh())
+		if scheduleState.Completed() {
+			break
+		}
+	}
+	t.Require.True(scheduleState.Completed())
 
 	t.Then("the job should have run and incremented the counter")
 	count := int(atomic.LoadUint32(&counter))
-
 	t.Assert.Equal(runLimit, count)
 
 	t.When("we refresh the run state")
-	err3 := runState.Refresh()
+	err3 := scheduleState.Refresh()
 	t.Assert.NoError(err3)
 
 	t.Then("the RunState of the first job run should have completed")
-	t.Assert.True(runState.Completed())
+	t.Assert.True(scheduleState.Completed())
 
 	t.When("we get the RunState history from the job")
 	history, err4 := job.History(runLimit * 2)
@@ -183,8 +135,8 @@ func TestJobSchedule(testT *testing.T) {
 	t.Assert.Equal(runLimit, len(history))
 
 	t.Then("all RunState history records should show all job runs completed")
-	for _, runState := range history {
-		t.Assert.True(runState.Completed())
+	for _, scheduleState := range history {
+		t.Assert.True(scheduleState.Completed())
 	}
 
 	t.When("we get the RunState history from the JobsD instance")
@@ -195,7 +147,7 @@ func TestJobSchedule(testT *testing.T) {
 	t.Assert.Equal(runLimit, len(history1))
 
 	t.Then("all RunState history records should show all job runs completed")
-	for _, runState := range history1 {
-		t.Assert.True(runState.Completed())
+	for _, scheduleState := range history1 {
+		t.Assert.True(scheduleState.Completed())
 	}
 }
