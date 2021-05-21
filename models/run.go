@@ -14,30 +14,30 @@ import (
 
 // Run .
 type Run struct {
-	ID                int64 `gorm:"primaryKey"`
-	JobID             int64
-	JobName           string
-	Unique            bool
-	UniqueRun         sql.NullString `gorm:"unique"`
-	UniqueSchedule    sql.NullString `gorm:"unique"`
-	Scheduled         bool
-	Args              RunArgs
-	RunAt             time.Time
-	RunBy             sql.NullInt64
+	ID        int64 `gorm:"primaryKey"`
+	JobID     int64
+	JobName   string
+	Unique    sql.NullString `gorm:"unique"`
+	Scheduled bool
+	Args      RunArgs
+	RunAt     time.Time
+
+	RunStartedBy      sql.NullInt64
 	RunStartedAt      sql.NullTime `gorm:"index"`
 	RunCompletedAt    sql.NullTime `gorm:"index"`
 	RunCompletedError string
 	RunTimeout        time.Duration
 	RunTimeoutAt      sql.NullTime `gorm:"index"`
-	CountRetry        int
-	CountReschedule   int
-	CreatedAt         time.Time
-	CreatedBy         int64
+
+	RetryCount int
+
+	CreatedAt time.Time
+	CreatedBy int64
 }
 
 // TableName specifies the db table name
 func (Run) TableName() string {
-	return "jobsd_runs"
+	return "jobsd_single_runs"
 }
 
 // RunArgs holds job func parameters used to run a job. It can be serialized for DB storage
