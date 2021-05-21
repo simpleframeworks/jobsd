@@ -36,7 +36,7 @@ func (r *run) lock(instanceID int64) (bool, error) {
 	if locked {
 		r.model.RunTimeoutAt = runTimeoutAt
 		r.model.RunStartedAt = sql.NullTime{Valid: true, Time: startedAt}
-		r.model.RunBy = sql.NullInt64{Valid: true, Int64: instanceID}
+		r.model.RunStartedBy = sql.NullInt64{Valid: true, Int64: instanceID}
 	}
 	return locked, tx.Error
 }
@@ -55,16 +55,14 @@ func (r *run) exec() {
 }
 
 func (r *run) complete(runErr error) {
-	r.model.UniqueRun = sql.NullString{}
-	r.model.UniqueSchedule = sql.NullString{}
+	r.model.Unique = sql.NullString{}
 	r.model.RunCompletedAt = sql.NullTime{Valid: true, Time: time.Now()}
 	if runErr != nil {
 		r.model.RunCompletedError = runErr.Error()
 	}
 
 	tx := r.db.Model(r.model).Where("run_completed_at IS NULL").Updates(map[string]interface{}{
-		"unique_run":          r.model.UniqueRun,
-		"unique_schedule":     r.model.UniqueSchedule,
+		"unique":              r.model.Unique,
 		"run_completed_at":    r.model.RunCompletedAt,
 		"run_completed_error": r.model.RunCompletedError,
 	})
@@ -75,10 +73,6 @@ func (r *run) complete(runErr error) {
 	} else if tx.RowsAffected != 1 {
 		r.logger.Error("could not mark job run as completed. already marked.")
 		return
-	}
-
-	if r.model.Scheduled && r.model.CountReschedule < r.spec.limit {
-		r.reschedule()
 	}
 }
 
@@ -111,26 +105,27 @@ func (r *RunHelper) Cancel() chan struct{} { return r.cancel }
 
 // RunState .
 type RunState struct {
-	db                *gorm.DB
-	model             *models.Run
-	ID                int64
-	JobID             int64
-	JobName           string
-	UniqueRun         *string
-	UniqueSchedule    *string
-	Scheduled         bool
-	Args              models.RunArgs
-	RunAt             time.Time
-	RunBy             *int64
+	db        *gorm.DB
+	model     *models.Run
+	ID        int64
+	JobID     int64
+	JobName   string
+	Unique    *string
+	Scheduled bool
+	Args      models.RunArgs
+	RunAt     time.Time
+
+	RunStartedBy      *int64
 	RunStartedAt      *time.Time
 	RunCompletedAt    *time.Time
 	RunCompletedError string
 	RunTimeout        time.Duration
 	RunTimeoutAt      *time.Time
-	CountRetry        int
-	CountReschedule   int
-	CreatedAt         time.Time
-	CreatedBy         int64
+
+	RetryCount int
+
+	CreatedAt time.Time
+	CreatedBy int64
 }
 
 // Refresh the run state
@@ -143,19 +138,18 @@ func (r *RunState) Refresh() error {
 	r.ID = r.model.ID
 	r.JobID = r.model.JobID
 	r.JobName = r.model.JobName
-	r.UniqueRun = models.NullToNilString(r.model.UniqueRun)
-	r.UniqueSchedule = models.NullToNilString(r.model.UniqueSchedule)
+	r.Unique = models.NullToNilString(r.model.Unique)
 	r.Scheduled = r.model.Scheduled
 	r.Args = r.model.Args
 	r.RunAt = r.model.RunAt
-	r.RunBy = models.NullToNilInt64(r.model.RunBy)
+	r.RunStartedBy = models.NullToNilInt64(r.model.RunStartedBy)
 	r.RunStartedAt = models.NullToNilTime(r.model.RunStartedAt)
 	r.RunCompletedAt = models.NullToNilTime(r.model.RunCompletedAt)
 	r.RunCompletedError = r.model.RunCompletedError
 	r.RunTimeout = r.model.RunTimeout
 	r.RunTimeoutAt = models.NullToNilTime(r.model.RunTimeoutAt)
-	r.CountRetry = r.model.CountRetry
-	r.CountReschedule = r.model.CountReschedule
+	r.RetryCount = r.model.RetryCount
+
 	r.CreatedAt = r.model.CreatedAt
 	r.CreatedBy = r.model.CreatedBy
 
@@ -179,19 +173,17 @@ func modelRunToRunState(model models.Run, db *gorm.DB) RunState {
 		ID:                model.ID,
 		JobID:             model.JobID,
 		JobName:           model.JobName,
-		UniqueRun:         models.NullToNilString(model.UniqueRun),
-		UniqueSchedule:    models.NullToNilString(model.UniqueSchedule),
+		Unique:            models.NullToNilString(model.Unique),
 		Scheduled:         model.Scheduled,
 		Args:              model.Args,
 		RunAt:             model.RunAt,
-		RunBy:             models.NullToNilInt64(model.RunBy),
+		RunStartedBy:      models.NullToNilInt64(model.RunStartedBy),
 		RunStartedAt:      models.NullToNilTime(model.RunStartedAt),
 		RunCompletedAt:    models.NullToNilTime(model.RunCompletedAt),
 		RunCompletedError: model.RunCompletedError,
 		RunTimeout:        model.RunTimeout,
 		RunTimeoutAt:      models.NullToNilTime(model.RunTimeoutAt),
-		CountRetry:        model.CountRetry,
-		CountReschedule:   model.CountReschedule,
+		RetryCount:        model.RetryCount,
 		CreatedAt:         model.CreatedAt,
 		CreatedBy:         model.CreatedBy,
 	}

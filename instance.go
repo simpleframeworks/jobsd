@@ -85,16 +85,10 @@ func (i *Instance) registerJob(s spec) (job Job, err error) {
 }
 
 func (i *Instance) specToRun(s spec, args []interface{}) *models.Run {
-	uniqueRun := sql.NullString{}
-	uniqueSchedule := sql.NullString{}
+	unique := sql.NullString{}
 	if s.unique {
-		if s.schedule {
-			uniqueSchedule.Valid = true
-			uniqueSchedule.String = s.jobName
-		} else {
-			uniqueRun.Valid = true
-			uniqueRun.String = s.jobName
-		}
+		unique.Valid = true
+		unique.String = s.jobName
 	}
 	now := time.Now()
 	runAt := now
@@ -103,16 +97,14 @@ func (i *Instance) specToRun(s spec, args []interface{}) *models.Run {
 	}
 
 	rtn := &models.Run{
-		JobID:          s.jobID,
-		JobName:        s.jobName,
-		Unique:         s.unique,
-		UniqueRun:      uniqueRun,
-		UniqueSchedule: uniqueSchedule,
-		Scheduled:      s.schedule,
-		Args:           args,
-		RunAt:          runAt,
-		CreatedAt:      now,
-		CreatedBy:      i.model.ID,
+		JobID:     s.jobID,
+		JobName:   s.jobName,
+		Unique:    unique,
+		Scheduled: s.schedule,
+		Args:      args,
+		RunAt:     runAt,
+		CreatedAt: now,
+		CreatedBy: i.model.ID,
 	}
 
 	return rtn

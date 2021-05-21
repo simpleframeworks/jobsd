@@ -100,7 +100,7 @@ func (q *scheduleQueue) len() int {
 	return q.queue.Len()
 }
 
-func newRunQueue() *scheduleQueue {
+func newScheduleQueue() *scheduleQueue {
 	return &scheduleQueue{
 		queue: &scheduleQueueInternal{},
 		dup:   map[int64]struct{}{},
