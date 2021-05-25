@@ -36,8 +36,8 @@ type Run struct {
 }
 
 // TableName specifies the db table name
-func (Run) TableName() string {
-	return "jobsd_single_runs"
+func (*Run) TableName() string {
+	return "jobsd_runs"
 }
 
 // RunArgs holds job func parameters used to run a job. It can be serialized for DB storage

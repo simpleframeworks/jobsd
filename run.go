@@ -17,6 +17,14 @@ type run struct {
 	stop   chan struct{}
 }
 
+func (r *run) QueueID() int64 {
+	return r.model.ID
+}
+
+func (r *run) QueueTime() time.Time {
+	return r.model.RunAt
+}
+
 func (r *run) lock(instanceID int64) (bool, error) {
 	startedAt := time.Now()
 	runTimeoutAt := sql.NullTime{}
@@ -130,10 +138,14 @@ type RunState struct {
 
 // Refresh the run state
 func (r *RunState) Refresh() error {
-	tx := r.db.First(&r.model)
-	if tx.Error != nil {
-		return tx.Error
+
+	model := &models.Run{}
+	res := r.db.First(model, r.model.ID)
+	if res.Error != nil {
+		return res.Error
 	}
+
+	r.model = model
 
 	r.ID = r.model.ID
 	r.JobID = r.model.JobID

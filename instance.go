@@ -15,20 +15,23 @@ import (
 
 // Instance .
 type Instance struct {
+	defaultTimeout          time.Duration
+	defaultRetriesOnTimeout int
+	defaultRetriesOnError   int
+
 	db     *gorm.DB
 	logger logc.Logger
 	jobs   map[string]Job
 	jobsMu sync.Mutex
 
-	defaultTimeout          time.Duration
-	defaultRetriesOnTimeout int
-	defaultRetriesOnError   int
+	model *models.Instance
 
-	model    *models.Instance
-	runQueue *runQueue
-	runNow   chan *run
-	stopped  bool
-	stop     chan struct{}
+	runQueue      *TimeQueue
+	scheduleQueue *TimeQueue
+	timeoutQueue  *TimeQueue
+
+	started bool
+	stop    chan struct{}
 }
 
 // NewJob creates a configurable job that needs to be registered
@@ -76,7 +79,7 @@ func (i *Instance) registerJob(s spec) (job Job, err error) {
 	s.jobID = job.job.ID
 
 	job.spec = s
-	job.makeRun = i.makeRun
+	job.queueRun = i.queueRun
 
 	i.jobs[s.jobName] = job
 
@@ -110,17 +113,21 @@ func (i *Instance) specToRun(s spec, args []interface{}) *models.Run {
 	return rtn
 }
 
-func (i *Instance) makeRun(s spec, args []interface{}) (rtn RunState, err error) {
+func (i *Instance) queueRun(s spec, args []interface{}, tx *gorm.DB) (rtn RunState, err error) {
+
+	if tx == nil {
+		tx = i.db
+	}
 
 	model := i.specToRun(s, args)
-	tx := i.db.Save(model)
-	if tx.Error != nil {
+	res := tx.Save(model)
+	if res.Error != nil {
 		return rtn, tx.Error
 	}
 	logger := i.logger.WithFields(map[string]interface{}{
 		"run.id":       model.ID,
-		"run.job_id":   model.JobID,
-		"run.job_name": model.JobName,
+		"run.job.id":   model.JobID,
+		"run.job.name": model.JobName,
 	})
 	theRun := &run{
 		db:     i.db,
@@ -129,7 +136,8 @@ func (i *Instance) makeRun(s spec, args []interface{}) (rtn RunState, err error)
 		spec:   &s,
 		stop:   i.stop,
 	}
-	if i.runQueue.push(theRun) {
+	logger.Trace("queuing run")
+	if i.runQueue.Push(theRun) {
 		rtn = theRun.runState()
 	} else {
 		err = errors.New("job run already queued")
@@ -222,7 +230,7 @@ func (i *Instance) JobHistory(name string, limit int) ([]RunState, error) {
 
 // Start .
 func (i *Instance) Start() error {
-	if !i.stopped {
+	if i.started {
 		return errors.New("instance already started")
 	}
 
@@ -242,23 +250,15 @@ func (i *Instance) Start() error {
 		return err
 	}
 
-	i.stopped = false
+	i.started = true
 	i.logger.Debug("starting workers")
 	i.startWorkers()
-	i.logger.Debug("starting producer")
-	i.startProducers()
 
 	i.logger.Debug("starting up instance - end")
 	return nil
 }
 
 func (i *Instance) startWorkers() {
-
-	// This is the work that workers consume
-	// It needs to be buffered to avoid a deadlock
-	// because work can be generated from a worker
-	i.runNow = make(chan *run, i.model.Workers)
-
 	for j := 0; j < i.model.Workers; j++ {
 		go i.worker()
 	}
@@ -271,51 +271,10 @@ func (i *Instance) worker() {
 		select {
 		case <-i.stop:
 			return
-		case run := <-i.runNow:
+		case ti := <-i.runQueue.Stream():
+			run := ti.(*run)
 			run.logger.Trace("worker received run. executing.")
 			run.exec()
-		}
-	}
-}
-
-func (i *Instance) startProducers() {
-	go i.runDelegator()
-}
-
-func (i *Instance) runDelegator() {
-	for {
-		waitTime := time.Second * 5
-		now := time.Now()
-
-		if len(i.runNow) >= i.model.Workers {
-			i.logger.Trace("all workers are busy and runs are waiting")
-			waitTime = time.Millisecond * 100
-		} else if i.runQueue.len() > 0 {
-			nextRunAt := i.runQueue.peek().model.RunAt
-			if now.Equal(nextRunAt) || now.After(nextRunAt) {
-				run := i.runQueue.pop()
-				run.logger.Debug("run ready. delegating to a worker")
-				i.runNow <- run
-			} else {
-				waitTime = nextRunAt.Sub(now)
-			}
-		}
-
-		i.logger.WithField("wait_time", waitTime).Debug("waiting for run")
-		timer := time.NewTimer(waitTime)
-
-		select {
-		case <-i.stop:
-			i.logger.Debug("stopping run delegator")
-			if !timer.Stop() {
-				<-timer.C
-			}
-			return
-		case <-i.runQueue.pushed():
-			i.logger.Trace("run pushed to queue. resetting and checking for run.")
-			break
-		case <-timer.C:
-			break
 		}
 	}
 }
@@ -323,8 +282,14 @@ func (i *Instance) runDelegator() {
 // Stop .
 func (i *Instance) Stop() error {
 	i.logger.Debug("stopping instance")
+
+	i.runQueue.StopStream()
+	i.scheduleQueue.StopStream()
+	i.timeoutQueue.StopStream()
+
 	close(i.stop)
-	i.stopped = true
+
+	i.started = false
 	return nil
 }
 
@@ -354,10 +319,13 @@ func New(db *gorm.DB) *Instance {
 		defaultRetriesOnTimeout: 3,
 		defaultRetriesOnError:   3,
 
-		model:    model,
-		runQueue: newRunQueue(),
-		stopped:  true,
-		stop:     make(chan struct{}),
+		runQueue:      NewTimeQueue(),
+		scheduleQueue: NewTimeQueue(),
+		timeoutQueue:  NewTimeQueue(),
+
+		model:   model,
+		started: false,
+		stop:    make(chan struct{}),
 	}
 }
 

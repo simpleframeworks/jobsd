@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func TestJobBasic(testT *testing.T) {
+func TestJobRun(testT *testing.T) {
 	t := testc.New(testT)
 	jobName := testFuncName()
 
@@ -30,7 +30,7 @@ func TestJobBasic(testT *testing.T) {
 		return nil
 	}
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		jobName1 := jobName + strconv.Itoa(i)
 
 		t.Given("we register a new job that runs the func")

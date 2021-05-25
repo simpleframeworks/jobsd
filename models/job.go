@@ -19,6 +19,6 @@ type Job struct {
 }
 
 // TableName specifies the db table name
-func (Job) TableName() string {
+func (*Job) TableName() string {
 	return "jobsd_jobs"
 }
