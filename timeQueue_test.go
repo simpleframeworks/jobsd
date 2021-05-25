@@ -22,11 +22,12 @@ func (t testTimeQueue) QueueID() int64 {
 func TestTimeQueue(test *testing.T) {
 	t := testc.New(test)
 
-	t.Given("a job run queue")
+	t.Given("a TimeQueue")
 	q := NewTimeQueue()
 
-	t.Given("the queue has job runs")
-	for i := 9; i >= 0; i-- {
+	t.Given("the queue has TimeItems")
+	itemNum := 10
+	for i := 0; i < itemNum; i++ {
 		item := testTimeQueue{
 			id:   int64(i),
 			time: time.Now(),
@@ -35,85 +36,148 @@ func TestTimeQueue(test *testing.T) {
 		q.Push(item)
 	}
 
-	t.When("we pop the job runs off the queue")
+	t.When("we stream the TimeItems off the queue")
+	expectedOrder := []int64{}
 	runOrder := []int64{}
-	for i := 0; i < 10; i++ {
-		topItem := q.Peek()
-		j := q.Pop()
-		t.Assert.Equal(topItem.QueueID(), j.QueueID())
-		runOrder = append(runOrder, j.QueueID())
+	for i := 0; i < itemNum; i++ {
+		topItem := <-q.Stream()
+		expectedOrder = append(expectedOrder, int64(i))
+		runOrder = append(runOrder, topItem.QueueID())
 	}
 
-	t.Then("the order of job runs should be sorted in chronological order")
-	t.Assert.ElementsMatch([]int64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, runOrder)
+	t.Then("the order of TimeItems should be sorted in chronological order")
+	t.Assert.ElementsMatch(expectedOrder, runOrder)
+
+	q.StopStream()
+}
+
+func TestTimeQueueConcurrent(test *testing.T) {
+	t := testc.New(test)
+
+	t.Given("a TimeQueue")
+	q := NewTimeQueue()
+
+	t.Given("we add TimeItems concurrently")
+	itemNum := 100
+	go func() {
+		for i := 0; i < itemNum; i++ {
+			q.Push(testTimeQueue{
+				id:   int64(i),
+				time: time.Now(),
+			})
+		}
+	}()
+
+	<-time.After(time.Second)
+
+	t.When("we stream the TimeItems off the queue")
+	expectedOrder := []int64{}
+	runOrder := []int64{}
+	for i := 0; i < itemNum; i++ {
+		topItem := <-q.Stream()
+		expectedOrder = append(expectedOrder, int64(i))
+		runOrder = append(runOrder, topItem.QueueID())
+	}
+
+	t.Then("the order of TimeItems should be sorted in chronological order")
+	t.Assert.ElementsMatch(expectedOrder, runOrder)
+
+	q.StopStream()
+}
+
+func TestTimeQueuePush(test *testing.T) {
+	t := testc.New(test)
+
+	t.Given("a TimeQueue")
+	q := NewTimeQueue()
+
+	t.Given("the queue has TimeItems")
+	for i := 0; i < 10; i++ {
+		item := testTimeQueue{
+			id:   int64(i),
+			time: time.Now(),
+		}
+
+		q.Push(item)
+	}
+
+	t.When("we stop the stream")
+	q.StopStream()
+
+	t.Then("it should not be blocking")
+}
+
+func TestTimeQueueOrdering(test *testing.T) {
+
+	t := testc.New(test)
+
+	t.Given("a TimeQueue")
+	q := NewTimeQueue()
+
+	now := time.Now()
+
+	t.Given("the queue has TimeItems")
+	for i := 0; i < 10; i++ {
+		q.Push(testTimeQueue{
+			id:   int64(i),
+			time: now.Add(time.Second * 2).Add(time.Millisecond * time.Duration(i)),
+		})
+	}
+
+	t.Given("we add an item that should be at the front of the queue")
+	q.Push(testTimeQueue{
+		id:   int64(-100),
+		time: now,
+	})
+
+	<-time.After(time.Second)
+
+	t.When("we stream the TimeItems off the queue")
+	runOrder := []int64{}
+	for i := 0; i < 11; i++ {
+		topItem := <-q.Stream()
+		runOrder = append(runOrder, topItem.QueueID())
+	}
+
+	t.Then("the order of TimeItems should be sorted in chronological order")
+	t.Assert.ElementsMatch([]int64{-100, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, runOrder)
+
+	q.StopStream()
 }
 
 func TestTimeQueueUnique(test *testing.T) {
 
 	t := testc.New(test)
 
-	t.Given("a job run queue")
+	t.Given("a TimeQueue")
 	q := NewTimeQueue()
-	now := time.Now()
 
-	t.Given("the queue has unique job runs")
-	for i := 0; i < 10; i++ {
-		item := testTimeQueue{
-			id:   int64(i),
-			time: now,
-		}
+	tempItems := []TimeItem{}
 
-		q.Push(item)
-	}
-
-	t.When("we add the same unique job runs to the queue")
-	for i := 0; i < 10; i++ {
+	t.Given("the queue has TimeItems")
+	for i := 9; i >= 0; i-- {
 		item := testTimeQueue{
 			id:   int64(i),
 			time: time.Now(),
 		}
-
+		tempItems = append(tempItems, item)
 		q.Push(item)
 	}
 
-	t.Then("the queue will automatically deduplicate the job runs and ignore new runs")
-	items := []int64{}
-	for q.len() > 0 {
-		j := q.Pop()
-		items = append(items, j.QueueID())
+	t.When("we add the same unique TimeItems")
+	for _, item := range tempItems {
+
+		t.Assert.False(q.Push(item))
 	}
 
-	t.Assert.ElementsMatch([]int64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, items)
-}
-
-func TestTimeQueuePushNotification(test *testing.T) {
-	t := testc.New(test)
-
-	t.Given("a job run queue")
-	q := NewTimeQueue()
-
+	t.Then("the queue will automatically deduplicate the TimeItems")
+	runOrder := []int64{}
 	for i := 0; i < 10; i++ {
-
-		t.Given("the queue push notification channel")
-		pushed := q.Pushed()
-
-		t.When("we push an item on the queue")
-		item := testTimeQueue{
-			id:   int64(i),
-			time: time.Now(),
-		}
-
-		q.Push(item)
-
-		t.Then("we should have received a notification")
-		hasPushed := false
-		select {
-		case <-pushed:
-			hasPushed = true
-		case <-time.After(100 * time.Millisecond):
-			hasPushed = false
-		}
-		t.Assert.True(hasPushed)
+		topItem := <-q.Stream()
+		runOrder = append(runOrder, topItem.QueueID())
 	}
 
+	t.Assert.ElementsMatch([]int64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, runOrder)
+
+	q.StopStream()
 }

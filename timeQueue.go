@@ -17,7 +17,7 @@ type timeQueueInternal []TimeItem
 func (pq *timeQueueInternal) Len() int { return len(*pq) }
 
 func (pq *timeQueueInternal) Less(i, j int) bool {
-	return (*pq)[i].QueueTime().Before((*pq)[j].QueueTime())
+	return (*pq)[i].QueueTime().Before((*pq)[j].QueueTime()) && (*pq)[i].QueueID() < (*pq)[i].QueueID()
 }
 
 func (pq *timeQueueInternal) Swap(i, j int) {
@@ -45,10 +45,14 @@ func (pq *timeQueueInternal) Peek() TimeItem {
 
 // TimeQueue is a priority queue of timed items
 type TimeQueue struct {
-	mx       sync.Mutex
-	queue    *timeQueueInternal
-	dup      map[int64]struct{}
-	pushChan chan struct{}
+	mx    sync.Mutex
+	queue *timeQueueInternal
+	dup   map[int64]struct{}
+
+	started     bool
+	stream      chan TimeItem
+	streamStop  chan struct{}
+	streamReset chan struct{}
 }
 
 // Push .
@@ -59,38 +63,32 @@ func (q *TimeQueue) Push(r TimeItem) bool {
 	if _, ok := q.dup[r.QueueID()]; ok {
 		return false // this de-duplicates
 	}
+	reset := false
+	if q.queue.Len() == 0 {
+		reset = true
+	} else if q.queue.Peek().QueueTime().After(r.QueueTime()) {
+		reset = true
+	}
+
 	q.dup[r.QueueID()] = struct{}{}
 	heap.Push(q.queue, r)
-	// Notify pushed chan of a push
-	if q.pushChan != nil {
-		close(q.pushChan)
-		q.pushChan = nil
+	if reset {
+		q.notifyReset()
 	}
+
 	return true
 }
 
-// Pushed notifies when an item is pushed. Channel expires after one push.
-func (q *TimeQueue) Pushed() chan struct{} {
-	q.mx.Lock()
-	defer q.mx.Unlock()
-
-	if q.pushChan == nil {
-		q.pushChan = make(chan struct{})
-	}
-	return q.pushChan
+func (q *TimeQueue) notifyReset() {
+	go func() { q.streamReset <- struct{}{} }()
 }
 
-// Pop .
-func (q *TimeQueue) Pop() TimeItem {
+// Len .
+func (q *TimeQueue) Len() int {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
-	if q.queue.Len() <= 0 {
-		return nil
-	}
-	rtn := heap.Pop(q.queue).(TimeItem)
-	delete(q.dup, rtn.QueueID())
-	return rtn
+	return q.queue.Len()
 }
 
 // Peek .
@@ -98,23 +96,73 @@ func (q *TimeQueue) Peek() TimeItem {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
-	if q.queue.Len() <= 0 {
-		return nil
-	}
 	return q.queue.Peek()
 }
 
-func (q *TimeQueue) len() int {
+// Stream .
+func (q *TimeQueue) Stream() chan TimeItem {
+	return q.stream
+}
+
+func (q *TimeQueue) startStream() {
+	for {
+		if q.Len() <= 0 {
+			select {
+			case <-q.streamReset:
+				break
+			case <-q.streamStop:
+				return
+			}
+		}
+
+		waitTime := q.Peek().QueueTime().Sub(time.Now())
+		select {
+		case <-time.After(waitTime):
+			q.mx.Lock()
+			toSend := q.queue.Pop().(TimeItem)
+			q.mx.Unlock()
+			q.stream <- toSend
+		case <-q.streamReset:
+			for len(q.streamReset) > 0 {
+				<-q.streamReset
+			}
+			break
+		case <-q.streamStop:
+			return
+		}
+		// Clear reset messages
+		for len(q.streamReset) > 0 {
+			<-q.streamReset
+		}
+	}
+}
+
+// StartStream .
+func (q *TimeQueue) StartStream() {
+	if q.started {
+		return
+	}
+	q.started = true
+	q.streamStop = make(chan struct{})
+	go q.startStream()
+}
+
+// StopStream .
+func (q *TimeQueue) StopStream() {
 	q.mx.Lock()
 	defer q.mx.Unlock()
-
-	return q.queue.Len()
+	close(q.streamStop)
+	q.started = false
 }
 
 // NewTimeQueue .
 func NewTimeQueue() *TimeQueue {
-	return &TimeQueue{
-		queue: &timeQueueInternal{},
-		dup:   map[int64]struct{}{},
+	rtn := &TimeQueue{
+		queue:       &timeQueueInternal{},
+		dup:         map[int64]struct{}{},
+		stream:      make(chan TimeItem),
+		streamReset: make(chan struct{}),
 	}
+	rtn.StartStream()
+	return rtn
 }
