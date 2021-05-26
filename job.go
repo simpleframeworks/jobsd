@@ -21,50 +21,34 @@ func (j *Job) Name() string {
 	return j.job.Name
 }
 
-// Run .
-func (j *Job) Run(args ...interface{}) (*RunState, error) {
+// RunNow .
+func (j *Job) RunNow(unique bool, args ...interface{}) (*RunState, error) {
 	spec := j.spec
 	spec.schedule = false
-	runState, err := j.queueRun(spec, args, nil)
-	return &runState, err
-}
-
-// RunDistinct .
-func (j *Job) RunDistinct(args ...interface{}) (*RunState, error) {
-	spec := j.spec
-	spec.schedule = false
-	spec.unique = true
+	spec.unique = unique
 	runState, err := j.queueRun(spec, args, nil)
 	return &runState, err
 }
 
 // RunAfter .
-func (j *Job) RunAfter(delay time.Duration, args ...interface{}) (*RunState, error) {
+func (j *Job) RunAfter(delay time.Duration, unique bool, args ...interface{}) (*RunState, error) {
 	return nil, errors.New("not implemented")
 }
 
-// RunDistinctAfter .
-func (j *Job) RunDistinctAfter(delay time.Duration, args ...interface{}) (*RunState, error) {
-	return nil, errors.New("not implemented")
-}
-
-// Schedule .
-func (j *Job) Schedule(args ...interface{}) (*RunState, error) {
+// RunOnSchedule .
+func (j *Job) RunOnSchedule(unique bool, args ...interface{}) (*RunState, error) {
 	if j.spec.schedule {
 		return nil, errors.New("not implemented")
 	}
 	return nil, errors.New("no schedule associated with this job")
 }
 
-// ScheduleDistinct .
-func (j *Job) ScheduleDistinct(args ...interface{}) (*RunState, error) {
-	if j.spec.schedule {
-		return nil, errors.New("not implemented")
-	}
-	return nil, errors.New("no schedule associated with this job")
+// GetRunStates .
+func (j *Job) GetRunStates(limit int) ([]*RunState, error) {
+	return []*RunState{}, errors.New("not implemented")
 }
 
-// History .
-func (j *Job) History(limit int) ([]*RunState, error) {
+// GetScheduleStates .
+func (j *Job) GetScheduleStates(limit int) ([]*RunState, error) {
 	return []*RunState{}, errors.New("not implemented")
 }

@@ -42,7 +42,7 @@ func TestJobRun(testT *testing.T) {
 		job, err2 := inst.GetJob(jobName1)
 		t.Assert.NoError(err2)
 
-		runState, err3 := job.Run()
+		runState, err3 := job.RunNow(false)
 		t.Assert.NoError(err3)
 
 		t.When("we wait for the run to complete")
@@ -88,22 +88,22 @@ func TestJobSchedule(testT *testing.T) {
 	}
 
 	t.Given("we create a new job that runs the func")
-	creator := inst.NewJob(jobName, jobFunc)
+	jobCreator := inst.NewJob(jobName, jobFunc)
 
 	t.Given("we use the schedule func to create a job")
-	creator.Schedule(scheduleFunc)
+	jobCreator.SetSchedule(scheduleFunc)
 
 	runLimit := 3
 	t.Given("we limit the job to run %d time(s) on the schedule", runLimit)
-	creator.Limit(runLimit)
+	jobCreator.SetLimit(runLimit)
 
 	t.When("we register the job")
-	job, err0 := creator.Register()
+	job, err0 := jobCreator.Register()
 	t.Assert.NoError(err0)
 	t.Assert.NotNil(job)
 
-	t.When("we schedule the job")
-	scheduleState, err2 := job.Schedule()
+	t.When("we schedule the job to run")
+	scheduleState, err2 := job.RunOnSchedule(false)
 	t.Assert.NoError(err2)
 
 	t.When("we wait for the run to complete")
@@ -128,7 +128,7 @@ func TestJobSchedule(testT *testing.T) {
 	t.Assert.True(scheduleState.Completed())
 
 	t.When("we get the RunState history from the job")
-	history, err4 := job.History(runLimit * 2)
+	history, err4 := job.GetRunStates(runLimit * 2)
 	t.Assert.NoError(err4)
 
 	t.Thenf("we should get %d record(s)", runLimit)
