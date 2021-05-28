@@ -8,9 +8,7 @@ import (
 // Schedule .
 type Schedule struct {
 	ID         int64 `gorm:"primaryKey"`
-	JobID      int64
-	JobName    string
-	Unique     sql.NullString `gorm:"unique"`
+	JobID      int64 `gorm:"unique"`
 	Args       RunArgs
 	ScheduleAt time.Time
 

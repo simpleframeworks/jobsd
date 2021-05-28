@@ -22,21 +22,20 @@ func (j *Job) Name() string {
 	return j.job.Name
 }
 
-// RunNow .
-func (j *Job) RunNow(unique bool, args ...interface{}) (*RunState, error) {
+// RunIt .
+func (j *Job) RunIt(args ...interface{}) (*RunState, error) {
 	spec := j.spec
-	spec.unique = unique
 	runState, err := j.queueRun(spec, args, nil, nil)
 	return &runState, err
 }
 
 // RunAfter .
-func (j *Job) RunAfter(delay time.Duration, unique bool, args ...interface{}) (*RunState, error) {
+func (j *Job) RunAfter(delay time.Duration, args ...interface{}) (*RunState, error) {
 	return nil, errors.New("not implemented")
 }
 
-// RunOnSchedule .
-func (j *Job) RunOnSchedule(unique bool, args ...interface{}) (*RunState, error) {
+// ScheduleIt .
+func (j *Job) ScheduleIt(args ...interface{}) (*RunState, error) {
 	if j.spec.schedule {
 		return nil, errors.New("not implemented")
 	}

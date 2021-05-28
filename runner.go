@@ -79,14 +79,12 @@ func (r *runner) errorOut(err error) {
 }
 
 func (r *runner) complete(runErr error) {
-	r.model.Unique = sql.NullString{}
 	r.model.RunCompletedAt = sql.NullTime{Valid: true, Time: time.Now()}
 	if runErr != nil {
 		r.model.RunCompletedError = runErr.Error()
 	}
 
 	tx := r.db.Model(r.model).Where("run_completed_at IS NULL").Updates(map[string]interface{}{
-		"unique":              r.model.Unique,
 		"run_completed_at":    r.model.RunCompletedAt,
 		"run_completed_error": r.model.RunCompletedError,
 	})
@@ -118,15 +116,15 @@ func (r *RunHelper) Cancel() chan struct{} { return r.cancel }
 
 // RunState .
 type RunState struct {
-	db        *gorm.DB
-	model     *models.Run
-	ID        int64
-	JobID     int64
-	JobName   string
-	Unique    *string
-	Scheduled bool
-	Args      models.RunArgs
-	RunAt     time.Time
+	db          *gorm.DB
+	model       *models.Run
+	ID          int64
+	JobID       int64
+	JobName     string
+	Deduplicate bool
+	Scheduled   bool
+	Args        models.RunArgs
+	RunAt       time.Time
 
 	RunStartedBy      *int64
 	RunStartedAt      *time.Time
@@ -155,7 +153,7 @@ func (r *RunState) Refresh() error {
 	r.ID = r.model.ID
 	r.JobID = r.model.JobID
 	r.JobName = r.model.JobName
-	r.Unique = models.NullToNilString(r.model.Unique)
+	r.Deduplicate = r.model.Deduplicate
 	r.Scheduled = r.model.Scheduled
 	r.Args = r.model.Args
 	r.RunAt = r.model.RunAt
@@ -190,7 +188,7 @@ func modelRunToRunState(model models.Run, db *gorm.DB) RunState {
 		ID:                model.ID,
 		JobID:             model.JobID,
 		JobName:           model.JobName,
-		Unique:            models.NullToNilString(model.Unique),
+		Deduplicate:       model.Deduplicate,
 		Scheduled:         model.Scheduled,
 		Args:              model.Args,
 		RunAt:             model.RunAt,

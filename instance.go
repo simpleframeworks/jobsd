@@ -1,7 +1,6 @@
 package jobspec
 
 import (
-	"database/sql"
 	"sync"
 	"time"
 
@@ -88,11 +87,7 @@ func (i *Instance) registerJob(s spec) (job Job, err error) {
 }
 
 func (i *Instance) specToRun(s spec, args []interface{}) *models.Run {
-	unique := sql.NullString{}
-	if s.unique {
-		unique.Valid = true
-		unique.String = s.jobName
-	}
+
 	now := time.Now()
 	runAt := now
 	if s.schedule {
@@ -100,14 +95,14 @@ func (i *Instance) specToRun(s spec, args []interface{}) *models.Run {
 	}
 
 	rtn := &models.Run{
-		JobID:     s.jobID,
-		JobName:   s.jobName,
-		Unique:    unique,
-		Scheduled: s.schedule,
-		Args:      args,
-		RunAt:     runAt,
-		CreatedAt: now,
-		CreatedBy: i.model.ID,
+		JobID:       s.jobID,
+		JobName:     s.jobName,
+		Deduplicate: s.deduplicate,
+		Scheduled:   s.schedule,
+		Args:        args,
+		RunAt:       runAt,
+		CreatedAt:   now,
+		CreatedBy:   i.model.ID,
 	}
 
 	return rtn
@@ -209,10 +204,10 @@ func (i *Instance) DefaultTimeout(timeout time.Duration) *Instance {
 	return i
 }
 
-// DefaultRetriesOnTimout sets how many times a job run can timeout
+// DefaultRetriesOnTimeout sets how many times a job run can timeout
 // Setting it to -1 removes the limit
 // Must be called before start to have an effect
-func (i *Instance) DefaultRetriesOnTimout(num int) *Instance {
+func (i *Instance) DefaultRetriesOnTimeout(num int) *Instance {
 	i.defaultRetriesOnTimeout = num
 	return i
 }

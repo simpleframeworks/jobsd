@@ -9,7 +9,7 @@ type spec struct {
 	jobID            int64
 	jobName          string
 	jobFunc          JobFunc
-	unique           bool
+	deduplicate      bool
 	timeout          time.Duration
 	retriesOnError   int
 	retriesOnTimeout int
@@ -79,5 +79,11 @@ func (c *SpecMaker) SetErrorRetries(retries int) *SpecMaker {
 // 0 or -1 will ensure the Job is scheduled to run indefinitely
 func (c *SpecMaker) SetLimit(limit int) *SpecMaker {
 	c.spec.limit = limit
+	return c
+}
+
+// SetDeduplicate .
+func (c *SpecMaker) SetDeduplicate(deduplicate bool) *SpecMaker {
+	c.spec.deduplicate = deduplicate
 	return c
 }

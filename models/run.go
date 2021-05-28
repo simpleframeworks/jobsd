@@ -14,16 +14,17 @@ import (
 
 // Run .
 type Run struct {
-	ID        int64 `gorm:"primaryKey"`
-	JobID     int64
-	JobName   string
-	Unique    sql.NullString `gorm:"unique"`
-	Scheduled bool
-	Args      RunArgs
-	RunAt     time.Time
+	ID          int64 `gorm:"primaryKey"`
+	JobID       int64
+	JobName     string
+	Deduplicate bool
+	Args        RunArgs
+	RunAt       time.Time
+	Scheduled   bool
 
 	RunStartedBy      sql.NullInt64
 	RunStartedAt      sql.NullTime `gorm:"index"`
+	RunDeduplicated   bool
 	RunCompletedAt    sql.NullTime `gorm:"index"`
 	RunCompletedError string
 	RunTimeout        time.Duration
