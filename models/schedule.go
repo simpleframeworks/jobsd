@@ -11,12 +11,15 @@ type Schedule struct {
 	JobID      int64
 	JobName    string
 	Unique     sql.NullString `gorm:"unique"`
-	Scheduled  bool
 	Args       RunArgs
 	ScheduleAt time.Time
 
-	RunCount int
-	RunLimit int // 0 = Unlimited
+	ScheduleLock  sql.NullInt64
+	ScheduleCount int
+	ScheduleLimit int // 0 = Unlimited
+
+	LastScheduledAt sql.NullTime
+	LastScheduledBy sql.NullInt64
 
 	CreatedAt time.Time
 	CreatedBy int64

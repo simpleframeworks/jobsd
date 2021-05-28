@@ -25,6 +25,27 @@ func (r *run) QueueTime() time.Time {
 	return r.model.RunAt
 }
 
+func (r *run) exec(instanceID int64) {
+	locked, err := r.lock(instanceID)
+	if err != nil {
+		r.logger.WithError(err).Error("cannot lock to run")
+		return
+	} else if !locked {
+		r.logger.Debug("already locked skipping run")
+	} else {
+		// TODO timeout here
+		helper := RunHelper{
+			args:   r.model.Args,
+			cancel: r.stop,
+		}
+		if err := r.spec.run(helper); err != nil {
+			r.errorOut(err)
+		} else {
+			r.complete(nil)
+		}
+	}
+}
+
 func (r *run) lock(instanceID int64) (bool, error) {
 	startedAt := time.Now()
 	runTimeoutAt := sql.NullTime{}
@@ -49,17 +70,12 @@ func (r *run) lock(instanceID int64) (bool, error) {
 	return locked, tx.Error
 }
 
-func (r *run) exec() {
-	// TODO timeout here
-	helper := RunHelper{
-		args:   r.model.Args,
-		cancel: r.stop,
-	}
-	if err := r.spec.run(helper); err != nil {
-		r.errorOut(err)
-	} else {
-		r.complete(nil)
-	}
+func (r *run) timeOut() {
+	//TODO
+}
+
+func (r *run) errorOut(err error) {
+	//TODO
 }
 
 func (r *run) complete(runErr error) {
@@ -82,17 +98,6 @@ func (r *run) complete(runErr error) {
 		r.logger.Error("could not mark job run as completed. already marked.")
 		return
 	}
-}
-
-func (r *run) reschedule() {
-	//TODO
-}
-func (r *run) timeOut() {
-	//TODO
-}
-
-func (r *run) errorOut(err error) {
-	//TODO
 }
 
 func (r *run) runState() RunState {

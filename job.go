@@ -13,7 +13,8 @@ type Job struct {
 	job  *models.Job
 	spec spec
 
-	queueRun func(s spec, args []interface{}, tx *gorm.DB) (RunState, error)
+	queueRun      func(s spec, args []interface{}, model *models.Run, tx *gorm.DB) (RunState, error)
+	queueSchedule func(s spec, args []interface{}, model *models.Schedule, tx *gorm.DB) (RunState, error)
 }
 
 // Name .
@@ -24,9 +25,8 @@ func (j *Job) Name() string {
 // RunNow .
 func (j *Job) RunNow(unique bool, args ...interface{}) (*RunState, error) {
 	spec := j.spec
-	spec.schedule = false
 	spec.unique = unique
-	runState, err := j.queueRun(spec, args, nil)
+	runState, err := j.queueRun(spec, args, nil, nil)
 	return &runState, err
 }
 

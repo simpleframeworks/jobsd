@@ -113,16 +113,18 @@ func (i *Instance) specToRun(s spec, args []interface{}) *models.Run {
 	return rtn
 }
 
-func (i *Instance) queueRun(s spec, args []interface{}, tx *gorm.DB) (rtn RunState, err error) {
+func (i *Instance) queueRun(s spec, args []interface{}, model *models.Run, tx *gorm.DB) (rtn RunState, err error) {
 
 	if tx == nil {
 		tx = i.db
 	}
 
-	model := i.specToRun(s, args)
-	res := tx.Save(model)
-	if res.Error != nil {
-		return rtn, tx.Error
+	if model == nil {
+		model = i.specToRun(s, args)
+		res := tx.Save(model)
+		if res.Error != nil {
+			return rtn, tx.Error
+		}
 	}
 	logger := i.logger.WithFields(map[string]interface{}{
 		"run.id":       model.ID,
@@ -136,11 +138,11 @@ func (i *Instance) queueRun(s spec, args []interface{}, tx *gorm.DB) (rtn RunSta
 		spec:   &s,
 		stop:   i.stop,
 	}
-	logger.Trace("queuing run")
+	logger.Trace("queuing job run")
 	if i.runQueue.Push(theRun) {
 		rtn = theRun.runState()
 	} else {
-		err = errors.New("job run already queued")
+		logger.Debug("job run already queued")
 	}
 
 	return rtn, err
@@ -274,7 +276,7 @@ func (i *Instance) worker() {
 		case ti := <-i.runQueue.Stream():
 			run := ti.(*run)
 			run.logger.Trace("worker received run. executing.")
-			run.exec()
+			run.exec(i.model.ID)
 		}
 	}
 }
