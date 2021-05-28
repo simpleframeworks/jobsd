@@ -8,45 +8,45 @@ import (
 
 // TimeItem .
 type TimeItem interface {
-	QueueTime() time.Time
-	QueueID() int64
+	TimeQTime() time.Time
+	TimeQID() int64
 }
 
-type timeQueueInternal []TimeItem
+type timeQInternal []TimeItem
 
-func (pq *timeQueueInternal) Len() int { return len(*pq) }
+func (pq *timeQInternal) Len() int { return len(*pq) }
 
-func (pq *timeQueueInternal) Less(i, j int) bool {
-	return (*pq)[i].QueueTime().Before((*pq)[j].QueueTime()) && (*pq)[i].QueueID() < (*pq)[i].QueueID()
+func (pq *timeQInternal) Less(i, j int) bool {
+	return (*pq)[i].TimeQTime().Before((*pq)[j].TimeQTime()) && (*pq)[i].TimeQID() < (*pq)[i].TimeQID()
 }
 
-func (pq *timeQueueInternal) Swap(i, j int) {
+func (pq *timeQInternal) Swap(i, j int) {
 	(*pq)[i], (*pq)[j] = (*pq)[j], (*pq)[i]
 }
 
-func (pq *timeQueueInternal) Push(x interface{}) {
+func (pq *timeQInternal) Push(x interface{}) {
 	item := x.(TimeItem)
 	*pq = append(*pq, item)
 }
 
-func (pq *timeQueueInternal) Pop() interface{} {
-	n := len(timeQueueInternal(*pq))
-	x := timeQueueInternal(*pq)[n-1]
-	*pq = timeQueueInternal(*pq)[0 : n-1]
+func (pq *timeQInternal) Pop() interface{} {
+	n := len(timeQInternal(*pq))
+	x := timeQInternal(*pq)[n-1]
+	*pq = timeQInternal(*pq)[0 : n-1]
 	return x
 }
 
-func (pq *timeQueueInternal) Peek() TimeItem {
+func (pq *timeQInternal) Peek() TimeItem {
 	if pq.Len() <= 0 {
 		return nil
 	}
 	return (*pq)[0]
 }
 
-// TimeQueue is a priority queue of timed items
-type TimeQueue struct {
+// TimeQ is a priority queue of timed items
+type TimeQ struct {
 	mx    sync.Mutex
-	queue *timeQueueInternal
+	queue *timeQInternal
 	dup   map[int64]struct{}
 
 	started     bool
@@ -56,21 +56,21 @@ type TimeQueue struct {
 }
 
 // Push .
-func (q *TimeQueue) Push(r TimeItem) bool {
+func (q *TimeQ) Push(r TimeItem) bool {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
-	if _, ok := q.dup[r.QueueID()]; ok {
+	if _, ok := q.dup[r.TimeQID()]; ok {
 		return false // this de-duplicates
 	}
 	reset := false
 	if q.queue.Len() == 0 {
 		reset = true
-	} else if q.queue.Peek().QueueTime().After(r.QueueTime()) {
+	} else if q.queue.Peek().TimeQTime().After(r.TimeQTime()) {
 		reset = true
 	}
 
-	q.dup[r.QueueID()] = struct{}{}
+	q.dup[r.TimeQID()] = struct{}{}
 	heap.Push(q.queue, r)
 	if reset {
 		q.notifyReset()
@@ -79,12 +79,12 @@ func (q *TimeQueue) Push(r TimeItem) bool {
 	return true
 }
 
-func (q *TimeQueue) notifyReset() {
+func (q *TimeQ) notifyReset() {
 	go func() { q.streamReset <- struct{}{} }()
 }
 
 // Len .
-func (q *TimeQueue) Len() int {
+func (q *TimeQ) Len() int {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
@@ -92,7 +92,7 @@ func (q *TimeQueue) Len() int {
 }
 
 // Peek .
-func (q *TimeQueue) Peek() TimeItem {
+func (q *TimeQ) Peek() TimeItem {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
@@ -100,11 +100,11 @@ func (q *TimeQueue) Peek() TimeItem {
 }
 
 // Stream .
-func (q *TimeQueue) Stream() chan TimeItem {
+func (q *TimeQ) Stream() chan TimeItem {
 	return q.stream
 }
 
-func (q *TimeQueue) startStream() {
+func (q *TimeQ) startStream() {
 	for {
 		if q.Len() <= 0 {
 			select {
@@ -115,7 +115,7 @@ func (q *TimeQueue) startStream() {
 			}
 		}
 
-		waitTime := q.Peek().QueueTime().Sub(time.Now())
+		waitTime := q.Peek().TimeQTime().Sub(time.Now())
 		select {
 		case <-time.After(waitTime):
 			q.mx.Lock()
@@ -138,7 +138,7 @@ func (q *TimeQueue) startStream() {
 }
 
 // StartStream .
-func (q *TimeQueue) StartStream() {
+func (q *TimeQ) StartStream() {
 	if q.started {
 		return
 	}
@@ -148,17 +148,17 @@ func (q *TimeQueue) StartStream() {
 }
 
 // StopStream .
-func (q *TimeQueue) StopStream() {
+func (q *TimeQ) StopStream() {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 	close(q.streamStop)
 	q.started = false
 }
 
-// NewTimeQueue .
-func NewTimeQueue() *TimeQueue {
-	rtn := &TimeQueue{
-		queue:       &timeQueueInternal{},
+// NewTimeQ .
+func NewTimeQ() *TimeQ {
+	rtn := &TimeQ{
+		queue:       &timeQInternal{},
 		dup:         map[int64]struct{}{},
 		stream:      make(chan TimeItem),
 		streamReset: make(chan struct{}),

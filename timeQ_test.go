@@ -7,28 +7,28 @@ import (
 	"github.com/simpleframeworks/testc"
 )
 
-type testTimeQueue struct {
+type testTimeQ struct {
 	id   int64
 	time time.Time
 }
 
-func (t testTimeQueue) QueueTime() time.Time {
+func (t testTimeQ) TimeQTime() time.Time {
 	return t.time
 }
-func (t testTimeQueue) QueueID() int64 {
+func (t testTimeQ) TimeQID() int64 {
 	return t.id
 }
 
-func TestTimeQueue(test *testing.T) {
+func TestTimeQ(test *testing.T) {
 	t := testc.New(test)
 
 	t.Given("a TimeQueue")
-	q := NewTimeQueue()
+	q := NewTimeQ()
 
 	t.Given("the queue has TimeItems")
 	itemNum := 10
 	for i := 0; i < itemNum; i++ {
-		item := testTimeQueue{
+		item := testTimeQ{
 			id:   int64(i),
 			time: time.Now(),
 		}
@@ -42,7 +42,7 @@ func TestTimeQueue(test *testing.T) {
 	for i := 0; i < itemNum; i++ {
 		topItem := <-q.Stream()
 		expectedOrder = append(expectedOrder, int64(i))
-		runOrder = append(runOrder, topItem.QueueID())
+		runOrder = append(runOrder, topItem.TimeQID())
 	}
 
 	t.Then("the order of TimeItems should be sorted in chronological order")
@@ -51,17 +51,17 @@ func TestTimeQueue(test *testing.T) {
 	q.StopStream()
 }
 
-func TestTimeQueueConcurrent(test *testing.T) {
+func TestTimeQConcurrent(test *testing.T) {
 	t := testc.New(test)
 
 	t.Given("a TimeQueue")
-	q := NewTimeQueue()
+	q := NewTimeQ()
 
 	t.Given("we add TimeItems concurrently")
 	itemNum := 100
 	go func() {
 		for i := 0; i < itemNum; i++ {
-			q.Push(testTimeQueue{
+			q.Push(testTimeQ{
 				id:   int64(i),
 				time: time.Now(),
 			})
@@ -76,7 +76,7 @@ func TestTimeQueueConcurrent(test *testing.T) {
 	for i := 0; i < itemNum; i++ {
 		topItem := <-q.Stream()
 		expectedOrder = append(expectedOrder, int64(i))
-		runOrder = append(runOrder, topItem.QueueID())
+		runOrder = append(runOrder, topItem.TimeQID())
 	}
 
 	t.Then("the order of TimeItems should be sorted in chronological order")
@@ -85,15 +85,15 @@ func TestTimeQueueConcurrent(test *testing.T) {
 	q.StopStream()
 }
 
-func TestTimeQueuePush(test *testing.T) {
+func TestTimeQPush(test *testing.T) {
 	t := testc.New(test)
 
 	t.Given("a TimeQueue")
-	q := NewTimeQueue()
+	q := NewTimeQ()
 
 	t.Given("the queue has TimeItems")
 	for i := 0; i < 10; i++ {
-		item := testTimeQueue{
+		item := testTimeQ{
 			id:   int64(i),
 			time: time.Now(),
 		}
@@ -107,25 +107,25 @@ func TestTimeQueuePush(test *testing.T) {
 	t.Then("it should not be blocking")
 }
 
-func TestTimeQueueOrdering(test *testing.T) {
+func TestTimeQOrdering(test *testing.T) {
 
 	t := testc.New(test)
 
 	t.Given("a TimeQueue")
-	q := NewTimeQueue()
+	q := NewTimeQ()
 
 	now := time.Now()
 
 	t.Given("the queue has TimeItems")
 	for i := 0; i < 10; i++ {
-		q.Push(testTimeQueue{
+		q.Push(testTimeQ{
 			id:   int64(i),
 			time: now.Add(time.Second * 2).Add(time.Millisecond * time.Duration(i)),
 		})
 	}
 
 	t.Given("we add an item that should be at the front of the queue")
-	q.Push(testTimeQueue{
+	q.Push(testTimeQ{
 		id:   int64(-100),
 		time: now,
 	})
@@ -136,7 +136,7 @@ func TestTimeQueueOrdering(test *testing.T) {
 	runOrder := []int64{}
 	for i := 0; i < 11; i++ {
 		topItem := <-q.Stream()
-		runOrder = append(runOrder, topItem.QueueID())
+		runOrder = append(runOrder, topItem.TimeQID())
 	}
 
 	t.Then("the order of TimeItems should be sorted in chronological order")
@@ -145,18 +145,18 @@ func TestTimeQueueOrdering(test *testing.T) {
 	q.StopStream()
 }
 
-func TestTimeQueueUnique(test *testing.T) {
+func TestTimeQUnique(test *testing.T) {
 
 	t := testc.New(test)
 
 	t.Given("a TimeQueue")
-	q := NewTimeQueue()
+	q := NewTimeQ()
 
 	tempItems := []TimeItem{}
 
 	t.Given("the queue has TimeItems")
 	for i := 9; i >= 0; i-- {
-		item := testTimeQueue{
+		item := testTimeQ{
 			id:   int64(i),
 			time: time.Now(),
 		}
@@ -174,7 +174,7 @@ func TestTimeQueueUnique(test *testing.T) {
 	runOrder := []int64{}
 	for i := 0; i < 10; i++ {
 		topItem := <-q.Stream()
-		runOrder = append(runOrder, topItem.QueueID())
+		runOrder = append(runOrder, topItem.TimeQID())
 	}
 
 	t.Assert.ElementsMatch([]int64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, runOrder)

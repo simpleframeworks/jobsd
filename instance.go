@@ -26,9 +26,9 @@ type Instance struct {
 
 	model *models.Instance
 
-	runQueue      *TimeQueue
-	scheduleQueue *TimeQueue
-	timeoutQueue  *TimeQueue
+	runQ      *TimeQ
+	scheduleQ *TimeQ
+	timeoutQ  *TimeQ
 
 	started bool
 	stop    chan struct{}
@@ -131,7 +131,7 @@ func (i *Instance) queueRun(s spec, args []interface{}, model *models.Run, tx *g
 		"run.job.id":   model.JobID,
 		"run.job.name": model.JobName,
 	})
-	theRun := &run{
+	theRunner := &runner{
 		db:     i.db,
 		logger: logger,
 		model:  model,
@@ -139,8 +139,8 @@ func (i *Instance) queueRun(s spec, args []interface{}, model *models.Run, tx *g
 		stop:   i.stop,
 	}
 	logger.Trace("queuing job run")
-	if i.runQueue.Push(theRun) {
-		rtn = theRun.runState()
+	if i.runQ.Push(theRunner) {
+		rtn = theRunner.runState()
 	} else {
 		logger.Debug("job run already queued")
 	}
@@ -273,8 +273,8 @@ func (i *Instance) worker() {
 		select {
 		case <-i.stop:
 			return
-		case ti := <-i.runQueue.Stream():
-			run := ti.(*run)
+		case ti := <-i.runQ.Stream():
+			run := ti.(*runner)
 			run.logger.Trace("worker received run. executing.")
 			run.exec(i.model.ID)
 		}
@@ -285,9 +285,9 @@ func (i *Instance) worker() {
 func (i *Instance) Stop() error {
 	i.logger.Debug("stopping instance")
 
-	i.runQueue.StopStream()
-	i.scheduleQueue.StopStream()
-	i.timeoutQueue.StopStream()
+	i.runQ.StopStream()
+	i.scheduleQ.StopStream()
+	i.timeoutQ.StopStream()
 
 	close(i.stop)
 
@@ -321,9 +321,9 @@ func New(db *gorm.DB) *Instance {
 		defaultRetriesOnTimeout: 3,
 		defaultRetriesOnError:   3,
 
-		runQueue:      NewTimeQueue(),
-		scheduleQueue: NewTimeQueue(),
-		timeoutQueue:  NewTimeQueue(),
+		runQ:      NewTimeQ(),
+		scheduleQ: NewTimeQ(),
+		timeoutQ:  NewTimeQ(),
 
 		model:   model,
 		started: false,

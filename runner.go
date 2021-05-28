@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type run struct {
+type runner struct {
 	db     *gorm.DB
 	logger logc.Logger
 	model  *models.Run
@@ -17,15 +17,15 @@ type run struct {
 	stop   chan struct{}
 }
 
-func (r *run) QueueID() int64 {
+func (r *runner) TimeQID() int64 {
 	return r.model.ID
 }
 
-func (r *run) QueueTime() time.Time {
+func (r *runner) TimeQTime() time.Time {
 	return r.model.RunAt
 }
 
-func (r *run) exec(instanceID int64) {
+func (r *runner) exec(instanceID int64) {
 	locked, err := r.lock(instanceID)
 	if err != nil {
 		r.logger.WithError(err).Error("cannot lock to run")
@@ -46,7 +46,7 @@ func (r *run) exec(instanceID int64) {
 	}
 }
 
-func (r *run) lock(instanceID int64) (bool, error) {
+func (r *runner) lock(instanceID int64) (bool, error) {
 	startedAt := time.Now()
 	runTimeoutAt := sql.NullTime{}
 	if r.model.RunTimeout > 0 {
@@ -70,15 +70,15 @@ func (r *run) lock(instanceID int64) (bool, error) {
 	return locked, tx.Error
 }
 
-func (r *run) timeOut() {
+func (r *runner) timeOut() {
 	//TODO
 }
 
-func (r *run) errorOut(err error) {
+func (r *runner) errorOut(err error) {
 	//TODO
 }
 
-func (r *run) complete(runErr error) {
+func (r *runner) complete(runErr error) {
 	r.model.Unique = sql.NullString{}
 	r.model.RunCompletedAt = sql.NullTime{Valid: true, Time: time.Now()}
 	if runErr != nil {
@@ -100,7 +100,7 @@ func (r *run) complete(runErr error) {
 	}
 }
 
-func (r *run) runState() RunState {
+func (r *runner) runState() RunState {
 	return modelRunToRunState(*r.model, r.db)
 }
 

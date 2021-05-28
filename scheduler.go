@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type schedule struct {
+type scheduler struct {
 	db     *gorm.DB
 	logger logc.Logger
 	model  *models.Schedule
@@ -18,15 +18,15 @@ type schedule struct {
 	queueRun func(s spec, args []interface{}, id *int64, tx *gorm.DB) (RunState, error)
 }
 
-func (s *schedule) QueueID() int64 {
+func (s *scheduler) TimeQID() int64 {
 	return s.model.ID
 }
 
-func (s *schedule) QueueTime() time.Time {
+func (s *scheduler) TimeQTime() time.Time {
 	return s.model.ScheduleAt.Add(-10 * time.Second)
 }
 
-func (s *schedule) exec(instanceID int64) {
+func (s *scheduler) exec(instanceID int64) {
 	s.db.Transaction(func(tx *gorm.DB) error {
 		advanced, err0 := s.advance(tx, instanceID)
 		if err0 != nil {
@@ -45,7 +45,7 @@ func (s *schedule) exec(instanceID int64) {
 	s.db.First(s.model, s.model.ID)
 }
 
-func (s *schedule) advance(tx *gorm.DB, instanceID int64) (bool, error) {
+func (s *scheduler) advance(tx *gorm.DB, instanceID int64) (bool, error) {
 	now := time.Now()
 	scheduleNext := s.spec.scheduleFunc(now)
 	res := tx.Model(s.model).Where("schedule_count = ?", s.model.ScheduleCount).
