@@ -35,18 +35,20 @@ func (r *runner) exec(instanceID int64) {
 		return
 	} else if !activated {
 		r.logger.Debug("already activated, skipping run")
-	} else {
-		// TODO timeout here
-		helper := RunHelper{
-			args:   r.modelRun.Args,
-			cancel: r.stop,
-		}
-		if err := r.spec.run(helper); err != nil {
-			r.errorOut(err)
-		} else {
-			r.complete(nil)
-		}
+		return
 	}
+	// TODO timeout here
+	r.logger.Trace("run activated")
+	helper := RunHelper{
+		args:   r.modelRun.Args,
+		cancel: r.stop,
+	}
+	if err := r.spec.run(helper); err != nil {
+		r.errorOut(err)
+	} else {
+		r.complete(nil)
+	}
+	r.logger.Trace("run completed")
 }
 
 func (r *runner) activate(instanceID int64) (bool, error) {
@@ -71,8 +73,35 @@ func (r *runner) activate(instanceID int64) (bool, error) {
 		TimeoutAt: timeoutAt,
 		CreatedBy: instanceID,
 	}
-	res := r.db.Clauses(clause.OnConflict{DoNothing: true}).Create(r.modelActive)
-	return res.RowsAffected == 1, res.Error
+	rtn := false
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		res0 := tx.Model(r.modelRun).Where("run_started_by IS NULL").Updates(map[string]interface{}{
+			"run_started_by": instanceID,
+			"run_started_at": startedAt,
+		})
+		if res0.Error != nil {
+			return res0.Error
+		} else if res0.RowsAffected != 1 {
+			return nil
+		}
+		res1 := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(r.modelActive)
+		if res1.Error != nil {
+			return res1.Error
+		} else if res1.RowsAffected == 1 {
+			rtn = true
+		} else {
+			r.logger.Trace("run deduplicated")
+			res2 := tx.Model(r.modelRun).Updates(map[string]interface{}{
+				"run_deduplicated": true,
+				"run_completed_at": startedAt,
+			})
+			if res2.Error != nil {
+				return res2.Error
+			}
+		}
+		return nil
+	})
+	return rtn, err
 }
 
 func (r *runner) timeOut() {
@@ -83,24 +112,21 @@ func (r *runner) errorOut(err error) {
 	//TODO
 }
 
-func (r *runner) complete(runErr error) {
+func (r *runner) complete(runErr error) error {
 	r.modelRun.RunCompletedAt = sql.NullTime{Valid: true, Time: time.Now()}
 	if runErr != nil {
 		r.modelRun.RunCompletedError = runErr.Error()
 	}
-
 	res := r.db.Model(r.modelRun).Where("run_completed_at IS NULL").Updates(map[string]interface{}{
 		"run_completed_at":    r.modelRun.RunCompletedAt,
 		"run_completed_error": r.modelRun.RunCompletedError,
 	})
-	err := res.Error
-	if err != nil {
-		r.logger.WithError(err).Error("db error. could not mark job run as completed.")
-		return
+	if res.Error != nil {
+		return res.Error
 	} else if res.RowsAffected != 1 {
-		r.logger.Error("could not mark job run as completed. already marked.")
-		return
+		r.logger.Warn("job run already marked as completed")
 	}
+	return nil
 }
 
 func (r *runner) runState() RunState {
