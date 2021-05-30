@@ -112,21 +112,40 @@ func (r *runner) errorOut(err error) {
 	//TODO
 }
 
-func (r *runner) complete(runErr error) error {
+func (r *runner) complete(runErr error) (err error) {
+	for i := 0; i < 3; i++ {
+		err = r.completeAttempt(runErr)
+		if err != nil {
+			r.logger.WithError(err).WithField("attempt", i).Error("cannot complete job run")
+		} else {
+			return
+		}
+	}
+	return
+}
+
+func (r *runner) completeAttempt(runErr error) error {
 	r.modelRun.RunCompletedAt = sql.NullTime{Valid: true, Time: time.Now()}
 	if runErr != nil {
 		r.modelRun.RunCompletedError = runErr.Error()
 	}
-	res := r.db.Model(r.modelRun).Where("run_completed_at IS NULL").Updates(map[string]interface{}{
-		"run_completed_at":    r.modelRun.RunCompletedAt,
-		"run_completed_error": r.modelRun.RunCompletedError,
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		res0 := tx.Model(r.modelRun).Where("run_completed_at IS NULL").Updates(map[string]interface{}{
+			"run_completed_at":    r.modelRun.RunCompletedAt,
+			"run_completed_error": r.modelRun.RunCompletedError,
+		})
+		if res0.Error != nil {
+			return res0.Error
+		} else if res0.RowsAffected != 1 {
+			r.logger.Warn("job run already marked as completed")
+		}
+		res1 := tx.Delete(r.modelActive)
+		if res1.Error != nil {
+			return res1.Error
+		}
+		return nil
 	})
-	if res.Error != nil {
-		return res.Error
-	} else if res.RowsAffected != 1 {
-		r.logger.Warn("job run already marked as completed")
-	}
-	return nil
+	return err
 }
 
 func (r *runner) runState() RunState {
