@@ -127,11 +127,11 @@ func (i *Instance) queueRun(s spec, args []interface{}, model *models.Run, tx *g
 		"run.job.name": model.JobName,
 	})
 	theRunner := &runner{
-		db:     i.db,
-		logger: logger,
-		model:  model,
-		spec:   &s,
-		stop:   i.stop,
+		db:       i.db,
+		logger:   logger,
+		modelRun: model,
+		spec:     &s,
+		stop:     i.stop,
 	}
 	logger.Trace("queuing job run")
 	if i.runQ.Push(theRunner) {
@@ -233,7 +233,10 @@ func (i *Instance) Start() error {
 
 	i.logger.Debug("starting up instance - start")
 	if i.model.Migrate {
-		txErr := i.db.AutoMigrate(&models.Instance{}, &models.Job{}, &models.Run{})
+		txErr := i.db.AutoMigrate(
+			&models.Instance{}, &models.Job{}, &models.Run{},
+			&models.Schedule{}, &models.Active{},
+		)
 		if txErr != nil {
 			return txErr
 		}

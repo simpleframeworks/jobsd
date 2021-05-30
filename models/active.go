@@ -8,13 +8,14 @@ import (
 // Active .
 type Active struct {
 	ID       int64 `gorm:"primaryKey"`
+	RunID    int64
 	JobID    int64
 	JobName  string
 	UniqueID sql.NullInt64 `gorm:"unique"`
 	Args     RunArgs
 
 	StartedAt time.Time
-	TimeoutAt time.Time
+	TimeoutAt sql.NullTime
 
 	CreatedAt time.Time
 	CreatedBy int64

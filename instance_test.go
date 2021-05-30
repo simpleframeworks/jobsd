@@ -42,7 +42,7 @@ func TestJobRun(testT *testing.T) {
 		job, err2 := inst.GetJob(jobName1)
 		t.Assert.NoError(err2)
 
-		runState, err3 := job.RunNow(false)
+		runState, err3 := job.RunIt(false)
 		t.Assert.NoError(err3)
 
 		t.When("we wait for the run to complete")
@@ -103,7 +103,7 @@ func TestJobSchedule(testT *testing.T) {
 	t.Assert.NotNil(job)
 
 	t.When("we schedule the job to run")
-	scheduleState, err2 := job.RunOnSchedule(false)
+	scheduleState, err2 := job.ScheduleIt(false)
 	t.Assert.NoError(err2)
 
 	t.When("we wait for the run to complete")

@@ -7,35 +7,38 @@ import (
 	"github.com/simpleframeworks/jobspec/models"
 	"github.com/simpleframeworks/logc"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type runner struct {
-	db     *gorm.DB
-	logger logc.Logger
-	model  *models.Run
-	spec   *spec
-	stop   chan struct{}
+	db          *gorm.DB
+	logger      logc.Logger
+	modelRun    *models.Run
+	modelActive *models.Active
+
+	spec *spec
+	stop chan struct{}
 }
 
 func (r *runner) TimeQID() int64 {
-	return r.model.ID
+	return r.modelRun.ID
 }
 
 func (r *runner) TimeQTime() time.Time {
-	return r.model.RunAt
+	return r.modelRun.RunAt
 }
 
 func (r *runner) exec(instanceID int64) {
-	locked, err := r.lock(instanceID)
+	activated, err := r.activate(instanceID)
 	if err != nil {
 		r.logger.WithError(err).Error("cannot lock to run")
 		return
-	} else if !locked {
-		r.logger.Debug("already locked skipping run")
+	} else if !activated {
+		r.logger.Debug("already activated, skipping run")
 	} else {
 		// TODO timeout here
 		helper := RunHelper{
-			args:   r.model.Args,
+			args:   r.modelRun.Args,
 			cancel: r.stop,
 		}
 		if err := r.spec.run(helper); err != nil {
@@ -46,28 +49,30 @@ func (r *runner) exec(instanceID int64) {
 	}
 }
 
-func (r *runner) lock(instanceID int64) (bool, error) {
+func (r *runner) activate(instanceID int64) (bool, error) {
 	startedAt := time.Now()
-	runTimeoutAt := sql.NullTime{}
-	if r.model.RunTimeout > 0 {
-		runTimeoutAt.Valid = true
-		runTimeoutAt.Time = startedAt.Add(time.Duration(r.model.RunTimeout))
+	timeoutAt := sql.NullTime{}
+	if r.modelRun.RunTimeout > 0 {
+		timeoutAt.Valid = true
+		timeoutAt.Time = startedAt.Add(time.Duration(r.modelRun.RunTimeout))
 	}
-	tx := r.db.Model(r.model).Where("run_started_at IS NULL").Updates(map[string]interface{}{
-		"run_timeout_at": runTimeoutAt,
-		"run_started_at": startedAt,
-		"run_started_by": instanceID,
-	})
-	if tx.Error != nil {
-		return false, tx.Error
+	uniqueID := sql.NullInt64{}
+	if r.modelRun.Deduplicate {
+		uniqueID.Valid = true
+		uniqueID.Int64 = r.modelRun.JobID
 	}
-	locked := tx.RowsAffected == 1
-	if locked {
-		r.model.RunTimeoutAt = runTimeoutAt
-		r.model.RunStartedAt = sql.NullTime{Valid: true, Time: startedAt}
-		r.model.RunStartedBy = sql.NullInt64{Valid: true, Int64: instanceID}
+	r.modelActive = &models.Active{
+		RunID:     r.modelRun.ID,
+		JobID:     r.modelRun.JobID,
+		JobName:   r.modelRun.JobName,
+		UniqueID:  uniqueID,
+		Args:      r.modelRun.Args,
+		StartedAt: startedAt,
+		TimeoutAt: timeoutAt,
+		CreatedBy: instanceID,
 	}
-	return locked, tx.Error
+	res := r.db.Clauses(clause.OnConflict{DoNothing: true}).Create(r.modelActive)
+	return res.RowsAffected == 1, res.Error
 }
 
 func (r *runner) timeOut() {
@@ -79,27 +84,27 @@ func (r *runner) errorOut(err error) {
 }
 
 func (r *runner) complete(runErr error) {
-	r.model.RunCompletedAt = sql.NullTime{Valid: true, Time: time.Now()}
+	r.modelRun.RunCompletedAt = sql.NullTime{Valid: true, Time: time.Now()}
 	if runErr != nil {
-		r.model.RunCompletedError = runErr.Error()
+		r.modelRun.RunCompletedError = runErr.Error()
 	}
 
-	tx := r.db.Model(r.model).Where("run_completed_at IS NULL").Updates(map[string]interface{}{
-		"run_completed_at":    r.model.RunCompletedAt,
-		"run_completed_error": r.model.RunCompletedError,
+	res := r.db.Model(r.modelRun).Where("run_completed_at IS NULL").Updates(map[string]interface{}{
+		"run_completed_at":    r.modelRun.RunCompletedAt,
+		"run_completed_error": r.modelRun.RunCompletedError,
 	})
-	err := tx.Error
+	err := res.Error
 	if err != nil {
 		r.logger.WithError(err).Error("db error. could not mark job run as completed.")
 		return
-	} else if tx.RowsAffected != 1 {
+	} else if res.RowsAffected != 1 {
 		r.logger.Error("could not mark job run as completed. already marked.")
 		return
 	}
 }
 
 func (r *runner) runState() RunState {
-	return modelRunToRunState(*r.model, r.db)
+	return modelRunToRunState(*r.modelRun, r.db)
 }
 
 // RunHelper .
