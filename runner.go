@@ -51,8 +51,7 @@ func (r *runner) exec(instanceID int64) {
 	r.logger.Trace("run completed")
 }
 
-func (r *runner) activate(instanceID int64) (bool, error) {
-	startedAt := time.Now()
+func (r *runner) buildActive(instanceID int64, startedAt time.Time) *models.Active {
 	timeoutAt := sql.NullTime{}
 	if r.modelRun.RunTimeout > 0 {
 		timeoutAt.Valid = true
@@ -63,7 +62,7 @@ func (r *runner) activate(instanceID int64) (bool, error) {
 		uniqueID.Valid = true
 		uniqueID.Int64 = r.modelRun.JobID
 	}
-	r.modelActive = &models.Active{
+	return &models.Active{
 		RunID:     r.modelRun.ID,
 		JobID:     r.modelRun.JobID,
 		JobName:   r.modelRun.JobName,
@@ -73,6 +72,11 @@ func (r *runner) activate(instanceID int64) (bool, error) {
 		TimeoutAt: timeoutAt,
 		CreatedBy: instanceID,
 	}
+}
+
+func (r *runner) activate(instanceID int64) (bool, error) {
+	startedAt := time.Now()
+	r.modelActive = r.buildActive(instanceID, startedAt)
 	rtn := false
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		res0 := tx.Model(r.modelRun).Where("run_started_by IS NULL").Updates(map[string]interface{}{
