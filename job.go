@@ -14,7 +14,7 @@ type Job struct {
 	spec spec
 
 	queueRun      func(runAt time.Time, s spec, args []interface{}, model *models.Run, tx *gorm.DB) (RunState, error)
-	queueSchedule func(s spec, args []interface{}, model *models.Schedule, tx *gorm.DB) (RunState, error)
+	queueSchedule func(s spec, args []interface{}, model *models.Schedule, tx *gorm.DB) (ScheduleState, error)
 }
 
 // Name .
@@ -37,9 +37,11 @@ func (j *Job) RunAfter(delay time.Duration, args ...interface{}) (*RunState, err
 }
 
 // ScheduleIt .
-func (j *Job) ScheduleIt(args ...interface{}) (*RunState, error) {
+func (j *Job) ScheduleIt(args ...interface{}) (*ScheduleState, error) {
 	if j.spec.schedule {
-		return nil, errors.New("not implemented")
+		spec := j.spec
+		runState, err := j.queueSchedule(spec, args, nil, nil)
+		return &runState, err
 	}
 	return nil, errors.New("no schedule associated with this job")
 }

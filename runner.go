@@ -153,7 +153,7 @@ func (r *runner) completeAttempt(runErr error) error {
 }
 
 func (r *runner) runState() RunState {
-	return modelRunToRunState(*r.modelRun, r.db)
+	return modelToRunState(*r.modelRun, r.db)
 }
 
 // RunHelper .
@@ -187,8 +187,6 @@ type RunState struct {
 	RunTimeout        time.Duration
 	RunTimeoutAt      *time.Time
 
-	RetryCount int
-
 	CreatedAt time.Time
 	CreatedBy int64
 }
@@ -204,23 +202,22 @@ func (r *RunState) Refresh() error {
 
 	r.model = model
 
-	r.ID = r.model.ID
-	r.JobID = r.model.JobID
-	r.JobName = r.model.JobName
-	r.Deduplicate = r.model.Deduplicate
-	r.Scheduled = r.model.Scheduled
-	r.Args = r.model.Args
-	r.RunAt = r.model.RunAt
+	r.ID = model.ID
+	r.JobID = model.JobID
+	r.JobName = model.JobName
+	r.Deduplicate = model.Deduplicate
+	r.Scheduled = model.Scheduled
+	r.Args = model.Args
+	r.RunAt = model.RunAt
 	r.RunStartedBy = models.NullToNilInt64(r.model.RunStartedBy)
 	r.RunStartedAt = models.NullToNilTime(r.model.RunStartedAt)
 	r.RunCompletedAt = models.NullToNilTime(r.model.RunCompletedAt)
-	r.RunCompletedError = r.model.RunCompletedError
-	r.RunTimeout = r.model.RunTimeout
+	r.RunCompletedError = model.RunCompletedError
+	r.RunTimeout = model.RunTimeout
 	r.RunTimeoutAt = models.NullToNilTime(r.model.RunTimeoutAt)
-	r.RetryCount = r.model.RetryCount
 
-	r.CreatedAt = r.model.CreatedAt
-	r.CreatedBy = r.model.CreatedBy
+	r.CreatedAt = model.CreatedAt
+	r.CreatedBy = model.CreatedBy
 
 	return nil
 }
@@ -235,7 +232,7 @@ func (r *RunState) Completed() bool {
 	return r.RunCompletedAt != nil
 }
 
-func modelRunToRunState(model models.Run, db *gorm.DB) RunState {
+func modelToRunState(model models.Run, db *gorm.DB) RunState {
 	return RunState{
 		db:                db,
 		model:             &model,
@@ -252,8 +249,20 @@ func modelRunToRunState(model models.Run, db *gorm.DB) RunState {
 		RunCompletedError: model.RunCompletedError,
 		RunTimeout:        model.RunTimeout,
 		RunTimeoutAt:      models.NullToNilTime(model.RunTimeoutAt),
-		RetryCount:        model.RetryCount,
 		CreatedAt:         model.CreatedAt,
 		CreatedBy:         model.CreatedBy,
 	}
+}
+
+func getRunStates(db *gorm.DB, jobID int64, limit int) (rtn []*RunState, err error) {
+	runs := []models.Run{}
+	res := db.Where("job_id = ?", jobID).Order("created_at DESC").Limit(limit).Find(&runs)
+	if res.Error != nil {
+		return rtn, res.Error
+	}
+	for _, run := range runs {
+		runState := modelToRunState(run, db)
+		rtn = append(rtn, &runState)
+	}
+	return rtn, nil
 }

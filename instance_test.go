@@ -42,7 +42,7 @@ func TestJobRun(testT *testing.T) {
 		job, err2 := inst.GetJob(jobName1)
 		t.Assert.NoError(err2)
 
-		runState, err3 := job.RunIt(false)
+		runState, err3 := job.RunIt()
 		t.Assert.NoError(err3)
 
 		t.When("we wait for the run to complete")
@@ -103,14 +103,14 @@ func TestJobSchedule(testT *testing.T) {
 	t.Assert.NotNil(job)
 
 	t.When("we schedule the job to run")
-	scheduleState, err2 := job.ScheduleIt(false)
+	scheduleState, err2 := job.ScheduleIt()
 	t.Assert.NoError(err2)
 
-	t.When("we wait for the run to complete")
+	t.When("we wait for the schedule to schedule the job runs")
 	for i := 0; i < 100; i++ {
 		time.Sleep(100 * time.Millisecond)
 		t.Require.NoError(scheduleState.Refresh())
-		if scheduleState.Completed() {
+		if scheduleState.ScheduleCount == runLimit {
 			break
 		}
 	}

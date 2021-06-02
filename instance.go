@@ -1,6 +1,7 @@
 package jobspec
 
 import (
+	"database/sql"
 	"sync"
 	"time"
 
@@ -79,6 +80,7 @@ func (i *Instance) registerJob(s spec) (job Job, err error) {
 
 	job.spec = s
 	job.queueRun = i.queueRun
+	job.queueSchedule = i.queueSchedule
 
 	i.jobs[s.jobName] = job
 
@@ -129,6 +131,62 @@ func (i *Instance) queueRun(runAt time.Time, s spec, args []interface{}, model *
 		logger.Debug("job run already queued")
 	}
 	return rtn, err
+}
+
+func (i *Instance) specToSchedule(scheduleAt time.Time, nextRunAt time.Time, s spec, args []interface{}) *models.Schedule {
+	return &models.Schedule{
+		JobID: s.jobID,
+		Args:  args,
+
+		ScheduleAt: scheduleAt,
+		NextRunAt:  nextRunAt,
+
+		ScheduleCount: 0,
+		ScheduleLimit: s.limit,
+
+		LastScheduledAt: sql.NullTime{},
+		LastScheduledBy: sql.NullInt64{},
+
+		CreatedAt: time.Now(),
+		CreatedBy: i.model.ID,
+	}
+}
+
+func (i *Instance) queueSchedule(s spec, args []interface{}, model *models.Schedule, tx *gorm.DB) (rtn ScheduleState, err error) {
+	if tx == nil {
+		tx = i.db
+	}
+	now := time.Now()
+	nextRunAt := s.runAt(now)
+	scheduleAt := nextRunAt.Add(-ScheduleTimingOffset)
+	if model == nil {
+		model = i.specToSchedule(nextRunAt, scheduleAt, s, args)
+		res := tx.Save(model)
+		if res.Error != nil {
+			return rtn, tx.Error
+		}
+	}
+	logger := i.logger.WithFields(map[string]interface{}{
+		"schedule.id":     model.ID,
+		"schedule.job.id": model.JobID,
+	})
+	theScheduler := &scheduler{
+		db:     i.db,
+		logger: logger,
+		model:  model,
+		spec:   &s,
+		stop:   i.stop,
+	}
+
+	logger.Trace("queuing job schedule")
+	if i.scheduleQ.Push(theScheduler) {
+		rtn = theScheduler.scheduleState()
+	} else {
+		logger.Debug("schedule run already queued")
+	}
+	return rtn, err
+
+	return
 }
 
 // GetJob gets a job to run

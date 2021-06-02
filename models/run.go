@@ -30,8 +30,6 @@ type Run struct {
 	RunTimeout        time.Duration
 	RunTimeoutAt      sql.NullTime `gorm:"index"`
 
-	RetryCount int
-
 	CreatedAt time.Time
 	CreatedBy int64
 }

@@ -22,6 +22,13 @@ func (s *spec) run(helper RunHelper) error {
 	return s.jobFunc(helper)
 }
 
+func (s *spec) runAt(now time.Time) time.Time {
+	return s.scheduleFunc(time.Now())
+}
+
+// ScheduleTimingOffset is the duration before running a job to schedule it
+const ScheduleTimingOffset = time.Second * 10
+
 // SpecMaker .
 type SpecMaker struct {
 	spec        spec
