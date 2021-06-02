@@ -13,7 +13,7 @@ type Job struct {
 	job  *models.Job
 	spec spec
 
-	queueRun      func(s spec, args []interface{}, model *models.Run, tx *gorm.DB) (RunState, error)
+	queueRun      func(runAt time.Time, s spec, args []interface{}, model *models.Run, tx *gorm.DB) (RunState, error)
 	queueSchedule func(s spec, args []interface{}, model *models.Schedule, tx *gorm.DB) (RunState, error)
 }
 
@@ -25,13 +25,15 @@ func (j *Job) Name() string {
 // RunIt .
 func (j *Job) RunIt(args ...interface{}) (*RunState, error) {
 	spec := j.spec
-	runState, err := j.queueRun(spec, args, nil, nil)
+	runState, err := j.queueRun(time.Now(), spec, args, nil, nil)
 	return &runState, err
 }
 
 // RunAfter .
 func (j *Job) RunAfter(delay time.Duration, args ...interface{}) (*RunState, error) {
-	return nil, errors.New("not implemented")
+	spec := j.spec
+	runState, err := j.queueRun(time.Now().Add(delay), spec, args, nil, nil)
+	return &runState, err
 }
 
 // ScheduleIt .

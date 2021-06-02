@@ -7,12 +7,13 @@ import (
 
 // Schedule .
 type Schedule struct {
-	ID         int64 `gorm:"primaryKey"`
-	JobID      int64 `gorm:"unique"`
-	Args       RunArgs
-	ScheduleAt time.Time
+	ID    int64 `gorm:"primaryKey"`
+	JobID int64 `gorm:"unique"`
+	Args  RunArgs
 
-	ScheduleLock  sql.NullInt64
+	ScheduleAt time.Time
+	NextRunAt  time.Time
+
 	ScheduleCount int
 	ScheduleLimit int // 0 = Unlimited
 

@@ -86,36 +86,25 @@ func (i *Instance) registerJob(s spec) (job Job, err error) {
 	return job, nil
 }
 
-func (i *Instance) specToRun(s spec, args []interface{}) *models.Run {
-
-	now := time.Now()
-	runAt := now
-	if s.schedule {
-		runAt = s.scheduleFunc(runAt)
-	}
-
-	rtn := &models.Run{
+func (i *Instance) specToRun(runAt time.Time, s spec, args []interface{}) *models.Run {
+	return &models.Run{
 		JobID:       s.jobID,
 		JobName:     s.jobName,
 		Deduplicate: s.deduplicate,
 		Scheduled:   s.schedule,
 		Args:        args,
 		RunAt:       runAt,
-		CreatedAt:   now,
+		CreatedAt:   time.Now(),
 		CreatedBy:   i.model.ID,
 	}
-
-	return rtn
 }
 
-func (i *Instance) queueRun(s spec, args []interface{}, model *models.Run, tx *gorm.DB) (rtn RunState, err error) {
-
+func (i *Instance) queueRun(runAt time.Time, s spec, args []interface{}, model *models.Run, tx *gorm.DB) (rtn RunState, err error) {
 	if tx == nil {
 		tx = i.db
 	}
-
 	if model == nil {
-		model = i.specToRun(s, args)
+		model = i.specToRun(runAt, s, args)
 		res := tx.Save(model)
 		if res.Error != nil {
 			return rtn, tx.Error
@@ -139,7 +128,6 @@ func (i *Instance) queueRun(s spec, args []interface{}, model *models.Run, tx *g
 	} else {
 		logger.Debug("job run already queued")
 	}
-
 	return rtn, err
 }
 
@@ -147,7 +135,6 @@ func (i *Instance) queueRun(s spec, args []interface{}, model *models.Run, tx *g
 func (i *Instance) GetJob(name string) (Job, error) {
 	i.jobsMu.Lock()
 	defer i.jobsMu.Unlock()
-
 	job, exists := i.jobs[name]
 	if exists {
 		return job, nil

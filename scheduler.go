@@ -15,7 +15,7 @@ type scheduler struct {
 	spec   *spec
 	stop   chan struct{}
 
-	queueRun func(s spec, args []interface{}, id *int64, tx *gorm.DB) (RunState, error)
+	queueRun func(runAt time.Time, s spec, args []interface{}, id *int64, tx *gorm.DB) (RunState, error)
 }
 
 func (s *scheduler) TimeQID() int64 {
@@ -23,21 +23,21 @@ func (s *scheduler) TimeQID() int64 {
 }
 
 func (s *scheduler) TimeQTime() time.Time {
-	return s.model.ScheduleAt.Add(-10 * time.Second)
+	return s.model.ScheduleAt
 }
 
 func (s *scheduler) exec(instanceID int64) {
 	s.db.Transaction(func(tx *gorm.DB) error {
-		advanced, err0 := s.advance(tx, instanceID)
+		scheduled, err0 := s.schedule(tx, instanceID)
 		if err0 != nil {
-			s.logger.WithError(err0).Error("cannot lock to schedule")
+			s.logger.WithError(err0).Error("cannot schedule")
 			return err0
-		} else if !advanced {
-			s.logger.Debug("schedule already run skipping")
+		} else if !scheduled {
+			s.logger.Debug("scheduled already, skipping")
 		} else {
-			_, err1 := s.queueRun(*s.spec, s.model.Args, nil, tx)
+			_, err1 := s.queueRun(s.model.NextRunAt, *s.spec, s.model.Args, nil, tx)
 			if err1 != nil {
-				s.logger.WithError(err1).Error("failed to schedule run")
+				s.logger.WithError(err1).Error("failed to schedule job")
 			}
 		}
 		return nil
@@ -45,12 +45,18 @@ func (s *scheduler) exec(instanceID int64) {
 	s.db.First(s.model, s.model.ID)
 }
 
-func (s *scheduler) advance(tx *gorm.DB, instanceID int64) (bool, error) {
+func (s *scheduler) setTimings(now time.Time) {
+	s.model.NextRunAt = s.spec.scheduleFunc(time.Now())
+	s.model.ScheduleAt = s.model.NextRunAt.Add(time.Second * -10)
+}
+
+func (s *scheduler) schedule(tx *gorm.DB, instanceID int64) (bool, error) {
 	now := time.Now()
-	scheduleNext := s.spec.scheduleFunc(now)
+	s.setTimings(now)
 	res := tx.Model(s.model).Where("schedule_count = ?", s.model.ScheduleCount).
 		Updates(map[string]interface{}{
-			"schedule_at":       scheduleNext,
+			"schedule_at":       s.model.ScheduleAt,
+			"next_run_at":       s.model.NextRunAt,
 			"schedule_count":    s.model.ScheduleCount + 1,
 			"last_scheduled_at": now,
 			"last_scheduled_by": instanceID,
