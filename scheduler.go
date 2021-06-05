@@ -131,7 +131,7 @@ func (s *ScheduleState) LatestRun() (*RunState, error) {
 
 // LatestRuns gets the n latest scheduled job run states
 func (s *ScheduleState) LatestRuns(n int) ([]*RunState, error) {
-	runStates, err := getRunStates(s.db, s.JobID, 1)
+	runStates, err := getRunStates(s.db, s.JobID, n)
 	if err != nil {
 		return nil, err
 	}

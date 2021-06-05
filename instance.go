@@ -185,8 +185,6 @@ func (i *Instance) queueSchedule(s spec, args []interface{}, model *models.Sched
 		logger.Debug("schedule run already queued")
 	}
 	return rtn, err
-
-	return
 }
 
 // GetJob gets a job to run
@@ -296,7 +294,6 @@ func (i *Instance) Start() error {
 	}
 
 	i.started = true
-	i.logger.Debug("starting workers")
 	i.startWorkers()
 
 	i.logger.Debug("starting up instance - end")
